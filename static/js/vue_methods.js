@@ -4212,7 +4212,7 @@ let vue_methods = {
       let nextIndex = 0;
 
       while (this.TTSrunning) {
-        if (nextIndex > 0) {
+        if (nextIndex > 0||this.TTSrunning.engine == 'edgetts') {
           max_concurrency = this.ttsSettings.maxConcurrency || 1;
         }
         
