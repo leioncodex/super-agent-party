@@ -1,9 +1,11 @@
 ![image](static/source/agent_party.png)
 
 <div align="center">
-  <a href="./README_ZH.md"><img src="https://img.shields.io/badge/简体中文-d9d9d9"></a>
-  <a href="./README.md"><img src="https://img.shields.io/badge/English-d9d9d9"></a>
+  <a href="./README_ZH.md">简体中文</a> |
+  <a href="./README.md">English</a>
 </div>
+
+---
 
 <div align="center">
   <a href="https://space.bilibili.com/26978344">B站</a> ·
