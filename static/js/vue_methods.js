@@ -241,7 +241,7 @@ let vue_methods = {
     // 获取模型列表
     async fetchModelsForType(type) {
       try {
-        const response = await fetch(`${backendURL}/llm_models`, {
+        const response = await fetch(`/llm_models`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -471,7 +471,7 @@ let vue_methods = {
       else if (key === 'storage') {
         this.activeMenu = 'storage';
         this.subMenu = 'text'; // 默认显示第一个子菜单
-        response = await fetch(`${backendURL}/update_storage`, {
+        response = await fetch(`/update_storage`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'
@@ -726,7 +726,7 @@ let vue_methods = {
       sandbox.srcdoc = `<!DOCTYPE html>
         <html>
           <head>
-            <base href="${backendURL}/">
+            <base href="/">
             <link rel="stylesheet" href="/css/styles.css">
             <style>body { margin: 0; padding: 15px; }</style>
           </head>
@@ -1038,6 +1038,7 @@ let vue_methods = {
           this.mainAgent = data.data.mainAgent || this.mainAgent;
           this.qqBotConfig = data.data.qqBotConfig || this.qqBotConfig;
           this.BotConfig = data.data.BotConfig || this.BotConfig;
+          this.liveConfig = data.data.liveConfig || this.liveConfig;
           this.stickerPacks = data.data.stickerPacks || this.stickerPacks;
           this.toolsSettings = data.data.tools || this.toolsSettings;
           this.llmTools = data.data.llmTools || this.llmTools;
@@ -1189,7 +1190,7 @@ let vue_methods = {
     
         try {
             console.log('Uploading files...');
-            const response = await fetch(`${backendURL}/load_file`, {
+            const response = await fetch(`/load_file`, {
                 method: 'POST',
                 body: formData
             });
@@ -1230,7 +1231,7 @@ let vue_methods = {
       
           try {
               console.log('Uploading images...');
-              const response = await fetch(`${backendURL}/load_file`, {
+              const response = await fetch(`/load_file`, {
                   method: 'POST',
                   body: formData
               });
@@ -1373,7 +1374,7 @@ let vue_methods = {
       try {
         console.log('Sending message...');
         // 请求参数需要与后端接口一致
-        const response = await fetch(`${backendURL}/v1/chat/completions`, {  // 修改端点路径
+        const response = await fetch(`/v1/chat/completions`, {  // 修改端点路径
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1586,6 +1587,7 @@ let vue_methods = {
           mainAgent: this.mainAgent,
           qqBotConfig : this.qqBotConfig,
           BotConfig: this.BotConfig,
+          liveConfig: this.liveConfig,
           stickerPacks: this.stickerPacks,
           tools: this.toolsSettings,
           llmTools: this.llmTools,
@@ -1652,7 +1654,7 @@ let vue_methods = {
     async fetchModels() {
       this.modelsLoading = true;
       try {
-        const response = await fetch(`${backendURL}/v1/models`);
+        const response = await fetch(`/v1/models`);
         const result = await response.json();
         
         // 双重解构获取数据
@@ -1674,7 +1676,7 @@ let vue_methods = {
 
     // 修改copyEndpoint方法
     copyEndpoint() {
-      navigator.clipboard.writeText(`${backendURL}/v1`)
+      navigator.clipboard.writeText(`/v1`)
         .then(() => {
           showNotification(this.t('copy_success'), 'success');
         })
@@ -1684,7 +1686,7 @@ let vue_methods = {
     },
 
     copyMCPEndpoint(){
-      navigator.clipboard.writeText(`${backendURL}/mcp`)
+      navigator.clipboard.writeText(`/mcp`)
         .then(() => {
           showNotification(this.t('copy_success'), 'success');
         })
@@ -1907,7 +1909,7 @@ let vue_methods = {
     },
     async fetchModelsForProvider(provider) {
       try {
-        const response = await fetch(`${backendURL}/v1/providers/models`, {
+        const response = await fetch(`/v1/providers/models`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2156,7 +2158,7 @@ let vue_methods = {
   
             try {
               console.log('Uploading files...');
-              const response = await fetch(`${backendURL}/load_file`, {
+              const response = await fetch(`/load_file`, {
                 method: 'POST',
                 body: formData
               });
@@ -2187,7 +2189,7 @@ let vue_methods = {
             // Electron 环境：通过 JSON 上传
             try {
               console.log('Uploading Electron files...');
-              const response = await fetch(`${backendURL}/load_file`, {
+              const response = await fetch(`/load_file`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -2258,7 +2260,7 @@ let vue_methods = {
         // post kbId to 后端的create_kb端口
         try {
           // 1. 触发任务
-          const startResponse = await fetch(`${backendURL}/create_kb`, {
+          const startResponse = await fetch(`/create_kb`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ kbId }),
@@ -2268,7 +2270,7 @@ let vue_methods = {
           // 2. 轮询状态
           const checkStatus = async () => {
             try {
-              const statusResponse = await fetch(`${backendURL}/kb_status/${kbId}`);
+              const statusResponse = await fetch(`/kb_status/${kbId}`);
               
               // 处理 HTTP 错误状态
               if (!statusResponse.ok) {
@@ -2343,7 +2345,7 @@ let vue_methods = {
         let kbId = kb.id
         //手动触发modelProviders更新，从而能够实时与后端同步
         this.modelProviders = this.modelProviders
-        const Response = await fetch(`${backendURL}/remove_kb`, {
+        const Response = await fetch(`/remove_kb`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ kbId }),
@@ -2492,7 +2494,7 @@ let vue_methods = {
       this.isBrowserOpening = true;
       
       setTimeout(() => {
-        const url = `${backendURL}`;
+        const url = ``;
         if (isElectron) {
           window.electronAPI.openExternal(url);
         } else {
@@ -2532,7 +2534,7 @@ let vue_methods = {
         this.newMCPJson = '';
         await this.autoSaveSettings();
         // 触发后台任务
-        const response = await fetch(`${backendURL}/create_mcp`, {
+        const response = await fetch(`/create_mcp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mcpId })
@@ -2540,7 +2542,7 @@ let vue_methods = {
         
         // 启动状态轮询
         const checkStatus = async () => {
-          const statusRes = await fetch(`${backendURL}/mcp_status/${mcpId}`);
+          const statusRes = await fetch(`/mcp_status/${mcpId}`);
           return statusRes.json();
         };
         
@@ -2583,7 +2585,7 @@ let vue_methods = {
     // 新增确认方法
     async confirmDeleteMCP() {
       try {
-        const response = await fetch(`${backendURL}/remove_mcp`, {
+        const response = await fetch(`/remove_mcp`, {
           method: 'DELETE',
           headers: {
               'Content-Type': 'application/json',
@@ -2647,7 +2649,7 @@ let vue_methods = {
         this.agents = { ...this.agents }
         try {
           // 向/delete_file发送请求
-          const response = await fetch(`${backendURL}/remove_agent`, {
+          const response = await fetch(`/remove_agent`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ agentId: id })
@@ -2684,7 +2686,7 @@ let vue_methods = {
           }
         };
         await this.autoSaveSettings();
-        const response = await fetch(`${backendURL}/a2a`, {
+        const response = await fetch(`/a2a`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: newurl })
@@ -2719,7 +2721,7 @@ let vue_methods = {
       fileName = file.unique_filename
       try {
         // 向/delete_file发送请求
-        const response = await fetch(`${backendURL}/delete_file`, {
+        const response = await fetch(`/delete_file`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: fileName })
@@ -2740,7 +2742,7 @@ let vue_methods = {
       fileName = img.unique_filename
       try {
         // 向/delete_file发送请求
-        const response = await fetch(`${backendURL}/delete_file`, {
+        const response = await fetch(`/delete_file`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: fileName })
@@ -2828,7 +2830,7 @@ let vue_methods = {
       }
       try {
         // 向/delete_file发送请求
-        const response = await fetch(`${backendURL}/remove_memory`, {
+        const response = await fetch(`/remove_memory`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ memoryId: id })
@@ -2908,7 +2910,7 @@ let vue_methods = {
       // 显示连接中的提示
       showNotification('正在连接QQ机器人...', 'info');
       
-      const response = await fetch(`${backendURL}/start_qq_bot`, {
+      const response = await fetch(`/start_qq_bot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.qqBotConfig)
@@ -2942,7 +2944,7 @@ let vue_methods = {
     this.isStopping = true;
     
     try {
-      const response = await fetch(`${backendURL}/stop_qq_bot`, {
+      const response = await fetch(`/stop_qq_bot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -2969,7 +2971,7 @@ let vue_methods = {
     this.isReloading = true;
     
     try {
-      const response = await fetch(`${backendURL}/reload_qq_bot`, {
+      const response = await fetch(`/reload_qq_bot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.qqBotConfig)
@@ -2998,7 +3000,7 @@ let vue_methods = {
   // 添加状态检查方法
   async checkQQBotStatus() {
     try {
-      const response = await fetch(`${backendURL}/qq_bot_status`);
+      const response = await fetch(`/qq_bot_status`);
       const status = await response.json();
       
       // 更新机器人运行状态
@@ -3016,7 +3018,7 @@ let vue_methods = {
     // 新增的方法：供主进程请求关闭机器人
     async requestStopQQBotIfRunning() {
       try {
-        const response = await fetch(`${backendURL}/qq_bot_status`)
+        const response = await fetch(`/qq_bot_status`)
         const status = await response.json()
 
         if (status.is_running) {
@@ -3182,7 +3184,7 @@ let vue_methods = {
     // 删除工作流
     async deleteWorkflow(filename) {
       try {
-        const response = await fetch(`${backendURL}/delete_workflow/${filename}`, {
+        const response = await fetch(`/delete_workflow/${filename}`, {
           method: 'DELETE',
         });
         const data = await response.json();
@@ -3280,7 +3282,7 @@ let vue_methods = {
       formData.append('workflow_data', JSON.stringify(workflowData));
 
       try {
-        const response = await fetch(`${backendURL}/add_workflow`, {
+        const response = await fetch(`/add_workflow`, {
           method: 'POST',
           body: formData,
         });
@@ -3326,7 +3328,7 @@ let vue_methods = {
       fileName = video.unique_filename
       try {
         // 向/delete_file发送请求
-        const response = await fetch(`${backendURL}/delete_file`, {
+        const response = await fetch(`/delete_file`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: fileName })
@@ -3403,7 +3405,7 @@ let vue_methods = {
         });
 
         // 发送请求
-        const response = await fetch(`${backendURL}/create_sticker_pack`, {
+        const response = await fetch(`/create_sticker_pack`, {
           method: 'POST',
           body: formData
         });
@@ -3516,7 +3518,7 @@ let vue_methods = {
       if (file && file.type === 'application/json') {
         this.handleFileUpload(file);
       } else {
-        this.$message.error('Please upload a valid JSON file.');
+        showNotification('Please upload a valid JSON file.', 'error');
       }
     },
 
@@ -3528,7 +3530,7 @@ let vue_methods = {
           this.importMemoryData(jsonData); // 调用导入方法
           this.jsonFile = file; // 保存文件信息
         } catch (error) {
-          this.$message.error('Invalid JSON file.'); // 错误提示
+          showNotification('Invalid JSON file.', 'error'); // 错误提示
         }
       };
 
@@ -3603,7 +3605,7 @@ let vue_methods = {
     initWebSpeechAPI() {
       if(isElectron){
         showNotification(this.t('webSpeechNotSupportedInElectron'), 'error');
-        const url = `${backendURL}`;
+        const url = ``;
         window.electronAPI.openExternal(url);
         this.asrSettings.enabled = false;
         return false;
@@ -4249,7 +4251,7 @@ let vue_methods = {
       console.log(`Processing TTS chunk ${index}:`, chunk_text);
       
       try {
-        const response = await fetch(`${backendURL}/tts`, {
+        const response = await fetch(`/tts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: chunk_text, index })
@@ -4515,7 +4517,7 @@ let vue_methods = {
     formData.append('prompt_text', this.newGsvAudio.text);
     
     try {
-      const response = await fetch(`${backendURL}/upload_gsv_ref_audio`, {
+      const response = await fetch(`/upload_gsv_ref_audio`, {
         method: 'POST',
         body: formData
       });
@@ -4579,7 +4581,7 @@ let vue_methods = {
         .pop();
       
       // 调用后端API删除文件
-      const response = await fetch(`${backendURL}/delete_audio/${uniqueFilename}`, {
+      const response = await fetch(`/delete_audio/${uniqueFilename}`, {
         method: 'DELETE'
       });
       
@@ -4624,15 +4626,15 @@ let vue_methods = {
       }
     } else {
       // 浏览器环境
-      window.open(`${backendURL}/vrm.html`, '_blank');
+      window.open(`/vrm.html`, '_blank');
     }
   },
   async startVRMweb() {
     if (this.isElectron) {
-      window.electronAPI.openExternal(`${backendURL}/vrm.html`);
+      window.electronAPI.openExternal(`/vrm.html`);
     }else {
       // 浏览器环境
-      window.open(`${backendURL}/vrm.html`, '_blank');
+      window.open(`/vrm.html`, '_blank');
     }
   },
     async checkServerPort() {
@@ -4754,7 +4756,7 @@ let vue_methods = {
     // 加载默认模型列表
   async loadDefaultModels() {
     try {
-      const response = await fetch(`${backendURL}/get_default_vrm_models`);
+      const response = await fetch(`/get_default_vrm_models`);
       const result = await response.json();
       
       if (result.success) {
@@ -4788,7 +4790,7 @@ let vue_methods = {
     formData.append('display_name', this.newVrmModel.displayName.trim());
     
     try {
-      const response = await fetch(`${backendURL}/upload_vrm_model`, {
+      const response = await fetch(`/upload_vrm_model`, {
         method: 'POST',
         body: formData
       });
@@ -4836,7 +4838,7 @@ let vue_methods = {
       }
       
       // 调用后端API删除文件
-      const response = await fetch(`${backendURL}/delete_vrm_model/${modelId}`, {
+      const response = await fetch(`/delete_vrm_model/${modelId}`, {
         method: 'DELETE'
       });
       
@@ -4883,5 +4885,220 @@ let vue_methods = {
     }
     
     return selectedModel;
-  }
+  },
+   // 启动直播监听
+  async startLive() {
+    if (!this.isLiveConfigValid || this.isLiveRunning || this.isLiveStarting) {
+      return;
+    }
+
+    this.isLiveStarting = true;
+    
+    try {
+      // 发送启动请求到FastAPI后端
+      const response = await fetch('/api/live/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          config: this.liveConfig
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        this.isLiveRunning = true;
+        this.shouldReconnectWs = true; // 启动时允许重连
+        this.connectLiveWebSocket();
+        showNotification(result.message || this.t('live_started_successfully'));
+      } else {
+        showNotification(result.message || this.t('failed_to_start_live'), 'error');
+      }
+    } catch (error) {
+      console.error('启动直播监听失败:', error);
+      showNotification(this.t('failed_to_start_live'), 'error');
+    } finally {
+      this.isLiveStarting = false;
+    }
+  },
+
+  // 停止直播监听
+  async stopLive() {
+    if (!this.isLiveRunning || this.isLiveStopping) {
+      return;
+    }
+
+    this.isLiveStopping = true;
+    
+    try {
+      // 先设置状态，阻止WebSocket重连
+      this.shouldReconnectWs = false;
+      this.isLiveRunning = false;
+      
+      // 关闭WebSocket连接
+      this.disconnectLiveWebSocket();
+      
+      // 发送停止请求到FastAPI后端
+      const response = await fetch('/api/live/stop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        this.danmu = []; // 清空弹幕数据
+        showNotification(result.message || this.t('live_stopped_successfully'));
+      } else {
+        showNotification(result.message || this.t('failed_to_stop_live'), 'error');
+        // 如果后端停止失败，恢复状态
+        this.isLiveRunning = true;
+        this.shouldReconnectWs = true;
+      }
+    } catch (error) {
+      console.error('停止直播监听失败:', error);
+      showNotification(this.t('failed_to_stop_live'), 'error');
+      // 如果出错，恢复状态
+      this.isLiveRunning = true;
+      this.shouldReconnectWs = true;
+    } finally {
+      this.isLiveStopping = false;
+    }
+  },
+
+  // 重载直播配置
+  async reloadLiveConfig() {
+    if (!this.isLiveRunning || this.isLiveReloading) {
+      return;
+    }
+
+    this.isLiveReloading = true;
+    
+    try {
+      const response = await fetch('/api/live/reload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          config: this.liveConfig
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // 重新连接WebSocket
+        this.shouldReconnectWs = false; // 先阻止重连
+        this.disconnectLiveWebSocket();
+        
+        setTimeout(() => {
+          this.shouldReconnectWs = true; // 重新允许重连
+          this.connectLiveWebSocket();
+        }, 1000);
+        
+        showNotification(result.message || this.t('live_config_reloaded_successfully'));
+      } else {
+        showNotification(result.message || this.t('failed_to_reload_live_config'), 'error');
+      }
+    } catch (error) {
+      console.error('重载直播配置失败:', error);
+      showNotification(this.t('failed_to_reload_live_config'), 'error');
+    } finally {
+      this.isLiveReloading = false;
+    }
+  },
+
+  // 连接WebSocket
+  connectLiveWebSocket() {
+    try {
+      // 根据当前协议选择ws或wss
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/live/danmu`;
+      
+      this.bilibiliWs = new WebSocket(wsUrl);
+      
+      this.bilibiliWs.onopen = (event) => {
+        console.log('WebSocket连接已建立');
+      };
+      
+      this.bilibiliWs.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this.handleDanmuMessage(data);
+        } catch (error) {
+          console.error('解析WebSocket消息失败:', error);
+        }
+      };
+      
+      this.bilibiliWs.onclose = (event) => {
+        console.log('WebSocket连接已关闭');
+        
+        // 只有在允许重连且直播还在运行时才重连
+        if (this.shouldReconnectWs && this.isLiveRunning) {
+          console.log('准备重连WebSocket...');
+          setTimeout(() => {
+            // 再次检查状态，确保仍然需要重连
+            if (this.shouldReconnectWs && this.isLiveRunning) {
+              console.log('开始重连WebSocket');
+              this.connectLiveWebSocket();
+            } else {
+              console.log('取消重连WebSocket');
+            }
+          }, 3000);
+        } else {
+          console.log('不需要重连WebSocket');
+        }
+      };
+      
+      this.bilibiliWs.onerror = (error) => {
+        console.error('WebSocket连接错误:', error);
+      };
+    } catch (error) {
+      console.error('创建WebSocket连接失败:', error);
+    }
+  },
+
+  // 断开WebSocket连接
+  disconnectLiveWebSocket() {
+    console.log('断开WebSocket连接');
+    
+    if (this.bilibiliWs) {
+      // 先设置为null，避免onclose事件中的重连逻辑
+      const ws = this.bilibiliWs;
+      this.bilibiliWs = null;
+      
+      // 然后关闭连接
+      ws.close();
+    }
+  },
+
+  // 处理弹幕消息
+  handleDanmuMessage(data) {
+    // 如果是统一的消息格式
+    if (data.type === 'message') {
+      const danmuItem = {
+        content: data.content,
+        timestamp: new Date().toLocaleTimeString('zh-CN', {
+          timeZone: 'Asia/Shanghai',
+          hour12: false
+        })
+      };
+      
+      // 添加到弹幕数组开头
+      this.danmu.unshift(danmuItem);
+      
+      // 保持数组长度不超过5
+      if (this.danmu.length > 5) {
+        this.danmu = this.danmu.slice(0, 5);
+      }
+    } else if (data.type === 'error') {
+      // 处理错误消息
+      showNotification(data.message, 'error');
+    }
+  },
 }

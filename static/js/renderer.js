@@ -16,9 +16,11 @@ const app = Vue.createApp({
     if (this.statusInterval) {
       clearInterval(this.statusInterval);
     }
-    window.removeEventListener('keydown', this.handleKeyDown)
-    window.removeEventListener('keyup', this.handleKeyUp)
+    window.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('keyup', this.handleKeyUp);
     window.removeEventListener('resize', this.checkMobile);
+    this.shouldReconnectWs = false; // 设置标志位
+    this.disconnectWebSocket();
   },
   async mounted() {
     // 初始检查
@@ -190,12 +192,15 @@ const app = Vue.createApp({
         return this.qqBotConfig.appid && this.qqBotConfig.secret;
     },
     isLiveConfigValid() {
-        if (this.bilibili_enabled) {
-            if(this.bilibili_type === 'web'){
-                return this.bilibili_room_id&&this.bilibili_sessdata;
+        if (this.liveConfig.bilibili_enabled) {
+            if(this.liveConfig.bilibili_type === 'web'){
+                return this.liveConfig.bilibili_room_id && this.liveConfig.bilibili_room_id.trim() !== '';
             }
-            else if(this.bilibili_type === 'open_live'){
-                return this.bilibili_ACCESS_KEY_ID && this.bilibili_SECRET_ACCESS_KEY && this.bilibili_APP_ID && this.bilibili_ROOM_OWNER_AUTH_CODE;
+            else if(this.liveConfig.bilibili_type === 'open_live'){
+                return this.liveConfig.bilibili_ACCESS_KEY_ID &&
+                this.liveConfig.bilibili_SECRET_ACCESS_KEY &&
+                this.liveConfig.bilibili_APP_ID &&
+                this.liveConfig.bilibili_ROOM_OWNER_AUTH_CODE;
             }
         }
         return false;

@@ -842,6 +842,9 @@ let vue_data = {
       bilibili_APP_ID: '',
       bilibili_ROOM_OWNER_AUTH_CODE: '',
     },
+    danmu: [], // 弹幕列表
+    bilibiliWs: null, // WebSocket连接
+    shouldReconnectWs :false,
     isLiveRunning: false,
     isLiveStarting: false,
     isLiveStopping: false,
