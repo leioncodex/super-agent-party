@@ -4887,40 +4887,65 @@ class WebSocketHandler(blivedm.BaseHandler):
         print(f'[{client.room_id}] 心跳')
 
     def _on_danmaku(self, client: blivedm.BLiveClient, message: web_models.DanmakuMessage):
-        msg_text = f'[{client.room_id}] {message.uname}：{message.msg}'
+        msg_text = f'{message.uname}：{message.msg}'
         data = {
             'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "danmaku"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
     
     def _on_gift(self, client: blivedm.BLiveClient, message: web_models.GiftMessage):
-        msg_text = f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num} （{message.coin_type}瓜子x{message.total_coin}）'
+        msg_text = f'{message.uname} 赠送{message.gift_name}x{message.num} （{message.coin_type}瓜子x{message.total_coin}）'
         data = {
             'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "gift"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
     
-    def _on_user_toast_v2(self, client: blivedm.BLiveClient, message: web_models.UserToastV2Message):
-        msg_text = f'[{client.room_id}] {message.username} 上舰，guard_level={message.guard_level}'
+    def _on_buy_guard(self, client: blivedm.BLiveClient, message: web_models.GuardBuyMessage):
+        msg_text = f'{message.username} 上舰，guard_level={message.guard_level}'
         data = {
             'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "buy_guard"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
     
     def _on_super_chat(self, client: blivedm.BLiveClient, message: web_models.SuperChatMessage):
-        msg_text = f'[{client.room_id}] 醒目留言 ¥{message.price} {message.uname}：{message.message}'
+        msg_text = f'醒目留言 ¥{message.price} {message.uname}：{message.message}'
         data = {
             'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "super_chat"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
+
+    def _on_interact_word(self, client: blivedm.BLiveClient, message: web_models.InteractWordMessage):
+        if message.msg_type == 1:
+            msg_text =  f'[{client.room_id}] {message.username} 进入房间'
+            data = {
+                'type': 'message',
+                'content': msg_text,
+                "dabmu_type": "enter_room"
+            }
+            print(msg_text)
+            asyncio.create_task(manager.broadcast(data))
+        elif message.msg_type == 2:
+            msg_text = f'[{client.room_id}] {message.username} 关注了你'
+            data = {
+                'type': 'message',
+                'content': msg_text,
+                "dabmu_type": "follow"
+            }
+            print(msg_text)
+            asyncio.create_task(manager.broadcast(data))
+
 
 class OpenLiveWebSocketHandler(blivedm.BaseHandler):
     """开放平台类型WebSocket处理器"""
@@ -4929,10 +4954,11 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         print(f'[开放平台] 心跳')
 
     def _on_open_live_danmaku(self, client: blivedm.OpenLiveClient, message: open_models.DanmakuMessage):
-        msg_text = f'[{message.room_id}] {message.uname}：{message.msg}'
+        msg_text = f'{message.uname}：{message.msg}'
         data = {
             'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "danmaku"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -4940,73 +4966,51 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
     def _on_open_live_gift(self, client: blivedm.OpenLiveClient, message: open_models.GiftMessage):
         coin_type = '金瓜子' if message.paid else '银瓜子'
         total_coin = message.price * message.gift_num
-        msg_text = f'[{message.room_id}] {message.uname} 赠送{message.gift_name}x{message.gift_num} （{coin_type}x{total_coin}）'
+        msg_text = f'{message.uname} 赠送{message.gift_name}x{message.gift_num} （{coin_type}x{total_coin}）'
         data = {
             'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "gift"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
 
     def _on_open_live_buy_guard(self, client: blivedm.OpenLiveClient, message: open_models.GuardBuyMessage):
-        msg_text = f'[{message.room_id}] {message.user_info.uname} 购买 大航海等级={message.guard_level}'
+        msg_text = f'{message.user_info.uname} 购买 大航海等级={message.guard_level}'
         data = {
             'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "buy_guard"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
 
     def _on_open_live_super_chat(self, client: blivedm.OpenLiveClient, message: open_models.SuperChatMessage):
-        msg_text = f'[{message.room_id}] 醒目留言 ¥{message.rmb} {message.uname}：{message.message}'
+        msg_text = f'醒目留言 ¥{message.rmb} {message.uname}：{message.message}'
         data = {
             'type': 'message',
-            'content': msg_text
-        }
-        print(msg_text)
-        asyncio.create_task(manager.broadcast(data))
-
-    def _on_open_live_super_chat_delete(self, client: blivedm.OpenLiveClient, message: open_models.SuperChatDeleteMessage):
-        msg_text = f'[{message.room_id}] 删除醒目留言 message_ids={message.message_ids}'
-        data = {
-            'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "super_chat"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
 
     def _on_open_live_like(self, client: blivedm.OpenLiveClient, message: open_models.LikeMessage):
-        msg_text = f'[{message.room_id}] {message.uname} 点赞'
+        msg_text = f'{message.uname} 点赞'
         data = {
             'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "like"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
 
     def _on_open_live_enter_room(self, client: blivedm.OpenLiveClient, message: open_models.RoomEnterMessage):
-        msg_text = f'[{message.room_id}] {message.uname} 进入房间'
+        msg_text = f'{message.uname} 进入房间'
         data = {
             'type': 'message',
-            'content': msg_text
-        }
-        print(msg_text)
-        asyncio.create_task(manager.broadcast(data))
-
-    def _on_open_live_start_live(self, client: blivedm.OpenLiveClient, message: open_models.LiveStartMessage):
-        msg_text = f'[{message.room_id}] 开始直播'
-        data = {
-            'type': 'message',
-            'content': msg_text
-        }
-        print(msg_text)
-        asyncio.create_task(manager.broadcast(data))
-
-    def _on_open_live_end_live(self, client: blivedm.OpenLiveClient, message: open_models.LiveEndMessage):
-        msg_text = f'[{message.room_id}] 结束直播'
-        data = {
-            'type': 'message',
-            'content': msg_text
+            'content': msg_text,
+            "dabmu_type": "enter_room"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
