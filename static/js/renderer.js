@@ -20,6 +20,7 @@ const app = Vue.createApp({
     window.removeEventListener('keyup', this.handleKeyUp);
     window.removeEventListener('resize', this.checkMobile);
     this.shouldReconnectWs = false; // 设置标志位
+    this.stopDanmuProcessor(); // 停止弹幕处理器
     this.disconnectWebSocket();
   },
   async mounted() {

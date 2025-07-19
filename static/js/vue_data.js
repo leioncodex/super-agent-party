@@ -844,6 +844,8 @@ let vue_data = {
     },
     danmu: [], // 弹幕列表
     bilibiliWs: null, // WebSocket连接
+    danmuProcessTimer: null, // 弹幕处理定时器
+    isProcessingDanmu: false, // 是否正在处理弹幕
     shouldReconnectWs :false,
     isLiveRunning: false,
     isLiveStarting: false,

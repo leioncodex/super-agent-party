@@ -4891,7 +4891,7 @@ class WebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "danmaku"
+            "danmu_type": "danmaku"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -4901,7 +4901,7 @@ class WebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "gift"
+            "danmu_type": "gift"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -4911,7 +4911,7 @@ class WebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "buy_guard"
+            "danmu_type": "buy_guard"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -4921,7 +4921,7 @@ class WebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "super_chat"
+            "danmu_type": "super_chat"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -4932,7 +4932,7 @@ class WebSocketHandler(blivedm.BaseHandler):
             data = {
                 'type': 'message',
                 'content': msg_text,
-                "dabmu_type": "enter_room"
+                "danmu_type": "enter_room"
             }
             print(msg_text)
             asyncio.create_task(manager.broadcast(data))
@@ -4941,7 +4941,7 @@ class WebSocketHandler(blivedm.BaseHandler):
             data = {
                 'type': 'message',
                 'content': msg_text,
-                "dabmu_type": "follow"
+                "danmu_type": "follow"
             }
             print(msg_text)
             asyncio.create_task(manager.broadcast(data))
@@ -4958,7 +4958,7 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "danmaku"
+            "danmu_type": "danmaku"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -4970,7 +4970,7 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "gift"
+            "danmu_type": "gift"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -4980,7 +4980,7 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "buy_guard"
+            "danmu_type": "buy_guard"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -4990,7 +4990,7 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "super_chat"
+            "danmu_type": "super_chat"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -5000,7 +5000,7 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "like"
+            "danmu_type": "like"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
@@ -5010,7 +5010,7 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         data = {
             'type': 'message',
             'content': msg_text,
-            "dabmu_type": "enter_room"
+            "danmu_type": "enter_room"
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))

@@ -4886,7 +4886,7 @@ let vue_methods = {
     
     return selectedModel;
   },
-   // 启动直播监听
+  // 启动直播监听
   async startLive() {
     if (!this.isLiveConfigValid || this.isLiveRunning || this.isLiveStarting) {
       return;
@@ -4912,6 +4912,7 @@ let vue_methods = {
         this.isLiveRunning = true;
         this.shouldReconnectWs = true; // 启动时允许重连
         this.connectLiveWebSocket();
+        this.startDanmuProcessor(); // 启动弹幕处理器
         showNotification(result.message || this.t('live_started_successfully'));
       } else {
         showNotification(result.message || this.t('failed_to_start_live'), 'error');
@@ -4937,6 +4938,9 @@ let vue_methods = {
       this.shouldReconnectWs = false;
       this.isLiveRunning = false;
       
+      // 停止弹幕处理器
+      this.stopDanmuProcessor();
+      
       // 关闭WebSocket连接
       this.disconnectLiveWebSocket();
       
@@ -4958,6 +4962,7 @@ let vue_methods = {
         // 如果后端停止失败，恢复状态
         this.isLiveRunning = true;
         this.shouldReconnectWs = true;
+        this.startDanmuProcessor(); // 重新启动弹幕处理器
       }
     } catch (error) {
       console.error('停止直播监听失败:', error);
@@ -4965,6 +4970,7 @@ let vue_methods = {
       // 如果出错，恢复状态
       this.isLiveRunning = true;
       this.shouldReconnectWs = true;
+      this.startDanmuProcessor(); // 重新启动弹幕处理器
     } finally {
       this.isLiveStopping = false;
     }
@@ -5010,6 +5016,74 @@ let vue_methods = {
       showNotification(this.t('failed_to_reload_live_config'), 'error');
     } finally {
       this.isLiveReloading = false;
+    }
+  },
+
+  // 启动弹幕处理器
+  startDanmuProcessor() {
+    console.log('启动弹幕处理器');
+    
+    // 如果已经有定时器在运行，先清除
+    if (this.danmuProcessTimer) {
+      clearInterval(this.danmuProcessTimer);
+    }
+    
+    // 每秒检查一次弹幕队列
+    this.danmuProcessTimer = setInterval(async () => {
+      await this.processDanmuQueue();
+    }, 1000);
+  },
+
+  // 停止弹幕处理器
+  stopDanmuProcessor() {
+    console.log('停止弹幕处理器');
+    
+    if (this.danmuProcessTimer) {
+      clearInterval(this.danmuProcessTimer);
+      this.danmuProcessTimer = null;
+    }
+    
+    this.isProcessingDanmu = false;
+  },
+
+  // 处理弹幕队列
+  async processDanmuQueue() {
+    try {
+      // 检查所有条件
+      if (!this.isLiveRunning || 
+          this.danmu.length === 0 || 
+          this.isTyping || 
+          this.TTSrunning || 
+          this.isProcessingDanmu) {
+        return;
+      }
+
+      // 设置处理标志，防止并发处理
+      this.isProcessingDanmu = true;
+      
+      // 获取最老的弹幕（队列末尾）
+      const oldestDanmu = this.danmu[this.danmu.length - 1];
+      
+      if (oldestDanmu && oldestDanmu.content) {
+        console.log('处理弹幕:', oldestDanmu.content);
+        
+        // 将弹幕内容赋值到用户输入
+        this.userInput = oldestDanmu.content;
+        
+        // 发送消息
+        await this.sendMessage();
+        
+        // 删除已处理的弹幕
+        this.danmu.pop(); // 删除最后一个元素（最老的）
+        
+        console.log('弹幕处理完成，剩余弹幕数量:', this.danmu.length);
+      }
+      
+    } catch (error) {
+      console.error('处理弹幕时出错:', error);
+    } finally {
+      // 重置处理标志
+      this.isProcessingDanmu = false;
     }
   },
 
@@ -5083,6 +5157,7 @@ let vue_methods = {
     if (data.type === 'message') {
       const danmuItem = {
         content: data.content,
+        type: data.danmu_type,
         timestamp: new Date().toLocaleTimeString('zh-CN', {
           timeZone: 'Asia/Shanghai',
           hour12: false
@@ -5096,6 +5171,9 @@ let vue_methods = {
       if (this.danmu.length > 5) {
         this.danmu = this.danmu.slice(0, 5);
       }
+      
+      console.log('收到新弹幕:', danmuItem.content, '当前队列长度:', this.danmu.length);
+      
     } else if (data.type === 'error') {
       // 处理错误消息
       showNotification(data.message, 'error');
