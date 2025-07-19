@@ -2,6 +2,7 @@
 name = "super-agent-party"
 version = "v0.2.3"
 description = "超级智能体派对 | 链接一切模型、知识库、搜索引擎、MCP服务器、A2A服务器；可以web端、桌面端、API等多种方式使用"
+license = "AGPL-3.0"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -45,4 +46,5 @@ dependencies = [
     "websocket-client>=1.8.0",
     "scipy>=1.16.0",
     "edge-tts>=7.0.2",
+    "brotli>=1.1.0",
 ]
