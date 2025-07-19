@@ -25,3 +25,4 @@ doc/
 super-agent-data/
 botpy.log*
 build.bat
+test*

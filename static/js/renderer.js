@@ -189,6 +189,17 @@ const app = Vue.createApp({
     isQQBotConfigValid() {
         return this.qqBotConfig.appid && this.qqBotConfig.secret;
     },
+    isLiveConfigValid() {
+        if (this.bilibili_enabled) {
+            if(this.bilibili_type === 'web'){
+                return this.bilibili_room_id&&this.bilibili_sessdata;
+            }
+            else if(this.bilibili_type === 'open_live'){
+                return this.bilibili_ACCESS_KEY_ID && this.bilibili_SECRET_ACCESS_KEY && this.bilibili_APP_ID && this.bilibili_ROOM_OWNER_AUTH_CODE;
+            }
+        }
+        return false;
+    },
     updateButtonText() {
       if (this.updateDownloaded) return this.t('installNow');
       if (this.downloadProgress > 0) return this.t('downloading');

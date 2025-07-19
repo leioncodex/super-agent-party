@@ -828,9 +828,24 @@ let vue_data = {
     },
     deployTiles: [
       { id: 'table_pet', title: 'tablePet', icon: "fa-solid fa-user-ninja"},
+      { id: 'live_stream', title: 'live_stream', icon: "fa-solid fa-video"},
       { id: 'qq_bot', title: 'qqBot', icon: 'fa-brands fa-qq' },
       { id: 'bot_config', title: 'bot_config', icon: 'fa-solid fa-robot' }
     ],
+    liveConfig: {
+      bilibili_enabled: false,
+      bilibili_type: 'web',
+      bilibili_room_id: '',
+      bilibili_sessdata: '',
+      bilibili_ACCESS_KEY_ID: '',
+      bilibili_ACCESS_KEY_SECRET: '',
+      bilibili_APP_ID: '',
+      bilibili_ROOM_OWNER_AUTH_CODE: '',
+    },
+    isLiveRunning: false,
+    isLiveStarting: false,
+    isLiveStopping: false,
+    isLiveReloading: false,
     stickerPacks: [],
     showStickerDialog: false,
     newStickerPack: {

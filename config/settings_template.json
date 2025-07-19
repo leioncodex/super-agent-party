@@ -170,6 +170,16 @@
       "gsvRefAudioPath": "",
       "gsvAudioOptions": []
     },
+    "liveConfig": {
+      "bilibili_enabled": false,
+      "bilibili_type": "web",
+      "bilibili_room_id": "",
+      "bilibili_sessdata": "",
+      "bilibili_ACCESS_KEY_ID": "",
+      "bilibili_ACCESS_KEY_SECRET": "",
+      "bilibili_APP_ID": "",
+      "bilibili_ROOM_OWNER_AUTH_CODE": ""
+    },
     "VRMConfig": {
       "enabledExpressions": false,
       "selectedModelId": "alice", 
