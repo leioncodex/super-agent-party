@@ -38,3 +38,4 @@ qq-botpy
 scipy
 edge-tts
 Brotli
+wxauto; sys_platform == 'win32'
