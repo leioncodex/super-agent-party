@@ -605,6 +605,9 @@ const translations = {
         'start_live': '开始直播',
         'stop_live': '停止直播',
         'reload_live': '重载直播配置',
+        'liveSetting': '直播设置',
+        'onlyDanmaku': '仅回复弹幕',
+        'danmakuQueueLimit': '弹幕队列上限',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1209,5 +1212,8 @@ const translations = {
         'start_live': 'Start Live',
         'stop_live': 'Stop Live',
         'reload_live': 'Reload Live Config',
+        'liveSetting': 'Live Setting',
+        'onlyDanmaku': 'Only Reply Danmaku',
+        'danmakuQueueLimit': 'Danmaku Queue Upper Limit',
     }
   };

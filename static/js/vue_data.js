@@ -833,6 +833,8 @@ let vue_data = {
       { id: 'bot_config', title: 'bot_config', icon: 'fa-solid fa-robot' }
     ],
     liveConfig: {
+      onlyDanmaku: true,
+      danmakuQueueLimit: 5,
       bilibili_enabled: false,
       bilibili_type: 'web',
       bilibili_room_id: '',

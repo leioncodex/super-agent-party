@@ -4112,8 +4112,6 @@ let vue_methods = {
     async changeTTSstatus() {
       if (!this.ttsSettings.enabled) {
         this.TTSrunning = false;
-      }else {
-        this.TTSrunning = true;
       }
       await this.autoSaveSettings();
     },
@@ -5049,6 +5047,21 @@ let vue_methods = {
   // 处理弹幕队列
   async processDanmuQueue() {
     try {
+      if(this.TTSrunning){
+        if ((!lastMessage || (lastMessage?.currentChunk ?? 0) >= (lastMessage?.ttsChunks?.length ?? 0)) && !this.isTyping) {
+          console.log('All audio chunks played');
+          lastMessage.currentChunk = 0;
+          this.TTSrunning = false;
+          this.cur_audioDatas = [];
+          // 通知VRM所有音频播放完成
+          this.sendTTSStatusToVRM('allChunksCompleted', {});
+        }
+        else{
+          console.log('Audio chunks still playing');
+          return;
+        }
+      }
+
       // 检查所有条件
       if (!this.isLiveRunning || 
           this.danmu.length === 0 || 
@@ -5163,13 +5176,18 @@ let vue_methods = {
           hour12: false
         })
       };
+      if (this.liveConfig.onlyDanmaku){
+        if (danmuItem.type === "danmu" || danmuItem.type === "super_chat") {
+          this.danmu.unshift(danmuItem);
+        } 
+      }else {
+        this.danmu.unshift(danmuItem);
+      }
       
-      // 添加到弹幕数组开头
-      this.danmu.unshift(danmuItem);
       
-      // 保持数组长度不超过5
-      if (this.danmu.length > 5) {
-        this.danmu = this.danmu.slice(0, 5);
+      // 保持数组长度不超过this.liveConfig.danmakuQueueLimit
+      if (this.danmu.length > this.liveConfig.danmakuQueueLimit) {
+        this.danmu = this.danmu.slice(0, this.liveConfig.danmakuQueueLimit);
       }
       
       console.log('收到新弹幕:', danmuItem.content, '当前队列长度:', this.danmu.length);

@@ -5427,6 +5427,34 @@
                             </el-tooltip>
                           </div>
                         </div>
+
+                        <div class="tool-item">
+                          <div class="tool-header">
+                            <div class="header-left">
+                              <span>
+                                {{t('liveSetting')}}
+                              </span>
+                            </div>
+                          </div>
+                          <div class="tool-content">
+                            <el-form-item :label="t('onlyDanmaku')" class="form-item-align" label-position="left">
+                              <el-switch 
+                                v-model="liveConfig.onlyDanmaku" 
+                                @change="autoSaveSettings"
+                              ></el-switch>
+                            </el-form-item>   
+                            <el-form-item :label="t('danmakuQueueLimit')" class="form-item-align" label-position="left">
+                              <el-slider
+                                v-model="liveConfig.danmakuQueueLimit"
+                                :min="1"
+                                :max="30"
+                                :step="1"
+                                @change="autoSaveSettings"
+                              />
+                            </el-form-item> 
+                          </div>
+                        </div>
+
                         <div class="tool-item">
                           <div class="tool-header">
                             <div class="header-left">

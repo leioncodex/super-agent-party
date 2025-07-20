@@ -4887,7 +4887,7 @@ class WebSocketHandler(blivedm.BaseHandler):
         print(f'[{client.room_id}] 心跳')
 
     def _on_danmaku(self, client: blivedm.BLiveClient, message: web_models.DanmakuMessage):
-        msg_text = f'{message.uname}：{message.msg}'
+        msg_text = f'{message.uname}发送弹幕：{message.msg}'
         data = {
             'type': 'message',
             'content': msg_text,
@@ -4917,7 +4917,7 @@ class WebSocketHandler(blivedm.BaseHandler):
         asyncio.create_task(manager.broadcast(data))
     
     def _on_super_chat(self, client: blivedm.BLiveClient, message: web_models.SuperChatMessage):
-        msg_text = f'醒目留言 ¥{message.price} {message.uname}：{message.message}'
+        msg_text = f'{message.uname}发送醒目留言：{message.message}'
         data = {
             'type': 'message',
             'content': msg_text,
@@ -4928,7 +4928,7 @@ class WebSocketHandler(blivedm.BaseHandler):
 
     def _on_interact_word(self, client: blivedm.BLiveClient, message: web_models.InteractWordMessage):
         if message.msg_type == 1:
-            msg_text =  f'[{client.room_id}] {message.username} 进入房间'
+            msg_text =  f'{message.username} 进入房间'
             data = {
                 'type': 'message',
                 'content': msg_text,
@@ -4937,7 +4937,7 @@ class WebSocketHandler(blivedm.BaseHandler):
             print(msg_text)
             asyncio.create_task(manager.broadcast(data))
         elif message.msg_type == 2:
-            msg_text = f'[{client.room_id}] {message.username} 关注了你'
+            msg_text = f'{message.username} 关注了你'
             data = {
                 'type': 'message',
                 'content': msg_text,
@@ -4954,7 +4954,7 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         print(f'[开放平台] 心跳')
 
     def _on_open_live_danmaku(self, client: blivedm.OpenLiveClient, message: open_models.DanmakuMessage):
-        msg_text = f'{message.uname}：{message.msg}'
+        msg_text = f'{message.uname}发送弹幕：{message.msg}'
         data = {
             'type': 'message',
             'content': msg_text,
@@ -4986,7 +4986,7 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         asyncio.create_task(manager.broadcast(data))
 
     def _on_open_live_super_chat(self, client: blivedm.OpenLiveClient, message: open_models.SuperChatMessage):
-        msg_text = f'醒目留言 ¥{message.rmb} {message.uname}：{message.message}'
+        msg_text = f'{message.uname}发送醒目留言：{message.message}'
         data = {
             'type': 'message',
             'content': msg_text,
