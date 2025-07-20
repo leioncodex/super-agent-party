@@ -609,6 +609,10 @@ const translations = {
         'onlyDanmaku': '仅回复弹幕',
         'danmakuQueueLimit': '弹幕队列上限',
         'gotoBilibiliOpenLive': '前往B站直播开放平台',
+        'wxBot': '微信机器人',
+        'wx_bot_config' : '微信机器人配置',
+        'nickName': '昵称',
+        'nickNamePlaceholder': '请手动输入昵称，然后选择这个昵称，可以输入多个昵称，也可以是群聊名称',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1217,5 +1221,9 @@ const translations = {
         'onlyDanmaku': 'Only Reply Danmaku',
         'danmakuQueueLimit': 'Danmaku Queue Upper Limit',
         'gotoBilibiliOpenLive': 'Go to Bilibili Open Live',
+        'wxBot': 'WeChat Bot',
+        'wx_bot_config': 'WeChat Bot Config',
+        'nickName': 'Nick Name',
+        'nickNamePlaceholder': 'Please enter the nick name, and select this nick name, you can enter multiple nick names, or group chat names',
     }
   };

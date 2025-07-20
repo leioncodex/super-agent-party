@@ -182,6 +182,14 @@
       "bilibili_APP_ID": "",
       "bilibili_ROOM_OWNER_AUTH_CODE": ""
     },
+    "WXBotConfig": {
+      "WXAgent":"super-model",
+      "memoryLimit": 30,
+      "separators": ["。", "\n", "？", "！"],
+      "reasoningVisible": true,
+      "quickRestart": true,
+      "nickNameList": []
+    },
     "VRMConfig": {
       "enabledExpressions": false,
       "selectedModelId": "alice", 

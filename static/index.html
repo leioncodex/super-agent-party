@@ -5138,6 +5138,144 @@
                       </div>
                     </el-form>
                   </div>
+
+                  <!-- 微信机器人配置页面 -->
+                  <div v-show="subMenu === 'wx_bot'">
+                    <el-form class="settings-form" :model="WXBotConfig" label-position="top">
+                      <div class="tool-item">
+                        <!-- 微信机器人配置头部 -->
+                        <div class="tool-header" style="display: flex; justify-content: space-between; align-items: center;">
+                          <span>
+                            <el-icon><i class="fa-brands fa-weixin"></i></el-icon>
+                            {{ t('wx_bot_config') }}
+                          </span>
+                          <div>
+                            <!-- 启动按钮 -->
+                            <el-tooltip :content="t('start_bot')" placement="top">
+                              <el-button 
+                                type="primary" 
+                                @click="startWXBot" 
+                                :disabled="!isWXBotConfigValid || isWXBotRunning || isWXStarting"
+                                circle
+                              >
+                                <template v-if="isWXStarting">
+                                  <i class="fa-solid fa-spinner fa-spin"></i>
+                                </template>
+                                <template v-else>
+                                  <i class="fa-solid fa-play"></i>
+                                </template>
+                              </el-button>
+                            </el-tooltip>
+                            
+                            <!-- 停止按钮 -->
+                            <el-tooltip :content="t('stop_bot')" placement="top">
+                              <el-button 
+                                type="danger" 
+                                @click="stopWXBot" 
+                                :disabled="!isWXBotRunning || isWXStopping"
+                                circle
+                              >
+                                <template v-if="isWXStopping">
+                                  <i class="fa-solid fa-spinner fa-spin"></i>
+                                </template>
+                                <template v-else>
+                                  <i class="fa-solid fa-stop"></i>
+                                </template>
+                              </el-button>
+                            </el-tooltip>
+                            
+                            <!-- 重载按钮 -->
+                            <el-tooltip :content="t('reload_bot')" placement="top">
+                              <el-button 
+                                @click="reloadWXBotConfig" 
+                                :disabled="!isWXBotRunning || isWXReloading"
+                                circle
+                              >
+                                <template v-if="isWXReloading">
+                                  <i class="fa-solid fa-rotate fa-spin"></i>
+                                </template>
+                                <template v-else>
+                                  <i class="fa-solid fa-rotate"></i>
+                                </template>
+                              </el-button>
+                            </el-tooltip>
+                          </div>
+                        </div>
+                        <div class="tool-content">
+                            <!-- 主智能体选择 -->
+                            <el-form-item :label="t('mainAgent')" required>
+                              <el-select 
+                                v-model="WXBotConfig.WXAgent"
+                                @change="changeWXAgent">
+                                <el-option
+                                  :label="t('defaultAgent')"
+                                  value="super-model"
+                                >
+                                </el-option>
+                                <el-option
+                                  v-for="(agent, id) in agents"
+                                  :key="id"
+                                  :label="agent.name"
+                                  :value="id"
+                                >
+                                </el-option>
+                              </el-select>
+                            </el-form-item>
+                            <el-form-item :label="t('separators')" required>
+                              <el-select
+                                v-model="WXBotConfig.separators"
+                                multiple
+                                filterable
+                                allow-create
+                                @keyup.enter.native="handleEnter"
+                                @create="handleCreateSeparator"
+                              >
+                                <el-option
+                                  v-for="sep in filteredSeparators"
+                                  :key="sep.value"
+                                  :label="sep.label"
+                                  :value="sep.value"
+                                />
+                              </el-select>
+                            </el-form-item>
+                            <el-form-item :label="t('conversationRounds')" class="form-item-align">
+                              <el-slider
+                                v-model="WXBotConfig.memoryLimit"
+                                :min="0"
+                                :max="1000"
+                                :step="2"
+                                @input="autoSaveSettings"
+                              />
+                            </el-form-item>
+                            <el-form-item :label="t('reasoningVisibleEnable')" class="form-item-align" label-position="left">
+                              <el-switch
+                                v-model="WXBotConfig.reasoningVisible"
+                                @change="autoSaveSettings"
+                              ></el-switch>
+                            </el-form-item>
+                            <el-form-item :label="t('quickRestartEnable')" class="form-item-align" label-position="left">
+                              <el-switch
+                                v-model="WXBotConfig.quickRestart"
+                                @change="autoSaveSettings"
+                              ></el-switch>
+                            </el-form-item>
+                            <el-form-item :label="t('nickName')" required>
+                              <el-select
+                                v-model="WXBotConfig.nickNameList"
+                                multiple
+                                filterable
+                                allow-create
+                                :placeholder="t('nickNamePlaceholder')"
+                                class="full-width-input"
+                                @change="autoSaveSettings"
+                              >
+                              </el-select>
+                            </el-form-item>
+                        </div>
+                      </div>
+                    </el-form>
+                  </div>
+
                   <!-- 桌宠配置页面 -->
                   <div v-show="subMenu === 'table_pet'">
                     <el-form class="settings-form" :model="VRMConfig" label-position="top">

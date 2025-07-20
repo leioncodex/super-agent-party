@@ -830,6 +830,7 @@ let vue_data = {
       { id: 'table_pet', title: 'tablePet', icon: "fa-solid fa-user-ninja"},
       { id: 'live_stream', title: 'live_stream', icon: "fa-solid fa-video"},
       { id: 'qq_bot', title: 'qqBot', icon: 'fa-brands fa-qq' },
+      { id: 'wx_bot', title: 'wxBot', icon: 'fa-brands fa-weixin' },
       { id: 'bot_config', title: 'bot_config', icon: 'fa-solid fa-robot' }
     ],
     liveConfig: {
@@ -843,6 +844,14 @@ let vue_data = {
       bilibili_ACCESS_KEY_SECRET: '',
       bilibili_APP_ID: '',
       bilibili_ROOM_OWNER_AUTH_CODE: '',
+    },
+    WXBotConfig: {
+      WXAgent:'super-model',
+      memoryLimit: 30,
+      separators: ["。", "\n", "？", "！"],
+      reasoningVisible: true,
+      quickRestart: true,
+      nickNameList: [],
     },
     danmu: [], // 弹幕列表
     bilibiliWs: null, // WebSocket连接
