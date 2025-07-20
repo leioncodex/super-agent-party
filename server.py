@@ -49,6 +49,7 @@ from concurrent.futures import ThreadPoolExecutor
 import argparse
 from mem0 import Memory
 from py.qq_bot_manager import QQBotManager
+from py.wx_bot_manager import WXBotManager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -4878,6 +4879,72 @@ async def start_live_client(config: dict):
                 print("Session已关闭")
             except Exception as e:
                 print(f"关闭Session时出错: {e}")
+
+class WXBotConfig(BaseModel):
+    WXAgent: str
+    memoryLimit: int
+    separators: List[str]
+    reasoningVisible: bool
+    quickRestart: bool
+    nickNameList: List[str]
+
+# 全局机器人管理器
+wx_bot_manager = WXBotManager()
+
+@app.post("/start_wx_bot")
+async def start_wx_bot(config: WXBotConfig):
+    try:
+        wx_bot_manager.start_bot(config)
+        return {
+            "success": True,
+            "message": "微信机器人已成功启动",
+            "environment": "thread-based"
+        }
+    except Exception as e:
+        logger.error(f"启动微信机器人失败: {e}")
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False, 
+                "message": f"启动失败: {str(e)}",
+                "error_type": "startup_error"
+            }
+        )
+
+@app.post("/stop_wx_bot")
+async def stop_wx_bot():
+    try:
+        wx_bot_manager.stop_bot()
+        return {"success": True, "message": "微信机器人已停止"}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": str(e)}
+        )
+
+@app.get("/wx_bot_status")
+async def wx_bot_status():
+    status = wx_bot_manager.get_status()
+    if status.get("startup_error") and not status.get("is_running"):
+        status["error_message"] = f"启动失败: {status['startup_error']}"
+    return status
+
+@app.post("/reload_wx_bot")
+async def reload_wx_bot(config: WXBotConfig):
+    try:
+        wx_bot_manager.stop_bot()
+        await asyncio.sleep(1)
+        wx_bot_manager.start_bot(config)
+        return {
+            "success": True,
+            "message": "微信机器人已重新加载",
+            "config_changed": True
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": str(e)}
+        )
 
 
 class WebSocketHandler(blivedm.BaseHandler):

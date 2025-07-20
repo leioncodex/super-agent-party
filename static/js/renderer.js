@@ -24,16 +24,11 @@ const app = Vue.createApp({
     this.disconnectWebSocket();
   },
   async mounted() {
-    // 初始检查
-    this.checkQQBotStatus();
     this.checkMobile();
     this.checkServerPort();
     window.addEventListener('keydown', this.handleKeyDown)
     window.addEventListener('keyup', this.handleKeyUp)
     window.addEventListener('resize', this.checkMobile);
-
-    // 每30秒检查一次状态
-    this.statusInterval = setInterval(this.checkQQBotStatus, 30000); // 30000毫秒 = 30秒
 
     if (isElectron) {
       this.isMac = window.electron.isMac;
