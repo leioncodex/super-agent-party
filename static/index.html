@@ -5460,6 +5460,16 @@
                             <div class="header-left">
                               <span>
                                 {{t('bilibili')}}
+                                <el-link
+                                  type="primary"
+                                  :underline="false"
+                                  href="https://open-live.bilibili.com/" 
+                                  target="_blank"
+                                >
+                                  <el-icon class="mr-1">
+                                    <i class="fa-solid fa-key"></i>
+                                  </el-icon>{{ t('gotoBilibiliOpenLive') }}
+                                </el-link>
                               </span>
                             </div>
                             <el-switch v-model="liveConfig.bilibili_enabled" @click.stop @change="autoSaveSettings"/>

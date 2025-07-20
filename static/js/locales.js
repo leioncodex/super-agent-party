@@ -608,6 +608,7 @@ const translations = {
         'liveSetting': '直播设置',
         'onlyDanmaku': '仅回复弹幕',
         'danmakuQueueLimit': '弹幕队列上限',
+        'gotoBilibiliOpenLive': '前往B站直播开放平台',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1215,5 +1216,6 @@ const translations = {
         'liveSetting': 'Live Setting',
         'onlyDanmaku': 'Only Reply Danmaku',
         'danmakuQueueLimit': 'Danmaku Queue Upper Limit',
+        'gotoBilibiliOpenLive': 'Go to Bilibili Open Live',
     }
   };
