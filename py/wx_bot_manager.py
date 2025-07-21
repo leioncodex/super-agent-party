@@ -79,6 +79,7 @@ class WXBotManager:
             self.bot_client.reasoningVisible = config.reasoningVisible
             self.bot_client.quickRestart = config.quickRestart
             self.bot_client.nickNameList = config.nickNameList
+            self.bot_client.wakeWord = config.wakeWord
 
             self.bot_client._manager_ref = weakref.ref(self)
             self.bot_client._ready_callback = self._on_bot_ready
@@ -256,9 +257,16 @@ class WXClient:
         self._manager_ref = None
         self._ready_callback = None
         self.nickNameList = []
+        self.wakeWord = ""
         self.wx = WeChat()
         self.port = get_port()
         self.executor = ThreadPoolExecutor(max_workers=5)  # 用于处理异步任务
+        self.client = AsyncOpenAI(
+            api_key="super-secret-key",
+            base_url=f"http://127.0.0.1:{self.port}/v1"
+        )
+        self.last_image_urls = {}
+
 
     async def start(self):
         self.is_running = True
@@ -294,15 +302,18 @@ class WXClient:
     async def _handle_message_async(self, msg, chat):
         """异步处理消息的实际逻辑"""
         c_id = msg.sender
-        client = AsyncOpenAI(
-            api_key="super-secret-key",
-            base_url=f"http://127.0.0.1:{self.port}/v1"
-        )
+        chat_info = msg.chat_info()
+        if 'chat_type' in chat_info:
+            c_type = chat_info['chat_type']
+        else:
+            c_type = "friend"
         
         
         if c_id not in self.memoryList:
             self.memoryList[c_id] = []
-        
+        if c_id not in self.last_image_urls:
+            self.last_image_urls[c_id] = []
+
         if self.quickRestart:
             if "/重启" in msg.content:
                 self.memoryList[c_id] = []
@@ -317,23 +328,32 @@ class WXClient:
             img_path=msg.download(dir_path=UPLOAD_FILES_DIR)
             image_name = img_path.name
             data_url = f"http://127.0.0.1:{self.port}/uploaded_files/{image_name}"
-            user_content = []
-            user_content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": data_url
-                }
-            })
-            user_content.append({
-                "type": "text",
-                "text": "图中有什么？"
-            })
-            print(f"{user_content}")
-            self.memoryList[c_id].append({"role": "user", "content": user_content})
-
+            self.last_image_urls[c_id].append(data_url)
+            return
         elif msg.type == "text" or msg.type == "quote":
+            if c_type == "group":
+                if self.wakeWord:
+                    if self.wakeWord not in msg.content:
+                        return
+
             print(f"{msg.content}")
-            self.memoryList[c_id].append({"role": "user", "content": msg.content})
+            if self.last_image_urls and self.last_image_urls[c_id]:
+                user_content = []
+                for url in self.last_image_urls[c_id]:
+                    user_content.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": url
+                        }
+                    })
+                self.last_image_urls = []
+                user_content.append({
+                    "type": "text",
+                    "text": msg.content
+                })
+                self.memoryList[c_id].append({"role": "user", "content": user_content})
+            else:
+                self.memoryList[c_id].append({"role": "user", "content": msg.content})
 
         try:
             asyncToolsID = []
@@ -342,7 +362,7 @@ class WXClient:
             else:
                 self.asyncToolsID[c_id] = []
 
-            stream = await client.chat.completions.create(
+            stream = await self.client.chat.completions.create(
                 model=self.WXAgent,
                 messages=self.memoryList[c_id],
                 stream=True,

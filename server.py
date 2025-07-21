@@ -4891,6 +4891,7 @@ if os.name == 'nt':
         reasoningVisible: bool
         quickRestart: bool
         nickNameList: List[str]
+        wakeWord: str
 
     # 全局机器人管理器
     wx_bot_manager = WXBotManager()

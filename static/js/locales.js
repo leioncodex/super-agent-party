@@ -614,6 +614,7 @@ const translations = {
         'nickName': '昵称',
         'nickNamePlaceholder': '请手动输入昵称，然后选择这个昵称，可以输入多个昵称，也可以是群聊名称',
         'windowsOnly': '仅限Windows',
+        'groupWakeWord': '群聊唤醒词',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1227,5 +1228,6 @@ const translations = {
         'nickName': 'Nick Name',
         'nickNamePlaceholder': 'Please enter the nick name, and select this nick name, you can enter multiple nick names, or group chat names',
         'windowsOnly': 'Windows Only',
+        'groupWakeWord': 'Group Wake Word',
     }
   };

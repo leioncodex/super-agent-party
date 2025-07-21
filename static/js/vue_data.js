@@ -853,6 +853,7 @@ let vue_data = {
       reasoningVisible: true,
       quickRestart: true,
       nickNameList: [],
+      wakeWord: '小派',
     },
     danmu: [], // 弹幕列表
     bilibiliWs: null, // WebSocket连接

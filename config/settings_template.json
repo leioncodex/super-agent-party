@@ -188,7 +188,8 @@
       "separators": ["。", "\n", "？", "！"],
       "reasoningVisible": true,
       "quickRestart": true,
-      "nickNameList": []
+      "nickNameList": [],
+      "wakeWord": "小派"
     },
     "VRMConfig": {
       "enabledExpressions": false,

@@ -5271,6 +5271,14 @@
                               >
                               </el-select>
                             </el-form-item>
+                            <el-form-item :label="t('groupWakeWord')" class="form-item-align">
+                              <el-input
+                                v-model="WXBotConfig.wakeWord"
+                                :placeholder="t('wakeWordPlaceholder')"
+                                @input="autoSaveSettings"
+                                class="full-width-input"
+                              />
+                            </el-form-item>
                         </div>
                       </div>
                     </el-form>
