@@ -300,6 +300,7 @@ class MyClient(botpy.Client):
         self.QQAgent = "super-model"
         self.memoryLimit = 10
         self.memoryList = {}
+        self.asyncToolsID = {}
         self.separators = ['。', '\n', '？', '！']
         self.reasoningVisible = False
         self.quickRestart = True
@@ -435,11 +436,19 @@ class MyClient(botpy.Client):
         }
 
         try:
+            asyncToolsID = []
+            if c_id in self.asyncToolsID:
+                asyncToolsID = self.asyncToolsID[c_id]
+            else:
+                self.asyncToolsID[c_id] = []
             # 流式调用API
             stream = await client.chat.completions.create(
                 model=self.QQAgent,
                 messages=self.memoryList[c_id],
-                stream=True
+                stream=True,
+                extra_body={
+                    "asyncToolsID": asyncToolsID,
+                }
             )
             
             full_response = []
@@ -452,6 +461,16 @@ class MyClient(botpy.Client):
                     if delta:
                         reasoning_content = delta.get("reasoning_content", "") 
                         tool_content = delta.get("tool_content", "")
+                        async_tool_id = delta.get("async_tool_id", "")
+                        if async_tool_id:
+                            # 判断async_tool_id在不在self.asyncToolsID[c_id]中
+                            if async_tool_id not in self.asyncToolsID[c_id]:
+                                self.asyncToolsID[c_id].append(async_tool_id)
+
+                            # 如果async_tool_id在self.asyncToolsID[c_id]中，则删除
+                            else:
+                                self.asyncToolsID[c_id].remove(async_tool_id)
+
                 content = chunk.choices[0].delta.content or ""
                 full_response.append(content)
                 if reasoning_content and self.reasoningVisible:
@@ -664,11 +683,20 @@ class MyClient(botpy.Client):
         self.memoryList[g_id].append({"role": "user", "content": user_content})
 
         try:
+            asyncToolsID = []
+            if g_id in self.asyncToolsID:
+                asyncToolsID = self.asyncToolsID[g_id]
+            else:
+                self.asyncToolsID[g_id] = []
+
             # 流式API调用
             stream = await client.chat.completions.create(
                 model=self.QQAgent,
                 messages=self.memoryList[g_id],
-                stream=True
+                stream=True,
+                extra_body={
+                    "asyncToolsID": asyncToolsID,
+                }
             )
             
             full_response = []
@@ -681,6 +709,16 @@ class MyClient(botpy.Client):
                     if delta:
                         reasoning_content = delta.get("reasoning_content", "")
                         tool_content = delta.get("tool_content", "")
+                        async_tool_id = delta.get("async_tool_id", "")
+                        if async_tool_id:
+                            # 判断async_tool_id在不在self.asyncToolsID[g_id]中
+                            if async_tool_id not in self.asyncToolsID[g_id]:
+                                self.asyncToolsID[g_id].append(async_tool_id)
+
+                            # 如果async_tool_id在self.asyncToolsID[g_id]中，则删除
+                            else:
+                                self.asyncToolsID[g_id].remove(async_tool_id)
+                       
                 content = chunk.choices[0].delta.content or ""
                 full_response.append(content)
                 if reasoning_content and self.reasoningVisible:

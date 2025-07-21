@@ -247,6 +247,7 @@ class WXClient:
         self.WXAgent = "super-model"
         self.memoryLimit = 10
         self.memoryList = {}
+        self.asyncToolsID = {}
         self.separators = ['。', '\n', '？', '！']
         self.reasoningVisible = False
         self.quickRestart = True
@@ -335,10 +336,19 @@ class WXClient:
             self.memoryList[c_id].append({"role": "user", "content": msg.content})
 
         try:
+            asyncToolsID = []
+            if c_id in self.asyncToolsID:
+                asyncToolsID = self.asyncToolsID[c_id]
+            else:
+                self.asyncToolsID[c_id] = []
+
             stream = await client.chat.completions.create(
                 model=self.WXAgent,
                 messages=self.memoryList[c_id],
-                stream=True
+                stream=True,
+                extra_body={
+                    "asyncToolsID": asyncToolsID,
+                }
             )
             
             full_response = []
@@ -353,7 +363,16 @@ class WXClient:
                     if delta:
                         reasoning_content = delta.get("reasoning_content", "")
                         tool_content = delta.get("tool_content", "")
-                
+                        async_tool_id = delta.get("async_tool_id", "")
+                        if async_tool_id:
+                            # 判断async_tool_id在不在self.asyncToolsID[c_id]中
+                            if async_tool_id not in self.asyncToolsID[c_id]:
+                                self.asyncToolsID[c_id].append(async_tool_id)
+
+                            # 如果async_tool_id在self.asyncToolsID[c_id]中，则删除
+                            else:
+                                self.asyncToolsID[c_id].remove(async_tool_id)
+
                 content = chunk.choices[0].delta.content or ""
                 full_response.append(content)
                 
@@ -372,8 +391,9 @@ class WXClient:
                         if len(parts) > 1:
                             send_text = parts[0] + separator
                             text_buffer = parts[1]
-                            if send_text.strip():
-                                self.wx.SendMsg(send_text.strip(), who=msg.sender)
+                            clean_text = self._clean_text(send_text)
+                            if clean_text:
+                                self.wx.SendMsg(clean_text, who=msg.sender)
                             break
             
             # 发送剩余的文本
@@ -392,6 +412,12 @@ class WXClient:
         except Exception as e:
             print(f"处理异常: {e}")
             self.wx.SendMsg(str(e), who=msg.sender)
+
+    def _clean_text(self, text):
+        """图片清洗"""
+        # 移除图片标记
+        clean = re.sub(r'!\[.*?\]\(.*?\)', '', text)
+        return clean.strip()
 
     async def close(self):
         self._shutdown_requested = True
