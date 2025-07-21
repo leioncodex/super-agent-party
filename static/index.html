@@ -5140,7 +5140,7 @@
                   </div>
 
                   <!-- 微信机器人配置页面 -->
-                  <div v-show="subMenu === 'wx_bot'">
+                  <div v-show="subMenu === 'wx_bot'" v-if="isWindows">
                     <el-form class="settings-form" :model="WXBotConfig" label-position="top">
                       <div class="tool-item">
                         <!-- 微信机器人配置头部 -->
@@ -5275,7 +5275,9 @@
                       </div>
                     </el-form>
                   </div>
-
+                  <div v-show="subMenu === 'wx_bot'" v-if="!isWindows">
+                    <el-empty :description="t('windowsOnly')" />
+                  </div>
                   <!-- 桌宠配置页面 -->
                   <div v-show="subMenu === 'table_pet'">
                     <el-form class="settings-form" :model="VRMConfig" label-position="top">
