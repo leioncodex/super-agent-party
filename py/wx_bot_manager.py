@@ -302,12 +302,14 @@ class WXClient:
     async def _handle_message_async(self, msg, chat):
         """异步处理消息的实际逻辑"""
         c_id = msg.sender
+        c_name = msg.sender
         chat_info = msg.chat_info()
         if 'chat_type' in chat_info:
             c_type = chat_info['chat_type']
         else:
             c_type = "friend"
-        
+        if c_type == "group":
+            c_id = chat_info['chat_name']
         
         if c_id not in self.memoryList:
             self.memoryList[c_id] = []
@@ -317,11 +319,11 @@ class WXClient:
         if self.quickRestart:
             if "/重启" in msg.content:
                 self.memoryList[c_id] = []
-                self.wx.SendMsg("对话记录已重置。", who=msg.sender)
+                self.wx.SendMsg("对话记录已重置。", who=c_id)
                 return
             if "/restart" in msg.content:
                 self.memoryList[c_id] = []
-                self.wx.SendMsg("The conversation record has been reset.", who=msg.sender)
+                self.wx.SendMsg("The conversation record has been reset.", who=c_id)
                 return
         
         if msg.type == "image":
@@ -349,11 +351,11 @@ class WXClient:
                 self.last_image_urls = []
                 user_content.append({
                     "type": "text",
-                    "text": msg.content
+                    "text": "用户名："+c_name+"发送了消息："+msg.content
                 })
                 self.memoryList[c_id].append({"role": "user", "content": user_content})
             else:
-                self.memoryList[c_id].append({"role": "user", "content": msg.content})
+                self.memoryList[c_id].append({"role": "user", "content": "用户名："+ c_name +"发送了消息："+msg.content})
 
         try:
             asyncToolsID = []
@@ -413,12 +415,12 @@ class WXClient:
                             text_buffer = parts[1]
                             clean_text = self._clean_text(send_text)
                             if clean_text:
-                                self.wx.SendMsg(clean_text, who=msg.sender)
+                                self.wx.SendMsg(clean_text, who=c_id)
                             break
             
             # 发送剩余的文本
             if text_buffer.strip():
-                self.wx.SendMsg(text_buffer.strip(), who=msg.sender)
+                self.wx.SendMsg(text_buffer.strip(), who=c_id)
             
             full_content = "".join(full_response)
             self.memoryList[c_id].append({"role": "assistant", "content": full_content})
@@ -427,11 +429,11 @@ class WXClient:
                     self.memoryList[c_id].pop(0)
             
             # 提取并发送图片
-            await self._send_images_from_response(full_content, msg.sender)
+            await self._send_images_from_response(full_content, c_id)
             
         except Exception as e:
             print(f"处理异常: {e}")
-            self.wx.SendMsg(str(e), who=msg.sender)
+            self.wx.SendMsg(str(e), who=c_id)
 
     def _clean_text(self, text):
         """图片清洗"""
