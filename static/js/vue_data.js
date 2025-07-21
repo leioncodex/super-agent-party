@@ -63,7 +63,7 @@ if (isElectron) {
   const backendURL = window.location.port ? `${protocol}//${HOST}:${PORT}` : `${protocol}//${HOST}`;
 let vue_data = {
     isMac: false,
-    isWindows: false,
+    isWindows: true,
     partyURL:window.location.port ? `${protocol}//${HOST}:${PORT}` : `${protocol}//${HOST}`,
     downloadProgress: 0,
     updateDownloaded: false,
@@ -863,6 +863,10 @@ let vue_data = {
     isLiveStarting: false,
     isLiveStopping: false,
     isLiveReloading: false,
+    isWXStarting: false,
+    isWXStopping: false,
+    isWXReloading: false,
+    isWXBotRunning: false,
     stickerPacks: [],
     showStickerDialog: false,
     newStickerPack: {

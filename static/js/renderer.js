@@ -188,6 +188,9 @@ const app = Vue.createApp({
     isQQBotConfigValid() {
         return this.qqBotConfig.appid && this.qqBotConfig.secret;
     },
+    isWXBotConfigValid() {
+        return this.WXBotConfig.nickNameList && this.WXBotConfig.nickNameList.length > 0;
+    },
     isLiveConfigValid() {
         if (this.liveConfig.bilibili_enabled) {
             if(this.liveConfig.bilibili_type === 'web'){
