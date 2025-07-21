@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+import os
 import pythoncom  # 导入 pywin32 的 pythoncom 模块
 import re
 import threading
@@ -15,8 +16,7 @@ import base64
 import pyperclip
 import asyncio
 from openai import AsyncOpenAI
-from py.get_setting import get_port
-
+from py.get_setting import get_port,UPLOAD_FILES_DIR
 class WXBotManager:
     def __init__(self):
         self.bot_thread: Optional[threading.Thread] = None
@@ -257,7 +257,6 @@ class WXClient:
         self.nickNameList = []
         self.wx = WeChat()
         self.port = get_port()
-        self.last_image_data = None
         self.executor = ThreadPoolExecutor(max_workers=5)  # 用于处理异步任务
 
     async def start(self):
@@ -293,109 +292,106 @@ class WXClient:
 
     async def _handle_message_async(self, msg, chat):
         """异步处理消息的实际逻辑"""
+        c_id = msg.sender
+        client = AsyncOpenAI(
+            api_key="super-secret-key",
+            base_url=f"http://127.0.0.1:{self.port}/v1"
+        )
+        
+        
+        if c_id not in self.memoryList:
+            self.memoryList[c_id] = []
+        
+        if self.quickRestart:
+            if "/重启" in msg.content:
+                self.memoryList[c_id] = []
+                self.wx.SendMsg("对话记录已重置。", who=msg.sender)
+                return
+            if "/restart" in msg.content:
+                self.memoryList[c_id] = []
+                self.wx.SendMsg("The conversation record has been reset.", who=msg.sender)
+                return
+        
         if msg.type == "image":
-            msg.click()
-            time.sleep(1)
-            msg.select_option("复制")
-            self.last_image_data = base64.b64encode(pyperclip.paste().encode('utf-8')).decode('utf-8')
+            img_path=msg.download(dir_path=UPLOAD_FILES_DIR)
+            image_name = img_path.name
+            data_url = f"http://127.0.0.1:{self.port}/uploaded_files/{image_name}"
+            user_content = []
+            user_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": data_url
+                }
+            })
+            user_content.append({
+                "type": "text",
+                "text": "图中有什么？"
+            })
+            print(f"{user_content}")
+            self.memoryList[c_id].append({"role": "user", "content": user_content})
+
         elif msg.type == "text" or msg.type == "quote":
             print(f"{msg.content}")
-            
-            client = AsyncOpenAI(
-                api_key="super-secret-key",
-                base_url=f"http://127.0.0.1:{self.port}/v1"
+            self.memoryList[c_id].append({"role": "user", "content": msg.content})
+
+        try:
+            stream = await client.chat.completions.create(
+                model=self.WXAgent,
+                messages=self.memoryList[c_id],
+                stream=True
             )
             
-            c_id = msg.sender
-            if c_id not in self.memoryList:
-                self.memoryList[c_id] = []
+            full_response = []
+            text_buffer = ""
             
-            if self.quickRestart:
-                if "/重启" in msg.content:
-                    self.memoryList[c_id] = []
-                    self.wx.SendMsg("对话记录已重置。", who=msg.sender)
-                    return
-                if "/restart" in msg.content:
-                    self.memoryList[c_id] = []
-                    self.wx.SendMsg("The conversation record has been reset.", who=msg.sender)
-                    return
+            async for chunk in stream:
+                reasoning_content = ""
+                tool_content = ""
+                if chunk.choices:
+                    chunk_dict = chunk.model_dump()
+                    delta = chunk_dict["choices"][0].get("delta", {})
+                    if delta:
+                        reasoning_content = delta.get("reasoning_content", "")
+                        tool_content = delta.get("tool_content", "")
+                
+                content = chunk.choices[0].delta.content or ""
+                full_response.append(content)
+                
+                if reasoning_content and self.reasoningVisible:
+                    content = reasoning_content
+                if tool_content and self.reasoningVisible:
+                    content = tool_content
+                
+                # 累积文本，按分隔符发送
+                text_buffer += content
+                
+                # 检查是否有分隔符
+                for separator in self.separators:
+                    if separator in text_buffer:
+                        parts = text_buffer.split(separator, 1)
+                        if len(parts) > 1:
+                            send_text = parts[0] + separator
+                            text_buffer = parts[1]
+                            if send_text.strip():
+                                self.wx.SendMsg(send_text.strip(), who=msg.sender)
+                            break
             
-            # 如果有缓存的图片，将其与文字一起发送
-            user_content = []
-            if self.last_image_data:
-                data_uri = f"data:image/jpeg;base64,{self.last_image_data}"
-                user_content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": data_uri
-                    }
-                })
-                self.last_image_data = None  # 清空缓存
-                user_content.append({"type": "text", "text": msg.content})
+            # 发送剩余的文本
+            if text_buffer.strip():
+                self.wx.SendMsg(text_buffer.strip(), who=msg.sender)
             
-            if user_content:
-                self.memoryList[c_id].append({"role": "user", "content": user_content})
-            else:
-                self.memoryList[c_id].append({"role": "user", "content": msg.content})
+            full_content = "".join(full_response)
+            self.memoryList[c_id].append({"role": "assistant", "content": full_content})
+            if self.memoryLimit > 0:
+                while len(self.memoryList[c_id]) > self.memoryLimit:
+                    self.memoryList[c_id].pop(0)
             
-            try:
-                stream = await client.chat.completions.create(
-                    model=self.WXAgent,
-                    messages=self.memoryList[c_id],
-                    stream=True
-                )
-                
-                full_response = []
-                text_buffer = ""
-                
-                async for chunk in stream:
-                    reasoning_content = ""
-                    tool_content = ""
-                    if chunk.choices:
-                        chunk_dict = chunk.model_dump()
-                        delta = chunk_dict["choices"][0].get("delta", {})
-                        if delta:
-                            reasoning_content = delta.get("reasoning_content", "")
-                            tool_content = delta.get("tool_content", "")
-                    
-                    content = chunk.choices[0].delta.content or ""
-                    full_response.append(content)
-                    
-                    if reasoning_content and self.reasoningVisible:
-                        content = reasoning_content
-                    if tool_content and self.reasoningVisible:
-                        content = tool_content
-                    
-                    # 累积文本，按分隔符发送
-                    text_buffer += content
-                    
-                    # 检查是否有分隔符
-                    for separator in self.separators:
-                        if separator in text_buffer:
-                            parts = text_buffer.split(separator, 1)
-                            if len(parts) > 1:
-                                send_text = parts[0] + separator
-                                text_buffer = parts[1]
-                                if send_text.strip():
-                                    self.wx.SendMsg(send_text.strip(), who=msg.sender)
-                                break
-                
-                # 发送剩余的文本
-                if text_buffer.strip():
-                    self.wx.SendMsg(text_buffer.strip(), who=msg.sender)
-                
-                full_content = "".join(full_response)
-                self.memoryList[c_id].append({"role": "assistant", "content": full_content})
-                if self.memoryLimit > 0:
-                    while len(self.memoryList[c_id]) > self.memoryLimit:
-                        self.memoryList[c_id].pop(0)
-                
-                # 提取并发送图片
-                await self._send_images_from_response(full_content, msg.sender)
-                
-            except Exception as e:
-                print(f"处理异常: {e}")
-                self.wx.SendMsg(str(e), who=msg.sender)
+            # 提取并发送图片
+            await self._send_images_from_response(full_content, msg.sender)
+            
+        except Exception as e:
+            print(f"处理异常: {e}")
+            self.wx.SendMsg(str(e), who=msg.sender)
 
     async def close(self):
         self._shutdown_requested = True
