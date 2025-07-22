@@ -169,13 +169,20 @@
 
 ## 支持：
 
+### 求星标！
+⭐你的支持是我们前进的动力！
+
+![star](doc/image/star.gif)
+
 ### 关注我们
 <a href="https://space.bilibili.com/26978344">
   <img src="doc/image/B.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
 </a>
-<a href="https://www.youtube.com/@LLM-party">
+<a href="https://www.youtube.com/@agentParty">
   <img src="doc/image/YT.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
 </a>
+
+[![Bilibili Video](https://i1.hdslb.com/bfs/archive/0f4629dcc958a9437cd7f2e6b5b84649b6ac467c.jpg@672w_378h_1c.webp)](https://www.bilibili.com/video/BV15UuJz9EGH/)
 
 ### 加入社群
 如果项目存在问题或者您有其他的疑问，欢迎加入我们的社群。

@@ -169,13 +169,20 @@ Using this project for closed-source commercial purposes without written authori
 
 ## Support:
 
+### Please star us!
+⭐Your support is the driving force for us to move forward!
+
+![star](doc/image/star.gif)
+
 ### Follow us
 <a href="https://space.bilibili.com/26978344">
   <img src="doc/image/B.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
 </a>
-<a href="https://www.youtube.com/@LLM-party">
+<a href="https://www.youtube.com/@agentParty">
   <img src="doc/image/YT.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
 </a>
+
+[![YouTube Video](https://img.youtube.com/vi/fIzlQOsuhZE/0.jpg)](https://www.youtube.com/watch?v=fIzlQOsuhZE)
 
 ### Join the Community
 If you have any questions or issues with the project, you are welcome to join our community.
