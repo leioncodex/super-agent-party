@@ -147,6 +147,9 @@ let vue_data = {
         enabled: false,
         triggerMode: 'beforeThinking',
       },
+      weather: {
+        enabled: false,
+      },
       getFile: {
         enabled: false,
       },
