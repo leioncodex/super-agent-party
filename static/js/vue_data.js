@@ -145,6 +145,7 @@ let vue_data = {
       },
       time: {
         enabled: false,
+        triggerMode: 'beforeThinking',
       },
       getFile: {
         enabled: false,

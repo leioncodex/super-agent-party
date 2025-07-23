@@ -496,7 +496,7 @@ const translations = {
         'fastAPIDocs': 'FastAPI文档',
         'asyncTools': '异步工具',
         'asyncToolsNotice': '工具调用时，不会阻塞对话，工具结果将在生成后加入到对话中。注意！只与流式调用API有关，非流式调用API不会生效。',
-        'currentTimeNotice': '对话时会自动返回当前时间和时区信息',
+        'currentTimeNotice': '对话时会自动返回当前时间和时区信息，或者主动查询指定时区当前时间',
         'fileGetNotice': '智能体将获得查询文件或图片URL的能力',
         'deepResearchNotice': '开启深度研究模式，智能体将动态规划并调用工具以解决复杂问题',
         'fakeInferenceNotice': '开启伪推理模式，让没有推理能力的模型也能推理',
@@ -615,6 +615,7 @@ const translations = {
         'nickNamePlaceholder': '请手动输入昵称，然后选择这个昵称，可以输入多个昵称，也可以是群聊名称',
         'windowsOnly': '仅限Windows',
         'groupWakeWord': '群聊唤醒词',
+        'triggerMode': '触发模式',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1112,7 +1113,7 @@ const translations = {
         'fastAPIDocs': 'FastAPI Docs',
         'asyncTools': 'Async Tools',
         'asyncToolsNotice': 'When a tool is called, it does not block the conversation, and the tool result will be added to the conversation after generation. Note! This only applies to streaming API calls; non-streaming API calls will not be affected.',
-        'currentTimeNotice': 'The current time and timezone information will be automatically returned during the conversation.',
+        'currentTimeNotice': 'The agent will automatically display the current time and time zone information, or actively query the current time in a specified time zone.',
         'fileGetNotice': 'The agent will gain the ability to query files or image URLs.',
         'deepResearchNotice': 'Activate deep research mode, the agent will dynamically plan and utilize tools to address complex problems.',
         'fakeInferenceNotice': 'Enable pseudo-reasoning mode, allowing models without reasoning capabilities to also perform reasoning.',
@@ -1229,5 +1230,6 @@ const translations = {
         'nickNamePlaceholder': 'Please enter the nick name, and select this nick name, you can enter multiple nick names, or group chat names',
         'windowsOnly': 'Windows Only',
         'groupWakeWord': 'Group Wake Word',
+        'triggerMode': 'Trigger Mode',
     }
   };

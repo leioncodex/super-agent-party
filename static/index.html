@@ -2195,6 +2195,15 @@
                     <div class="tool-card-title">
                       <h3 class="kb-title">{{ t('currentTime') }}</h3>
                     </div>
+                    <el-form-item :label="t('triggerMode')">
+                      <el-select
+                        v-model="toolsSettings.time.triggerMode"
+                        @change="autoSaveSettings"
+                      >
+                          <el-option :label="t('beforeThinking')" value="beforeThinking" ></el-option>
+                          <el-option :label="t('afterThinking')" value="afterThinking" ></el-option>
+                      </el-select>
+                    </el-form-item>
                     <el-alert type="info" :closable="false" class="mb-2">
                       <div class="alert-content">
                         {{ t('currentTimeNotice') }}
@@ -2293,7 +2302,7 @@
                     <el-form-item :label="t('assistantLanguage')">
                       <el-input
                         v-model="toolsSettings.language.language"
-                        @blur="autoSaveSettings"
+                        @change="autoSaveSettings"
                         class="mini-input"
                         :placeholder="t('languagePlaceholder')"
                       ></el-input>
@@ -2302,7 +2311,7 @@
                     <el-form-item :label="t('assistantTone')">
                       <el-input
                         v-model="toolsSettings.language.tone"
-                        @blur="autoSaveSettings"
+                        @change="autoSaveSettings"
                         class="mini-input"
                         :placeholder="t('tonePlaceholder')"
                       ></el-input>

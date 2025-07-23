@@ -24,7 +24,8 @@
         "enabled": false
       },
       "time": {
-        "enabled": false
+        "enabled": false,
+        "triggerMode": "beforeThinking"
       },
       "getFile": {
         "enabled": false
