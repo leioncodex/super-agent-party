@@ -172,17 +172,28 @@ Using this project for closed-source commercial purposes without written authori
 ### Please star us!
 ⭐Your support is the driving force for us to move forward!
 
-![star](doc/image/star.gif)
+<div align="center">
+  <img src="doc/image/star.gif" width="400" alt="star">
+</div>
 
 ### Follow us
-<a href="https://space.bilibili.com/26978344">
-  <img src="doc/image/B.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
-</a>
-<a href="https://www.youtube.com/@agentParty">
-  <img src="doc/image/YT.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
-</a>
+<div align="center">
+  <a href="https://space.bilibili.com/26978344">
+    <img src="doc/image/B.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
+  </a>
+  <a href="https://www.youtube.com/@agentParty">
+    <img src="doc/image/YT.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
+  </a>
+</div>
 
-[![YouTube Video](https://img.youtube.com/vi/fIzlQOsuhZE/0.jpg)](https://www.youtube.com/watch?v=fIzlQOsuhZE)
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=fIzlQOsuhZE" target="_blank">
+    <img src="https://img.youtube.com/vi/fIzlQOsuhZE/0.jpg" 
+         width="600" 
+         alt="YouTube Video Thumbnail"
+         style="border-radius: 8px; border: 1px solid #eee;">
+  </a>
+</div>
 
 ### Join the Community
 If you have any questions or issues with the project, you are welcome to join our community.
