@@ -1,5 +1,7 @@
 from datetime import datetime
+import json
 from zoneinfo import ZoneInfo  # Python 内置模块
+import requests
 from tzlocal import get_localzone
 from py.accweatherAPI import AccuWeatherAPI
 from py.get_setting import load_settings
@@ -115,7 +117,7 @@ weather_tool = {
                 },
                 "days": {
                     "type": "integer",
-                    "description": "预报天数（1或5）",
+                    "description": "预报天数（1或5），注意预报天数为1时，返回的是今天的预测天气，如果要查看明天的天气，请将days设置为5，返回的第一条数据为今天的预测天气，第二条数据为明天的预测天气，以此类推。",
                     "default": 1,
                     "enum": [1, 5]
                 },
@@ -170,6 +172,88 @@ location_tool = {
                     "type": "string",
                     "description": "城市名称，如：北京、New York",
                 },
+            },
+            "required": ["city"],
+        },
+    },
+}
+
+async def get_weather_by_city_async(city: str,lang:str="zh-CN",product:str="astro") -> str:
+    """
+    根据城市名称获取7timer天气数据（JSON + 图片URL）
+    
+    :param city: 城市名称（如 "北京"、"New York"）
+    :return: 格式化的字符串，包含JSON数据和图片URL
+    """
+    try:
+        # 1. 获取城市经纬度
+        location_info = await get_location_coordinates_async(city)
+        
+        # 解析经纬度（假设返回格式包含 "经纬度: 纬度, 经度"）
+        if "经纬度:" not in location_info:
+            return f"无法获取 {city} 的经纬度信息"
+        
+        # 提取经纬度（示例解析逻辑，可能需要调整）
+        geo_part = location_info.split("经纬度:")[1].split("\n")[0].strip()
+        lat, lon = map(float, geo_part.split(","))
+        
+        # 2. 调用7timer API获取天气数据
+        base_url = "http://www.7timer.info/bin/astro.php"
+        
+        # 获取图片URL
+        img_params = {
+            "lon": lon,
+            "lat": lat,
+            "ac": 0,
+            "lang": lang,
+            "unit": "metric",
+            "tzshift": 0,
+        }
+        img_url = f"{base_url}?{'&'.join([f'{k}={v}' for k, v in img_params.items()])}"
+        
+        # 获取JSON数据
+        data_params = {
+            "lon": lon,
+            "lat": lat,
+            "ac": 0,
+            "product": product,
+            "lang": "en",
+            "unit": "metric",
+            "output": "json",
+            "tzshift": 0,
+        }
+        data_response = requests.get(base_url, params=data_params)
+        data_response.raise_for_status()
+        weather_data = data_response.json()
+        
+        # 3. 返回格式化结果
+        return f"{json.dumps(weather_data, ensure_ascii=False)}\n![image]({img_url})"
+    
+    except Exception as e:
+        return f"获取天气数据时出错: {str(e)}"
+
+
+timer_weather_tool = {
+    "type": "function",
+    "function": {
+        "name": "get_weather_by_city_async",
+        "description": "更加详细的天气信息，包含天气晴雨表图片。根据城市名称获取7timer天气数据（JSON + 图片URL）。请按照![image](image_url)格式返回图片URL",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "description": "城市名称，如：北京、New York",
+                },
+                "lang": {
+                    "type": "string",
+                    "description": "语言，如：zh-CN、en-US",
+                },
+                "product": {
+                    "type": "string",
+                    "description": "产品类型，默认为astro，可选值：astro、civil，astro时，返回3 天（72 小时） 的逐 3 小时天气预报。civil时，返回7 天的天气预报（每天 2-4 个时间点）",
+                    "enum": ["astro", "civil"]
+                }
             },
             "required": ["city"],
         },
