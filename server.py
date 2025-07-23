@@ -276,7 +276,11 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
     from py.code_interpreter import e2b_code_async,local_run_code_async
     from py.custom_http import fetch_custom_http
     from py.comfyui_tool import comfyui_tool_call
-    from py.utility_tools import time_async
+    from py.utility_tools import (
+        time_async,
+        get_weather_async,
+        get_location_coordinates_async
+    )
     _TOOL_HOOKS = {
         "DDGsearch_async": DDGsearch_async,
         "searxng_async": searxng_async,
@@ -302,6 +306,8 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         "bochaai_search_async": bochaai_search_async,
         "comfyui_tool_call": comfyui_tool_call,
         "time_async": time_async,
+        "get_weather_async": get_weather_async,
+        "get_location_coordinates_async": get_location_coordinates_async,
     }
     if "multi_tool_use." in tool_name:
         tool_name = tool_name.replace("multi_tool_use.", "")
@@ -623,7 +629,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
     from py.llm_tool import get_llm_tool
     from py.pollinations import pollinations_image_tool,openai_image_tool,siliconflow_image_tool
     from py.code_interpreter import e2b_code_tool,local_run_code_tool
-    from py.utility_tools import time_tool
+    from py.utility_tools import time_tool, weather_tool,location_tool
     m0 = None
     memoryId = None
     if settings["memorySettings"]["is_memory"]:
@@ -688,6 +694,10 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
             tools.append(get_a2a_tool_fuction)
         if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'afterThinking':
             tools.append(time_tool)
+        if settings["tools"]["accuweather"]['enabled']:
+            tools.append(weather_tool)
+            tools.append(location_tool)
+
         if settings['text2imgSettings']['enabled']:
             if settings['text2imgSettings']['engine'] == 'pollinations':
                 tools.append(pollinations_image_tool)

@@ -27,8 +27,9 @@
         "enabled": false,
         "triggerMode": "beforeThinking"
       },
-      "weather": {
-        "enabled": false
+      "accuweather": {
+        "enabled": false,
+        "apiKey": ""
       },
       "getFile": {
         "enabled": false

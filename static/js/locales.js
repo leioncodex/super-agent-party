@@ -616,6 +616,8 @@ const translations = {
         'windowsOnly': '仅限Windows',
         'groupWakeWord': '群聊唤醒词',
         'triggerMode': '触发模式',
+        'accuweather': 'AccuWeather天气',
+        'accuweatherNotice': '免费，需要申请API Key，可以获取指定城市的经纬度、实时或预测天气。',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1231,5 +1233,7 @@ const translations = {
         'windowsOnly': 'Windows Only',
         'groupWakeWord': 'Group Wake Word',
         'triggerMode': 'Trigger Mode',
+        'accuweather': 'Accuweather',
+        'accuweatherNotice': 'It is free and you need to apply for an API Key. You can obtain the latitude and longitude of a specified city, as well as real-time or forecasted weather information.',
     }
   };
