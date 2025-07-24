@@ -581,7 +581,7 @@ const translations = {
         "vrmNotice2": "2. 鼠标左键旋转，滚轮缩放，右键平移，右上角第一个按钮拖拽整体窗口",
         'Previous': '上一个',
         'Next': '下一个',
-        'gotoVroidHub': '前往Vroid Hub获取VRM模型',
+        'gotoVroidHub': 'Vroid Hub获取VRM',
         'webSpeech': 'Web Speech API(免费，但仅浏览器模式下可用)',
         'webSpeechStarted': 'Web Speech API已启动',
         'webSpeechNotSupportedInElectron': '在Electron中 Web Speech API 不支持，自动开启浏览器模式中...',
@@ -624,6 +624,7 @@ const translations = {
         'toolMemorandumNotice': '开启时，会将工具调用结果添加到聊天记录中，关闭后，则不会添加，节省token消耗',
         'arxiv': 'arXiv',
         'arxivNotice': '从arXiv获取最新的论文摘要',
+        'gotoAplaybox': '模之屋获取VRM',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1183,7 +1184,7 @@ const translations = {
         'Female': 'Female',
         'tablePet': 'VRM Table Pet',
         'table_pet_config': 'VRM Table Pet Config',
-        'gotoVroid': 'Create a VRM in Vroid Studio',
+        'gotoVroid': 'Create in Vroid Studio',
         'start_table_pet': 'Start VRM Table Pet',
         'stop_table_pet': 'Stop VRM Table Pet',
         'reload_table_pet': 'Reload VRM Table Pet',
@@ -1204,7 +1205,7 @@ const translations = {
         "vrmNotice2": "2. left mouse button rotation, scroll wheel zoom, right button panning, the first button in the upper right corner drags the overall window",
         'Previous': 'Previous',
         'Next': 'Next',
-        'gotoVroidHub': 'Go to Vroid Hub to get the VRM model',
+        'gotoVroidHub': 'Vroid Hub',
         'webSpeech': 'Web Speech API (free, but only available in browser mode)',
         'webSpeechStarted': 'Web Speech API started',
         'webSpeechNotSupportedInElectron': 'In Electron, the Web Speech API is not supported, and the browser mode is automatically turned on...',
@@ -1247,5 +1248,6 @@ const translations = {
         'toolMemorandumNotice': 'When enabled, the tool call results will be added to the chat record, and when disabled, they will not be added to save token consumption',
         'arxiv': 'arXiv',
         'arxivNotice': 'Get the latest research paper information from arXiv',
+        'gotoAplaybox': 'Aplaybox',
     }
   };
