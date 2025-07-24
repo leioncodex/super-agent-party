@@ -154,6 +154,9 @@ let vue_data = {
       wikipedia: {
         enabled: false,
       },
+      toolMemorandum: {
+        enabled: false,
+      },
       getFile: {
         enabled: false,
       },

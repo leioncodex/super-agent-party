@@ -1449,6 +1449,9 @@ let vue_methods = {
                   if (parsed.choices?.[0]?.delta?.tool_content) {
                     newContent = parsed.choices[0].delta.tool_content;
                   }
+                  if (parsed.choices?.[0]?.delta?.tool_link && this.toolsSettings.toolMemorandum.enabled) {
+                    this.fileLinks.push(parsed.choices[0].delta.tool_link);
+                  }
                   
                   // 将新内容中的换行符转换为换行+引用符号
                   newContent = newContent.replace(/\n/g, '\n> ');

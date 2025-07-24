@@ -620,6 +620,8 @@ const translations = {
         'accuweatherNotice': '免费，需要申请API Key，可以获取指定城市的经纬度、实时或预测天气。支持返回天气预测图',
         'wikipedia': '维基百科',
         'wikipediaNotice': '获取指定关键词的维基百科摘要或具体章节内容',
+        'toolMemorandum': '工具备忘录',
+        'toolMemorandumNotice': '开启时，会将工具调用结果添加到聊天记录中，关闭后，则不会添加，节省token消耗',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1239,5 +1241,7 @@ const translations = {
         'accuweatherNotice': 'It is free and you need to apply for an API Key. You can obtain the latitude and longitude of a specified city, as well as real-time or forecasted weather information.Support the return of the weather forecast map',
         'wikipedia': 'Wikipedia',
         'wikipediaNotice': 'Get the summary or specific chapter content of a specified keyword from Wikipedia',
+        'toolMemorandum': 'Tool Memorandum',
+        'toolMemorandumNotice': 'When enabled, the tool call results will be added to the chat record, and when disabled, they will not be added to save token consumption',
     }
   };

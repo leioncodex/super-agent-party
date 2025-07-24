@@ -903,7 +903,8 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{tid}{await t("tool_result")}]({fileLink})\n\n",
-                                        "async_tool_id": tid
+                                        "async_tool_id": tid,
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }
@@ -944,7 +945,8 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{tid}{await t("tool_result")}]({fileLink})\n\n",
-                                        "async_tool_id": tid
+                                        "async_tool_id": tid,
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }
@@ -996,7 +998,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                     "delta": {
                                         "role":"assistant",
                                         "content": "",
-                                        "tool_content": f"{await t("KB_search")}\n\n"
+                                        "tool_content": f"{await t("KB_search")}\n\n",
                                     }
                                 }
                             ]
@@ -1027,6 +1029,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{await t("search_result")}]({fileLink})\n\n",
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }
@@ -1091,6 +1094,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{await t("search_result")}]({fileLink})\n\n",
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }
@@ -1717,6 +1721,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{response_content.name}{await t("tool_result")}]({fileLink})\n\n",
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }

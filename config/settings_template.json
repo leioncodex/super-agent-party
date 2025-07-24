@@ -34,6 +34,9 @@
       "wikipedia": {
         "enabled": false
       },
+      "toolMemorandum": {
+        "enabled": false
+      },
       "getFile": {
         "enabled": false
       },
