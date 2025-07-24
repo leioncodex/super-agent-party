@@ -629,6 +629,7 @@ const translations = {
         'rewrite': '重写',
         'proxySettings': '代理设置',
         'proxyPlaceholder': '请输入代理地址，例如：http://127.0.0.1:7890',
+        'wxNotice': '启动机器人之前，你必须先登录微信，并且保证微信窗口在屏幕上。agent party将模拟用户行为接管你的微信。',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1257,5 +1258,6 @@ const translations = {
         'rewrite': 'Rewrite',
         'proxySettings': 'Proxy Settings',
         'proxyPlaceholder': 'Please enter the proxy address, such as http://127.0.0.1:7890',
+        'wxNotice': 'Before starting the robot, you must log in to WeChat and ensure that the WeChat window is on the screen. The agent party will simulate user behavior and take over your WeChat account.',
     }
   };
