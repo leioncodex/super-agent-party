@@ -541,8 +541,8 @@ app.whenReady().then(async () => {
       vrmWindow = new BrowserWindow({
         width: windowWidth,
         height: windowHeight,
-        x: 0, 
-        y: 0, 
+        x: width-windowWidth-40, 
+        y: height-windowHeight-40, 
         transparent: true,
         frame: false,
         resizable: false,
