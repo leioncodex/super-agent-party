@@ -17,7 +17,7 @@ import requests
 from PIL import Image
 import io
 import base64
-from py.get_setting import get_port
+from py.get_setting import get_port,load_settings
 from py.image_host import upload_image_host
 
 class QQBotManager:
@@ -301,6 +301,7 @@ class MyClient(botpy.Client):
         self.memoryLimit = 10
         self.memoryList = {}
         self.asyncToolsID = {}
+        self.fileLinks = {}
         self.separators = ['。', '\n', '？', '！']
         self.reasoningVisible = False
         self.quickRestart = True
@@ -352,7 +353,7 @@ class MyClient(botpy.Client):
     async def on_c2c_message_create(self, message: C2CMessage):
         if not self.is_running:
             return
-        
+        settings = await load_settings()
         client = AsyncOpenAI(
             api_key="super-secret-key",
             base_url=f"http://127.0.0.1:{self.port}/v1"
@@ -441,6 +442,10 @@ class MyClient(botpy.Client):
                 asyncToolsID = self.asyncToolsID[c_id]
             else:
                 self.asyncToolsID[c_id] = []
+            if c_id in self.fileLinks:
+                fileLinks = self.fileLinks[c_id]
+            else:
+                fileLinks = []
             # 流式调用API
             stream = await client.chat.completions.create(
                 model=self.QQAgent,
@@ -448,6 +453,7 @@ class MyClient(botpy.Client):
                 stream=True,
                 extra_body={
                     "asyncToolsID": asyncToolsID,
+                    "fileLinks": fileLinks,
                 }
             )
             
@@ -462,6 +468,13 @@ class MyClient(botpy.Client):
                         reasoning_content = delta.get("reasoning_content", "") 
                         tool_content = delta.get("tool_content", "")
                         async_tool_id = delta.get("async_tool_id", "")
+                        tool_link = delta.get("tool_link", "")
+
+                        if tool_link and settings["tools"]["toolMemorandum"]["enabled"]:
+                            if c_id not in self.fileLinks:
+                                self.fileLinks[c_id] = []
+                            self.fileLinks[c_id].append(tool_link)
+
                         if async_tool_id:
                             # 判断async_tool_id在不在self.asyncToolsID[c_id]中
                             if async_tool_id not in self.asyncToolsID[c_id]:
@@ -610,6 +623,7 @@ class MyClient(botpy.Client):
     async def on_group_at_message_create(self, message: GroupMessage):
         if not self.is_running:
             return
+        settings = await load_settings()
         client = AsyncOpenAI(
             api_key="super-secret-key",
             base_url=f"http://127.0.0.1:{self.port}/v1"
@@ -688,7 +702,10 @@ class MyClient(botpy.Client):
                 asyncToolsID = self.asyncToolsID[g_id]
             else:
                 self.asyncToolsID[g_id] = []
-
+            if g_id in self.fileLinks:
+                fileLinks = self.fileLinks[g_id]
+            else:
+                fileLinks = []
             # 流式API调用
             stream = await client.chat.completions.create(
                 model=self.QQAgent,
@@ -696,6 +713,7 @@ class MyClient(botpy.Client):
                 stream=True,
                 extra_body={
                     "asyncToolsID": asyncToolsID,
+                    "fileLinks": fileLinks,
                 }
             )
             
@@ -710,6 +728,11 @@ class MyClient(botpy.Client):
                         reasoning_content = delta.get("reasoning_content", "")
                         tool_content = delta.get("tool_content", "")
                         async_tool_id = delta.get("async_tool_id", "")
+                        tool_link = delta.get("tool_link", "")
+                        if tool_link and settings["tools"]["toolMemorandum"]["enabled"]:
+                            if g_id not in self.fileLinks:
+                                self.fileLinks[g_id] = []
+                            self.fileLinks[g_id].append(tool_link)
                         if async_tool_id:
                             # 判断async_tool_id在不在self.asyncToolsID[g_id]中
                             if async_tool_id not in self.asyncToolsID[g_id]:

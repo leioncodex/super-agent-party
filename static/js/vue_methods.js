@@ -5334,4 +5334,19 @@ let vue_methods = {
       showNotification(data.message, 'error');
     }
   },
+  toggleBriefly(index){
+    if (this.messages[index].briefly){
+      this.messages[index].briefly = !this.messages[index].briefly;
+    }else{
+      this.messages[index].briefly = true;
+    }
+  },
+  async rewrite(index){
+    // 删除this.messages中从index起之后的所有元素，包括index
+    this.messages.splice(index);
+    this.userInput = this.messages[index-1].pure_content??this.messages[index-1].content;
+    // 删除this.messages中最后一个元素
+    this.messages.pop();
+    await this.sendMessage();
+  }
 }

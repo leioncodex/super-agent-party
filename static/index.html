@@ -264,7 +264,7 @@
                   </div>
                 </div>
                 <!-- AI回复内容 -->
-                <div v-else-if="message.role === 'assistant'"  class="markdown-body" v-html="formatMessage(message.content)"></div>
+                <div v-else-if="message.role === 'assistant'"  class="markdown-body" v-html="message.briefly ? formatMessage(message.pure_content??msg.content) : formatMessage(message.content)"></div>
                 <!-- 系统消息内容 -->
                 <div v-else class="user-message-content" data-mjx-disabled="true">
                   <div v-html="t('system_prompt') + message.content"></div>
@@ -275,6 +275,24 @@
                 <el-tooltip v-if="mainAgent === 'super-model' || message.role !== 'system'" :content="t('edit')" placement="bottom">
                   <el-button @click="openEditDialog(message.role, message.content,index)" circle size="small">
                     <i class="fa-solid fa-pen-to-square"></i>
+                  </el-button>
+                </el-tooltip>
+                <el-tooltip v-if="message.role === 'assistant'" :content="t('briefly')" placement="bottom">
+                  <el-button 
+                    class="briefly-btn" 
+                    @click="toggleBriefly(index)"
+                    circle 
+                    size="small">
+                    <i class="fa-solid fa-asterisk"></i>
+                  </el-button>
+                </el-tooltip>
+                <el-tooltip v-if="message.role === 'assistant'" :content="t('rewrite')" placement="bottom">
+                  <el-button 
+                    class="rewrite-btn" 
+                    @click="rewrite(index)"
+                    circle 
+                    size="small">
+                    <i class="fa-solid fa-rotate"></i>
                   </el-button>
                 </el-tooltip>
                 <el-tooltip :content="t('copy')" placement="bottom">

@@ -625,6 +625,8 @@ const translations = {
         'arxiv': 'arXiv',
         'arxivNotice': '从arXiv获取最新的论文摘要',
         'gotoAplaybox': '模之屋获取VRM',
+        'briefly': '简要',
+        'rewrite': '重写',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1249,5 +1251,7 @@ const translations = {
         'arxiv': 'arXiv',
         'arxivNotice': 'Get the latest research paper information from arXiv',
         'gotoAplaybox': 'Aplaybox',
+        'briefly': 'Briefly',
+        'rewrite': 'Rewrite',
     }
   };
