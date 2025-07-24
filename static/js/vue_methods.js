@@ -1260,11 +1260,11 @@ let vue_methods = {
       const fileLinks_list = Array.isArray(fileLinks) ? fileLinks.map(fileLink => fileLink.path).flat() : []
       // fileLinks_list添加到self.filelinks
       this.fileLinks = this.fileLinks.concat(fileLinks_list)
-      const escapedContent = this.escapeHtml(userInput.trim());
+      // const escapedContent = this.escapeHtml(userInput.trim());
       // 添加用户消息
       this.messages.push({
         role: 'user',
-        content: escapedContent,
+        content: userInput.trim(),
         fileLinks: fileLinks,
         fileLinks_content: fileLinks_content,
         imageLinks: imageLinks || []
