@@ -1297,14 +1297,14 @@ let vue_methods = {
               ? [
                   {
                     type: "text",
-                    text: msg.content + (msg.fileLinks_content ?? '') + imageUrlsText
+                    text: msg.pure_content??msg.content + (msg.fileLinks_content ?? '') + imageUrlsText
                   },
                   ...msg.imageLinks.map(imageLink => ({
                     type: "image_url",
                     image_url: { url: imageLink.path }
                   }))
                 ]
-              : msg.content + (msg.fileLinks_content ?? '') + imageUrlsText
+              : msg.pure_content??msg.content + (msg.fileLinks_content ?? '') + imageUrlsText
           };
         });
       } else {
@@ -1328,14 +1328,14 @@ let vue_methods = {
               ? [
                   {
                     type: "text",
-                    text: msg.content + (msg.fileLinks_content ?? '') + imageUrlsText
+                    text: msg.pure_content??msg.content + (msg.fileLinks_content ?? '') + imageUrlsText
                   },
                   ...msg.imageLinks.map(imageLink => ({
                     type: "image_url",
                     image_url: { url: imageLink.path }
                   }))
                 ]
-              : msg.content + (msg.fileLinks_content ?? '') + imageUrlsText
+              : msg.pure_content??msg.content + (msg.fileLinks_content ?? '') + imageUrlsText
           };
         });
       }
@@ -1402,6 +1402,7 @@ let vue_methods = {
         this.messages.push({
           role: 'assistant',
           content: '',
+          pure_content: '',
           currentChunk: 0,
           ttsChunks: [],
           audioChunks: [],
@@ -1471,6 +1472,7 @@ let vue_methods = {
                     this.isThinkOpen = false; // 重置状态
                   }
                   lastMessage.content += parsed.choices[0].delta.content;
+                  lastMessage.pure_content += parsed.choices[0].delta.content;
                   tts_buffer += parsed.choices[0].delta.content;
                   // 处理 TTS 分割
                   if (this.ttsSettings.enabled) {
