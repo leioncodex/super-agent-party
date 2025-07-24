@@ -163,6 +163,19 @@ wheels = [
 ]
 
 [[package]]
+name = "arxiv"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "feedparser" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0b/16/3d72446400a59d1fbda24fed2289661398994164e07d72cfa85e43ce5e36/arxiv-2.2.0.tar.gz", hash = "sha256:6072a2211e95697092ef32acde0144d7de2cfa71208e2751724316c9df322cc0", size = 16910, upload-time = "2025-04-08T06:16:09.824Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/71/1e/e7f0393e836b5347605fc356c24d9f9ae9b26e0f7e52573b80e3d28335eb/arxiv-2.2.0-py3-none-any.whl", hash = "sha256:545b8af5ab301efff7697cd112b5189e631b80521ccbc33fbc1e1f9cff63ca4d", size = 11696, upload-time = "2025-04-08T06:16:08.844Z" },
+]
+
+[[package]]
 name = "attrs"
 version = "25.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -584,6 +597,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f3/b6/dbad5a717d909562905a24fa78551b899df582276ff9b5f88c5494c9acf6/fastapi_mcp-0.3.7.tar.gz", hash = "sha256:35de3333355e4d0f44116a4fe70613afecd5e5428bb6ddbaa041b39b33781af8", size = 165767, upload-time = "2025-07-14T16:19:51.196Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1f/4f/d622aa42273f79719a986caf585f956b6c70008a1d8ac45081274e3e5690/fastapi_mcp-0.3.7-py3-none-any.whl", hash = "sha256:1d4561959d4cd6df0ed8836d380b74fd9969fd9400cb6f7ed5cbd2db2f39090c", size = 23278, upload-time = "2025-07-14T16:19:49.994Z" },
+]
+
+[[package]]
+name = "feedparser"
+version = "6.0.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "sgmllib3k" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ff/aa/7af346ebeb42a76bf108027fe7f3328bb4e57a3a96e53e21fd9ef9dd6dd0/feedparser-6.0.11.tar.gz", hash = "sha256:c9d0407b64c6f2a065d0ebb292c2b35c01050cc0dc33757461aaabdc4c4184d5", size = 286197, upload-time = "2023-12-10T16:03:20.854Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7c/d4/8c31aad9cc18f451c49f7f9cfb5799dadffc88177f7917bc90a66459b1d7/feedparser-6.0.11-py3-none-any.whl", hash = "sha256:0be7ee7b395572b19ebeb1d6aafb0028dee11169f1c934e0ed67d54992f4ad45", size = 81343, upload-time = "2023-12-10T16:03:19.484Z" },
 ]
 
 [[package]]
@@ -2417,6 +2442,12 @@ wheels = [
 ]
 
 [[package]]
+name = "sgmllib3k"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9e/bd/3704a8c3e0942d711c1299ebf7b9091930adae6675d7c8f476a7ce48653c/sgmllib3k-1.0.0.tar.gz", hash = "sha256:7868fb1c8bfa764c1ac563d3cf369c381d1325d36124933a726f29fcdaa812e9", size = 5750, upload-time = "2010-08-24T14:33:52.445Z" }
+
+[[package]]
 name = "shellingham"
 version = "1.5.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2538,6 +2569,7 @@ dependencies = [
     { name = "aiohttp" },
     { name = "aiosqlite" },
     { name = "appdirs" },
+    { name = "arxiv" },
     { name = "brotli" },
     { name = "bs4" },
     { name = "docstring-parser" },
@@ -2584,6 +2616,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.11.18" },
     { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "appdirs", specifier = ">=1.4.4" },
+    { name = "arxiv", specifier = ">=2.2.0" },
     { name = "brotli", specifier = ">=1.1.0" },
     { name = "bs4", specifier = ">=0.0.2" },
     { name = "docstring-parser", specifier = ">=0.16" },

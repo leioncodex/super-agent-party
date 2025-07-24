@@ -48,4 +48,5 @@ dependencies = [
     "brotli>=1.1.0",
     "wxauto>=39.1.12; sys_platform == 'win32'",
     "wikipedia-api>=0.8.1",
+    "arxiv>=2.2.0",
 ]

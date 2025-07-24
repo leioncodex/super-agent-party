@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 import json
 from zoneinfo import ZoneInfo  # Python 内置模块
@@ -6,6 +7,8 @@ from tzlocal import get_localzone
 from py.accweatherAPI import AccuWeatherAPI
 from py.get_setting import load_settings
 import wikipediaapi
+import arxiv
+from typing import Dict, List, Optional
 # 获取本地时区（tzinfo 类型）
 local_timezone = get_localzone()  # 这个返回的是 tzinfo 类型
 
@@ -378,6 +381,114 @@ wikipedia_section_tool = {
                 }
             },
             "required": ["topic", "section_title"],
+        },
+    },
+}
+
+
+
+async def search_arxiv_papers(
+    query: str,
+    max_results: int = 5,
+    sort_by: str = "relevance",
+    sort_order: str = "descending",
+    return_fields: Optional[List[str]] = None
+) -> str:
+    """
+    搜索arXiv论文并返回结构化结果
+    
+    :param query: 搜索关键词或查询语句
+    :param max_results: 返回的最大结果数 (默认5)
+    :param sort_by: 排序方式 ("relevance", "submittedDate", "lastUpdatedDate")
+    :param sort_order: 排序顺序 ("ascending" 或 "descending")
+    :param return_fields: 指定返回的字段列表
+    :return: JSON格式的搜索结果
+    """
+    # 设置默认返回字段
+    default_fields = [
+        "title", "authors", "summary", "published", 
+        "pdf_url", "doi", "primary_category"
+    ]
+    return_fields = return_fields or default_fields
+    
+    # 包装同步操作为异步
+    def sync_search():
+        search = arxiv.Search(
+            query=query,
+            max_results=max_results,
+            sort_by=arxiv.SortCriterion(sort_by),
+            sort_order=arxiv.SortOrder(sort_order)
+        )
+        return list(search.results())
+    
+    results = []
+    try:
+        # 在线程池中执行同步操作
+        papers = await asyncio.to_thread(sync_search)
+        
+        for result in papers:
+            paper_info = {
+                "title": result.title,
+                "authors": [author.name for author in result.authors],
+                "summary": result.summary,
+                "published": str(result.published),
+                "pdf_url": result.pdf_url,
+                "doi": result.doi or "",
+                "primary_category": result.primary_category,
+                "entry_id": result.entry_id
+            }
+            # 过滤字段
+            filtered = {k: v for k, v in paper_info.items() if k in return_fields}
+            results.append(filtered)
+            
+        if not results:
+            return json.dumps({"error": f"未找到与'{query}'相关的论文"}, ensure_ascii=False)
+            
+        return json.dumps({
+            "query": query,
+            "count": len(results),
+            "results": results
+        }, ensure_ascii=False)
+        
+    except Exception as e:
+        return json.dumps({"error": f"搜索失败: {str(e)}"}, ensure_ascii=False)
+
+arxiv_tool = {
+    "type": "function",
+    "function": {
+        "name": "search_arxiv_papers",
+        "description": "搜索arXiv学术论文数据库，获取论文标题、作者、摘要、PDF链接等信息",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "搜索英文的关键词或查询语句，例如:'quantum machine learning'或'ti:transformer AND cat:cs.CL'",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "返回结果数量(1-100)",
+                    "default": 5
+                },
+                "sort_by": {
+                    "type": "string",
+                    "enum": ["relevance", "submittedDate", "lastUpdatedDate"],
+                    "description": "排序方式",
+                    "default": "relevance"
+                },
+                "sort_order": {
+                    "type": "string",
+                    "enum": ["ascending", "descending"],
+                    "description": "排序顺序",
+                    "default": "descending"
+                },
+                "return_fields": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "指定返回字段，如['title','authors','pdf_url']",
+                }
+            },
+            "required": ["query"],
         },
     },
 }

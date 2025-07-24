@@ -282,7 +282,8 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         get_location_coordinates_async,
         get_weather_by_city_async,
         get_wikipedia_summary_and_sections,
-        get_wikipedia_section_content
+        get_wikipedia_section_content,
+        search_arxiv_papers
     )
     _TOOL_HOOKS = {
         "DDGsearch_async": DDGsearch_async,
@@ -313,7 +314,8 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         "get_location_coordinates_async": get_location_coordinates_async,
         "get_weather_by_city_async":get_weather_by_city_async,
         "get_wikipedia_summary_and_sections": get_wikipedia_summary_and_sections,
-        "get_wikipedia_section_content": get_wikipedia_section_content
+        "get_wikipedia_section_content": get_wikipedia_section_content,
+        "search_arxiv_papers": search_arxiv_papers
     }
     if "multi_tool_use." in tool_name:
         tool_name = tool_name.replace("multi_tool_use.", "")
@@ -641,7 +643,8 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
         location_tool,
         timer_weather_tool,
         wikipedia_summary_tool,
-        wikipedia_section_tool
+        wikipedia_section_tool,
+        arxiv_tool 
     ) 
     m0 = None
     memoryId = None
@@ -714,6 +717,8 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
         if settings["tools"]["wikipedia"]['enabled']:
             tools.append(wikipedia_summary_tool)
             tools.append(wikipedia_section_tool)
+        if settings["tools"]["arxiv"]['enabled']:
+            tools.append(arxiv_tool)
         if settings['text2imgSettings']['enabled']:
             if settings['text2imgSettings']['engine'] == 'pollinations':
                 tools.append(pollinations_image_tool)
@@ -2181,7 +2186,8 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
         location_tool,
         timer_weather_tool,
         wikipedia_summary_tool,
-        wikipedia_section_tool
+        wikipedia_section_tool,
+        arxiv_tool
     ) 
     m0 = None
     if settings["memorySettings"]["is_memory"]:
@@ -2255,6 +2261,8 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
     if settings["tools"]["wikipedia"]['enabled']:
         tools.append(wikipedia_summary_tool)
         tools.append(wikipedia_section_tool)
+    if settings["tools"]["arxiv"]['enabled']:
+        tools.append(arxiv_tool)
     if settings['text2imgSettings']['enabled']:
         if settings['text2imgSettings']['engine'] == 'pollinations':
             tools.append(pollinations_image_tool)

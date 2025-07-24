@@ -154,6 +154,9 @@ let vue_data = {
       wikipedia: {
         enabled: false,
       },
+      arxiv: {
+        enabled: false,
+      },
       toolMemorandum: {
         enabled: false,
       },

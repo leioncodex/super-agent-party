@@ -622,6 +622,8 @@ const translations = {
         'wikipediaNotice': '获取指定关键词的维基百科摘要或具体章节内容',
         'toolMemorandum': '工具备忘录',
         'toolMemorandumNotice': '开启时，会将工具调用结果添加到聊天记录中，关闭后，则不会添加，节省token消耗',
+        'arxiv': 'arXiv',
+        'arxivNotice': '从arXiv获取最新的论文摘要',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1243,5 +1245,7 @@ const translations = {
         'wikipediaNotice': 'Get the summary or specific chapter content of a specified keyword from Wikipedia',
         'toolMemorandum': 'Tool Memorandum',
         'toolMemorandumNotice': 'When enabled, the tool call results will be added to the chat record, and when disabled, they will not be added to save token consumption',
+        'arxiv': 'arXiv',
+        'arxivNotice': 'Get the latest research paper information from arXiv',
     }
   };
