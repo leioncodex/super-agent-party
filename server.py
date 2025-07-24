@@ -280,7 +280,9 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         time_async,
         get_weather_async,
         get_location_coordinates_async,
-        get_weather_by_city_async
+        get_weather_by_city_async,
+        get_wikipedia_summary_and_sections,
+        get_wikipedia_section_content
     )
     _TOOL_HOOKS = {
         "DDGsearch_async": DDGsearch_async,
@@ -310,6 +312,8 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         "get_weather_async": get_weather_async,
         "get_location_coordinates_async": get_location_coordinates_async,
         "get_weather_by_city_async":get_weather_by_city_async,
+        "get_wikipedia_summary_and_sections": get_wikipedia_summary_and_sections,
+        "get_wikipedia_section_content": get_wikipedia_section_content
     }
     if "multi_tool_use." in tool_name:
         tool_name = tool_name.replace("multi_tool_use.", "")
@@ -631,7 +635,14 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
     from py.llm_tool import get_llm_tool
     from py.pollinations import pollinations_image_tool,openai_image_tool,siliconflow_image_tool
     from py.code_interpreter import e2b_code_tool,local_run_code_tool
-    from py.utility_tools import time_tool, weather_tool,location_tool,timer_weather_tool 
+    from py.utility_tools import (
+        time_tool, 
+        weather_tool,
+        location_tool,
+        timer_weather_tool,
+        wikipedia_summary_tool,
+        wikipedia_section_tool
+    ) 
     m0 = None
     memoryId = None
     if settings["memorySettings"]["is_memory"]:
@@ -700,6 +711,9 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
             tools.append(weather_tool)
             tools.append(location_tool)
             tools.append(timer_weather_tool)
+        if settings["tools"]["wikipedia"]['enabled']:
+            tools.append(wikipedia_summary_tool)
+            tools.append(wikipedia_section_tool)
         if settings['text2imgSettings']['enabled']:
             if settings['text2imgSettings']['engine'] == 'pollinations':
                 tools.append(pollinations_image_tool)
@@ -2156,7 +2170,14 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
     from py.pollinations import pollinations_image_tool,openai_image_tool,siliconflow_image_tool
     from py.code_interpreter import e2b_code_tool,local_run_code_tool
     from py.utility_tools import time_tool
-    from py.utility_tools import time_tool, weather_tool,location_tool,timer_weather_tool 
+    from py.utility_tools import (
+        time_tool, 
+        weather_tool,
+        location_tool,
+        timer_weather_tool,
+        wikipedia_summary_tool,
+        wikipedia_section_tool
+    ) 
     m0 = None
     if settings["memorySettings"]["is_memory"]:
         memoryId = settings["memorySettings"]["selectedMemory"]
@@ -2226,6 +2247,9 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
         tools.append(weather_tool)
         tools.append(location_tool)
         tools.append(timer_weather_tool)
+    if settings["tools"]["wikipedia"]['enabled']:
+        tools.append(wikipedia_summary_tool)
+        tools.append(wikipedia_section_tool)
     if settings['text2imgSettings']['enabled']:
         if settings['text2imgSettings']['engine'] == 'pollinations':
             tools.append(pollinations_image_tool)

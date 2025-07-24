@@ -31,6 +31,9 @@
         "enabled": false,
         "apiKey": ""
       },
+      "wikipedia": {
+        "enabled": false
+      },
       "getFile": {
         "enabled": false
       },

@@ -5,6 +5,7 @@ import requests
 from tzlocal import get_localzone
 from py.accweatherAPI import AccuWeatherAPI
 from py.get_setting import load_settings
+import wikipediaapi
 # 获取本地时区（tzinfo 类型）
 local_timezone = get_localzone()  # 这个返回的是 tzinfo 类型
 
@@ -256,6 +257,127 @@ timer_weather_tool = {
                 }
             },
             "required": ["city"],
+        },
+    },
+}
+
+
+
+async def get_wikipedia_summary_and_sections(
+    topic: str, 
+    language: str = "zh"
+) -> str:
+    """
+    获取维基百科上某个主题的摘要和所有章节名称（字符串格式返回）
+    
+    :param topic: 要查询的主题
+    :param language: 语言代码，默认为"zh"(中文)
+    :param user_agent: 自定义用户代理
+    :return: 包含摘要和章节列表的字符串，若页面不存在则返回错误信息
+    """
+    wiki_wiki = wikipediaapi.Wikipedia(
+        language=language,
+        extract_format=wikipediaapi.ExtractFormat.WIKI,
+        user_agent="super-agent-party"
+    )
+    
+    page = wiki_wiki.page(topic)
+    
+    if not page.exists():
+        return f"维基百科上找不到关于'{topic}'的页面（语言: {language}）"
+    
+    result = {
+        "标题": page.title,
+        "摘要": page.summary,
+        "URL": page.fullurl,
+        "章节列表": [section.title for section in page.sections]
+    }
+    
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+wikipedia_summary_tool = {
+    "type": "function",
+    "function": {
+        "name": "get_wikipedia_summary_and_sections",
+        "description": "获取维基百科上某个主题的摘要和所有章节名称",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "要查询的主题名称",
+                },
+                "language": {
+                    "type": "string",
+                    "description": "语言代码，如zh(中文)、en(英文)",
+                    "default": "zh"
+                },
+            },
+            "required": ["topic"],
+        },
+    },
+}
+
+async def get_wikipedia_section_content(
+    topic: str, 
+    section_title: str, 
+    language: str = "zh"
+) -> str:
+    """
+    获取维基百科上某个主题特定章节的详细内容（字符串格式返回）
+    
+    :param topic: 要查询的主题
+    :param section_title: 章节标题
+    :param language: 语言代码，默认为"zh"(中文)
+    :param user_agent: 自定义用户代理
+    :return: 包含章节详细内容的字符串，若页面或章节不存在则返回错误信息
+    """
+    wiki_wiki = wikipediaapi.Wikipedia(
+        language=language,
+        extract_format=wikipediaapi.ExtractFormat.WIKI,
+        user_agent="super-agent-party"
+    )
+    
+    page = wiki_wiki.page(topic)
+    
+    if not page.exists():
+        return f"维基百科上找不到关于'{topic}'的页面（语言: {language}）"
+    
+    for section in page.sections:
+        if section.title == section_title:
+            result = {
+                "主题": page.title,
+                "章节标题": section.title,
+                "内容": section.text,
+                "URL": page.fullurl
+            }
+            return json.dumps(result, ensure_ascii=False, indent=2)
+    
+    return f"在'{topic}'页面中找不到标题为'{section_title}'的章节"
+
+wikipedia_section_tool = {
+    "type": "function",
+    "function": {
+        "name": "get_wikipedia_section_content",
+        "description": "获取维基百科上某个主题特定章节的详细内容，你需要先调用get_wikipedia_summary_and_sections获取章节列表",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "要查询的主题名称",
+                },
+                "section_title": {
+                    "type": "string",
+                    "description": "要获取的章节标题",
+                },
+                "language": {
+                    "type": "string",
+                    "description": "语言代码，如zh(中文)、en(英文)",
+                    "default": "zh"
+                }
+            },
+            "required": ["topic", "section_title"],
         },
     },
 }

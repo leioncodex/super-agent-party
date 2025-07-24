@@ -39,3 +39,4 @@ scipy
 edge-tts
 Brotli
 wxauto; sys_platform == 'win32'
+wikipedia-api

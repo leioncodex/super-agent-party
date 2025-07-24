@@ -151,6 +151,9 @@ let vue_data = {
         enabled: false,
         apiKey: '',
       },
+      wikipedia: {
+        enabled: false,
+      },
       getFile: {
         enabled: false,
       },

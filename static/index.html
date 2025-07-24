@@ -2251,6 +2251,27 @@
                     </el-alert>
                   </div>
 
+                  <!-- 维基百科工具 -->
+                  <div class="provider-card tool-card">
+                    <div class="card-header">
+                      <el-switch 
+                        v-model="toolsSettings.wikipedia.enabled" 
+                        @change="autoSaveSettings"
+                        class="tool-switch"
+                      ></el-switch>
+                    </div>
+                    <div class="tool-card-title">
+                      <h3 class="kb-title">
+                        {{ t('wikipedia') }}
+                      </h3>
+                    </div>
+                    <el-alert type="info" :closable="false" class="mb-2">
+                      <div class="alert-content">
+                        {{ t('wikipediaNotice') }}
+                      </div>
+                    </el-alert>
+                  </div>
+
                   <!-- 存储空间文件查询工具 -->
                   <div class="provider-card tool-card">
                     <div class="card-header">
