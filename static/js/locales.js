@@ -627,6 +627,8 @@ const translations = {
         'gotoAplaybox': '模之屋获取VRM',
         'briefly': '简要',
         'rewrite': '重写',
+        'proxySettings': '代理设置',
+        'proxyPlaceholder': '请输入代理地址，例如：http://127.0.0.1:7890',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1253,5 +1255,7 @@ const translations = {
         'gotoAplaybox': 'Aplaybox',
         'briefly': 'Briefly',
         'rewrite': 'Rewrite',
+        'proxySettings': 'Proxy Settings',
+        'proxyPlaceholder': 'Please enter the proxy address, such as http://127.0.0.1:7890',
     }
   };

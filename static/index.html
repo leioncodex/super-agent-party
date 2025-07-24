@@ -3919,6 +3919,27 @@
                 </el-form-item>
               </div>
             </div>
+
+            <div class="tool-item">
+              <div class="tool-header">
+                <span>
+                  <el-icon>
+                    <i class="fa-solid fa-wifi"></i>
+                  </el-icon>
+                  {{ t('proxySettings') }}
+                </span>
+              </div>
+              <div class="tool-content">
+                <el-form-item class="form-item-align">
+                  <el-input
+                    v-model="systemSettings.proxy"
+                    :placeholder="t('proxyPlaceholder')"
+                    class="full-width-input"
+                    @input="updateProxy"
+                  ></el-input>
+                </el-form-item>
+              </div>
+            </div>
           </el-form>
           <!--eldialog 询问用户是否立即重启-->
           <el-dialog

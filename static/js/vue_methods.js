@@ -5348,5 +5348,20 @@ let vue_methods = {
     // 删除this.messages中最后一个元素
     this.messages.pop();
     await this.sendMessage();
+  },
+  async updateProxy(){
+    await this.autoSaveSettings();
+    const response = await fetch('/api/update_proxy',{
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      console.log(data);
+    }else {
+      console.error('更新代理失败');
+    }
   }
 }
