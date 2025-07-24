@@ -63,6 +63,7 @@ if (isElectron) {
   const backendURL = window.location.port ? `${protocol}//${HOST}:${PORT}` : `${protocol}//${HOST}`;
 let vue_data = {
     isMac: false,
+    isWindows: false,
     partyURL:window.location.port ? `${protocol}//${HOST}:${PORT}` : `${protocol}//${HOST}`,
     downloadProgress: 0,
     updateDownloaded: false,
@@ -143,6 +144,20 @@ let vue_data = {
         enabled: false,
       },
       time: {
+        enabled: false,
+        triggerMode: 'beforeThinking',
+      },
+      accuweather: {
+        enabled: false,
+        apiKey: '',
+      },
+      wikipedia: {
+        enabled: false,
+      },
+      arxiv: {
+        enabled: false,
+      },
+      toolMemorandum: {
         enabled: false,
       },
       getFile: {
@@ -828,9 +843,45 @@ let vue_data = {
     },
     deployTiles: [
       { id: 'table_pet', title: 'tablePet', icon: "fa-solid fa-user-ninja"},
+      { id: 'live_stream', title: 'live_stream', icon: "fa-solid fa-video"},
       { id: 'qq_bot', title: 'qqBot', icon: 'fa-brands fa-qq' },
+      { id: 'wx_bot', title: 'wxBot', icon: 'fa-brands fa-weixin' },
       { id: 'bot_config', title: 'bot_config', icon: 'fa-solid fa-robot' }
     ],
+    liveConfig: {
+      onlyDanmaku: true,
+      danmakuQueueLimit: 5,
+      bilibili_enabled: false,
+      bilibili_type: 'web',
+      bilibili_room_id: '',
+      bilibili_sessdata: '',
+      bilibili_ACCESS_KEY_ID: '',
+      bilibili_ACCESS_KEY_SECRET: '',
+      bilibili_APP_ID: '',
+      bilibili_ROOM_OWNER_AUTH_CODE: '',
+    },
+    WXBotConfig: {
+      WXAgent:'super-model',
+      memoryLimit: 30,
+      separators: ["。", "\n", "？", "！"],
+      reasoningVisible: true,
+      quickRestart: true,
+      nickNameList: [],
+      wakeWord: '小派',
+    },
+    danmu: [], // 弹幕列表
+    bilibiliWs: null, // WebSocket连接
+    danmuProcessTimer: null, // 弹幕处理定时器
+    isProcessingDanmu: false, // 是否正在处理弹幕
+    shouldReconnectWs :false,
+    isLiveRunning: false,
+    isLiveStarting: false,
+    isLiveStopping: false,
+    isLiveReloading: false,
+    isWXStarting: false,
+    isWXStopping: false,
+    isWXReloading: false,
+    isWXBotRunning: false,
     stickerPacks: [],
     showStickerDialog: false,
     newStickerPack: {

@@ -5,7 +5,7 @@ import { VRMLoaderPlugin, MToonMaterialLoaderPlugin, VRMUtils, VRMLookAt } from 
 import { MToonNodeMaterial } from '@pixiv/three-vrm/nodes';
 
 const _v3A = new THREE.Vector3();
-
+let isVRM1 = true;
 // extended lookat
 class VRMSmoothLookAt extends VRMLookAt {
 
@@ -147,6 +147,23 @@ async function getVRMpath() {
     }
 }
 
+async function getVRMname() {
+    const vrmConfig = await fetchVRMConfig();
+    const modelId = vrmConfig.selectedModelId;
+    const defaultModel = vrmConfig.defaultModels.find(model => model.id === modelId) || vrmConfig.userModels.find(model => model.id === modelId);
+    if (defaultModel) {
+        return defaultModel.name;
+    } else {
+        const userModel = vrmConfig.userModels.find(model => model.id === modelId);
+        if (userModel) {
+            return userModel.name;
+        }
+        else {
+            return 'Alice';
+        }
+    }
+}
+
 const vrmPath = await getVRMpath();
 console.log(vrmPath);
 
@@ -221,21 +238,24 @@ loader.register( ( parser ) => {
 // 设置自然姿势的函数
 function setNaturalPose(vrm) {
     if (!vrm.humanoid) return;
-
+    let v = 1;
+    if (!isVRM1){
+        v = -1;
+    }
     // 左臂自然下垂
-    vrm.humanoid.getNormalizedBoneNode( 'leftUpperArm' ).rotation.z = -0.4 * Math.PI;
+    vrm.humanoid.getNormalizedBoneNode( 'leftUpperArm' ).rotation.z = -0.4 * Math.PI * v;
 
     // 右臂自然下垂
-    vrm.humanoid.getNormalizedBoneNode( 'rightUpperArm' ).rotation.z = 0.4 * Math.PI;
+    vrm.humanoid.getNormalizedBoneNode( 'rightUpperArm' ).rotation.z = 0.4 * Math.PI * v;
     
     const leftHand = vrm.humanoid.getNormalizedBoneNode('leftHand');
     if (leftHand) {
-        leftHand.rotation.z = 0.1; // 手腕自然弯曲
+        leftHand.rotation.z = 0.1 * v; // 手腕自然弯曲
         leftHand.rotation.x = 0.05;
     }
     const rightHand = vrm.humanoid.getNormalizedBoneNode('rightHand');
     if (rightHand) {
-        rightHand.rotation.z = -0.1; // 手腕自然弯曲
+        rightHand.rotation.z = -0.1 * v; // 手腕自然弯曲
         rightHand.rotation.x = 0.05;
     }
     // 添加手指的自然弯曲（如果模型支持）
@@ -258,21 +278,22 @@ function setNaturalPose(vrm) {
             // 根据手指部位设置不同的弯曲度
             if (boneName.includes('Thumb')) {
                 // 拇指稍微向内
-                bone.rotation.y = boneName.includes('left') ? 0.35 : -0.35;
+                bone.rotation.y = boneName.includes('left') ? 0.35 * v : -0.35 * v;
             } else if (boneName.includes('Proximal')) {
                 // 近端指骨轻微弯曲
-                bone.rotation.z = boneName.includes('left') ? -0.35 : 0.35;
+                bone.rotation.z = boneName.includes('left') ? -0.35 * v : 0.35 * v;
             } else if (boneName.includes('Intermediate')) {
                 // 中端指骨稍微弯曲
-                bone.rotation.z = boneName.includes('left') ? -0.45 : 0.45;
+                bone.rotation.z = boneName.includes('left') ? -0.45 * v : 0.45 * v;
             } else if (boneName.includes('Distal')) {
                 // 远端指骨轻微弯曲
-                bone.rotation.z = boneName.includes('left') ? -0.3 : 0.3;
+                bone.rotation.z = boneName.includes('left') ? -0.3 * v : 0.3 * v;
             }
         }
     });
 }
-
+let VRMname = await getVRMname();
+showModelSwitchingIndicator(VRMname);
 loader.load(
 
     // URL of the VRM you want to load
@@ -282,7 +303,8 @@ loader.load(
     ( gltf ) => {
 
         const vrm = gltf.userData.vrm;
-
+        isVRM1 = vrm.meta.metaVersion === '1';
+        VRMUtils.rotateVRM0(vrm); // 旋转 VRM 使其面向正前方
         // calling these functions greatly improves the performance
         VRMUtils.removeUnnecessaryVertices( gltf.scene );
         VRMUtils.combineSkeletons( gltf.scene );
@@ -318,14 +340,28 @@ loader.load(
 
         // 设置自然姿势
         setNaturalPose(vrm);
-
+        hideModelSwitchingIndicator();
     },
 
-    // called while loading is progressing
-    ( progress ) => console.log( 'Loading model...', 100.0 * ( progress.loaded / progress.total ), '%' ),
+    (progress) => {
+        console.log('Loading model...', 100.0 * (progress.loaded / progress.total), '%');
+        // 可以在这里更新加载进度
+        updateModelLoadingProgress(progress.loaded / progress.total);
+    },
 
-    // called when loading has errors
-    ( error ) => console.error( error )
+    (error) => {
+        console.error('Error loading model:', error);
+        hideModelSwitchingIndicator();
+        
+        // 如果加载失败，尝试回到之前的模型
+        if (allModels.length > 1) {
+            console.log('Attempting to load fallback model...');
+            // 尝试加载第一个模型作为备用
+            if (currentModelIndex !== 0) {
+                switchToModel(0);
+            }
+        }
+    }
 
 );
 
@@ -360,7 +396,10 @@ function getRandomBlinkData() {
 // 闲置动作函数
 function applyIdleAnimation(vrm, time) {
     if (!vrm.humanoid) return;
-
+    let v = 1;
+    if (!isVRM1){
+        v = -1;
+    }
     // 身体轻微摆动 - 慢速，小幅度
     const bodySwayX = Math.sin(time * 0.3 + idleOffsets.body) * 0.02;
     const bodySwayZ = Math.cos(time * 0.25 + idleOffsets.body) * 0.015;
@@ -384,7 +423,7 @@ function applyIdleAnimation(vrm, time) {
     const leftLowerArm = vrm.humanoid.getNormalizedBoneNode('leftLowerArm');
     if (leftUpperArm) {
         // 保持基本姿势，添加轻微摆动
-        leftUpperArm.rotation.z = -0.43 * Math.PI + Math.sin(time * 0.75 + idleOffsets.leftArm) * 0.03 - 0.01;
+        leftUpperArm.rotation.z = -0.43 * Math.PI * v + Math.sin(time * 0.75 + idleOffsets.leftArm) * 0.03 - 0.01;
         leftUpperArm.rotation.x = Math.cos(time * 0.35 + idleOffsets.leftArm) * 0.03;
         leftUpperArm.rotation.y = Math.sin(time * 0.3 + idleOffsets.leftArm) * 0.02;
     }
@@ -397,7 +436,7 @@ function applyIdleAnimation(vrm, time) {
     const rightLowerArm = vrm.humanoid.getNormalizedBoneNode('rightLowerArm');
     if (rightUpperArm) {
         // 保持基本姿势，添加轻微摆动
-        rightUpperArm.rotation.z = 0.43 * Math.PI + Math.sin(time * 0.75 + idleOffsets.rightArm) * 0.03;
+        rightUpperArm.rotation.z = 0.43 * Math.PI * v + Math.sin(time * 0.75 + idleOffsets.rightArm) * 0.03;
         rightUpperArm.rotation.x = Math.cos(time * 0.4 + idleOffsets.rightArm) * 0.03;
         rightUpperArm.rotation.y = Math.sin(time * 0.32 + idleOffsets.rightArm) * 0.02;
     }
@@ -407,12 +446,12 @@ function applyIdleAnimation(vrm, time) {
 
     const leftHand = vrm.humanoid.getNormalizedBoneNode('leftHand');
     if (leftHand) {
-        leftHand.rotation.z = 0.1 + Math.sin(time * 0.6 + idleOffsets.leftArm) * 0.015; // 手腕自然弯曲
+        leftHand.rotation.z = 0.1 * v + Math.sin(time * 0.6 + idleOffsets.leftArm) * 0.015; // 手腕自然弯曲
         leftHand.rotation.x = 0.05;
     }
     const rightHand = vrm.humanoid.getNormalizedBoneNode('rightHand');
     if (rightHand) {
-        rightHand.rotation.z = -0.1 - Math.sin(time * 0.6 + idleOffsets.rightArm) * 0.015; // 手腕自然弯曲
+        rightHand.rotation.z = -0.1 * v - Math.sin(time * 0.6 + idleOffsets.rightArm) * 0.015; // 手腕自然弯曲
         rightHand.rotation.x = 0.05;
     }
 
@@ -1439,7 +1478,8 @@ async function switchToModel(index) {
             modelPath,
             (gltf) => {
                 const vrm = gltf.userData.vrm;
-                
+                isVRM1 = vrm.meta.metaVersion === '1';
+                VRMUtils.rotateVRM0(vrm); // 旋转 VRM 使其面向正前方
                 // 优化性能
                 VRMUtils.removeUnnecessaryVertices(gltf.scene);
                 VRMUtils.combineSkeletons(gltf.scene);

@@ -16,24 +16,23 @@ const app = Vue.createApp({
     if (this.statusInterval) {
       clearInterval(this.statusInterval);
     }
-    window.removeEventListener('keydown', this.handleKeyDown)
-    window.removeEventListener('keyup', this.handleKeyUp)
+    window.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('keyup', this.handleKeyUp);
     window.removeEventListener('resize', this.checkMobile);
+    this.shouldReconnectWs = false; // 设置标志位
+    this.stopDanmuProcessor(); // 停止弹幕处理器
+    this.disconnectWebSocket();
   },
   async mounted() {
-    // 初始检查
-    this.checkQQBotStatus();
     this.checkMobile();
     this.checkServerPort();
     window.addEventListener('keydown', this.handleKeyDown)
     window.addEventListener('keyup', this.handleKeyUp)
     window.addEventListener('resize', this.checkMobile);
 
-    // 每30秒检查一次状态
-    this.statusInterval = setInterval(this.checkQQBotStatus, 30000); // 30000毫秒 = 30秒
-
     if (isElectron) {
       this.isMac = window.electron.isMac;
+      this.isWindows = window.electron.isWindows;
     }
     this.initWebSocket();
     this.highlightCode();
@@ -188,6 +187,23 @@ const app = Vue.createApp({
     // 计算属性，判断配置是否有效
     isQQBotConfigValid() {
         return this.qqBotConfig.appid && this.qqBotConfig.secret;
+    },
+    isWXBotConfigValid() {
+        return this.WXBotConfig.nickNameList && this.WXBotConfig.nickNameList.length > 0;
+    },
+    isLiveConfigValid() {
+        if (this.liveConfig.bilibili_enabled) {
+            if(this.liveConfig.bilibili_type === 'web'){
+                return this.liveConfig.bilibili_room_id && this.liveConfig.bilibili_room_id.trim() !== '';
+            }
+            else if(this.liveConfig.bilibili_type === 'open_live'){
+                return this.liveConfig.bilibili_ACCESS_KEY_ID &&
+                this.liveConfig.bilibili_SECRET_ACCESS_KEY &&
+                this.liveConfig.bilibili_APP_ID &&
+                this.liveConfig.bilibili_ROOM_OWNER_AUTH_CODE;
+            }
+        }
+        return false;
     },
     updateButtonText() {
       if (this.updateDownloaded) return this.t('installNow');

@@ -1,9 +1,11 @@
 ![image](static/source/agent_party.png)
 
 <div align="center">
-  <a href="./README_ZH.md"><img src="https://img.shields.io/badge/简体中文-d9d9d9"></a>
-  <a href="./README.md"><img src="https://img.shields.io/badge/English-d9d9d9"></a>
+  <a href="./README_ZH.md">简体中文</a> |
+  <a href="./README.md">English</a>
 </div>
+
+####
 
 <div align="center">
   <a href="https://space.bilibili.com/26978344">B站</a> ·
@@ -167,13 +169,31 @@
 
 ## 支持：
 
+### 求星标！
+⭐你的支持是我们前进的动力！
+
+<div align="center">
+  <img src="doc/image/star.gif" width="400" alt="star">
+</div>
+
 ### 关注我们
-<a href="https://space.bilibili.com/26978344">
-  <img src="doc/image/B.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
-</a>
-<a href="https://www.youtube.com/@LLM-party">
-  <img src="doc/image/YT.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
-</a>
+<div align="center">
+  <a href="https://space.bilibili.com/26978344">
+    <img src="doc/image/B.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
+  </a>
+  <a href="https://www.youtube.com/@agentParty">
+    <img src="doc/image/YT.png" width="100" height="100" style="border-radius: 80%; overflow: hidden;" alt="octocat"/>
+  </a>
+</div>
+
+<div align="center">
+  <a href="https://www.bilibili.com/video/BV15UuJz9EGH/" target="_blank">
+    <img src="https://i0.hdslb.com/bfs/archive/0f4629dcc958a9437cd7f2e6b5b84649b6ac467c.jpg" 
+         width="600" 
+         alt="B站视频封面"
+         style="border-radius: 8px; border: 1px solid #eee;">
+  </a>
+</div>
 
 ### 加入社群
 如果项目存在问题或者您有其他的疑问，欢迎加入我们的社群。

@@ -2195,9 +2195,121 @@
                     <div class="tool-card-title">
                       <h3 class="kb-title">{{ t('currentTime') }}</h3>
                     </div>
+                    <el-form-item :label="t('triggerMode')">
+                      <el-select
+                        v-model="toolsSettings.time.triggerMode"
+                        @change="autoSaveSettings"
+                      >
+                          <el-option :label="t('beforeThinking')" value="beforeThinking" ></el-option>
+                          <el-option :label="t('afterThinking')" value="afterThinking" ></el-option>
+                      </el-select>
+                    </el-form-item>
                     <el-alert type="info" :closable="false" class="mb-2">
                       <div class="alert-content">
                         {{ t('currentTimeNotice') }}
+                      </div>
+                    </el-alert>
+                  </div>
+
+                  <!-- 当前天气工具 -->
+                  <div class="provider-card tool-card">
+                    <div class="card-header">
+                      <el-switch 
+                        v-model="toolsSettings.accuweather.enabled" 
+                        @change="autoSaveSettings"
+                        class="tool-switch"
+                      ></el-switch>
+                    </div>
+                    <div class="tool-card-title">
+                      <h3 class="kb-title">
+                        {{ t('accuweather') }}
+                      </h3>
+                      <el-link
+                        type="primary"
+                        :underline="false"
+                        href="https://developer.accuweather.com/apis" 
+                        target="_blank"
+                      >
+                        <el-icon class="mr-1">
+                          <i class="fa-solid fa-key"></i>
+                        </el-icon>{{ t('gotoAPI') }}
+                      </el-link>
+                    </div>
+                    <el-form-item :label="t('apiKey')">
+                      <el-input
+                        v-model="toolsSettings.accuweather.apiKey"
+                        @change="autoSaveSettings"
+                        class="mini-input"
+                        :placeholder="t('apiKeyPlaceholder')"
+                        show-password
+                      ></el-input>
+                    </el-form-item>
+                    <el-alert type="info" :closable="false" class="mb-2">
+                      <div class="alert-content">
+                        {{ t('accuweatherNotice') }}
+                      </div>
+                    </el-alert>
+                  </div>
+
+                  <!-- 维基百科工具 -->
+                  <div class="provider-card tool-card">
+                    <div class="card-header">
+                      <el-switch 
+                        v-model="toolsSettings.wikipedia.enabled" 
+                        @change="autoSaveSettings"
+                        class="tool-switch"
+                      ></el-switch>
+                    </div>
+                    <div class="tool-card-title">
+                      <h3 class="kb-title">
+                        {{ t('wikipedia') }}
+                      </h3>
+                    </div>
+                    <el-alert type="info" :closable="false" class="mb-2">
+                      <div class="alert-content">
+                        {{ t('wikipediaNotice') }}
+                      </div>
+                    </el-alert>
+                  </div>
+
+                  <!-- arxiv工具 -->
+                  <div class="provider-card tool-card">
+                    <div class="card-header">
+                      <el-switch 
+                        v-model="toolsSettings.arxiv.enabled" 
+                        @change="autoSaveSettings"
+                        class="tool-switch"
+                      ></el-switch>
+                    </div>
+                    <div class="tool-card-title">
+                      <h3 class="kb-title">
+                        {{ t('arxiv') }}
+                      </h3>
+                    </div>
+                    <el-alert type="info" :closable="false" class="mb-2">
+                      <div class="alert-content">
+                        {{ t('arxivNotice') }}
+                      </div>
+                    </el-alert>
+                  </div>
+
+                  <!-- 工具结果备忘录 -->
+                  <div class="provider-card tool-card">
+                    <div class="card-header">
+                      <el-switch 
+                        v-model="toolsSettings.toolMemorandum.enabled" 
+                        @change="autoSaveSettings"
+                        class="tool-switch"
+                      ></el-switch>
+                    </div>
+                    <div class="tool-card-title">
+                      <h3 class="kb-title">
+                        {{ t('toolMemorandum') }}
+                      </h3>
+                    </div>
+                    <el-alert type="info" :closable="false" class="mb-2">
+                      <div class="alert-content">
+                        {{ t('toolMemorandumNotice') }}
                       </div>
                     </el-alert>
                   </div>
@@ -2268,7 +2380,7 @@
                         class="tool-switch"
                       ></el-switch>
                     </div>
-                    <div>
+                    <div  class="tool-card-title">
                       <h3 class="kb-title">{{ t('latexRenderingEnhancement') }}</h3>
                     </div>
                     <el-alert type="info" :closable="false" class="mb-2">
@@ -2293,7 +2405,7 @@
                     <el-form-item :label="t('assistantLanguage')">
                       <el-input
                         v-model="toolsSettings.language.language"
-                        @blur="autoSaveSettings"
+                        @change="autoSaveSettings"
                         class="mini-input"
                         :placeholder="t('languagePlaceholder')"
                       ></el-input>
@@ -2302,7 +2414,7 @@
                     <el-form-item :label="t('assistantTone')">
                       <el-input
                         v-model="toolsSettings.language.tone"
-                        @blur="autoSaveSettings"
+                        @change="autoSaveSettings"
                         class="mini-input"
                         :placeholder="t('tonePlaceholder')"
                       ></el-input>
@@ -4728,6 +4840,18 @@
               </div>
               
               <div class="link-item">
+                <el-icon class="logo-icon">
+                  <i class="fa-brands fa-gitter"></i>
+                </el-icon>
+                <span>Gitee：</span>
+                <a href="https://gitee.com/heshengtao/super-agent-party" 
+                  target="_blank" 
+                  class="social-link">
+                  heshengtao/super-agent-party
+                </a>
+              </div>
+
+              <div class="link-item">
                 <el-icon>
                   <i class="fa-brands fa-bilibili"></i>
                 </el-icon>
@@ -4736,6 +4860,18 @@
                   target="_blank" 
                   class="social-link">
                   @派酱llm-party
+                </a>
+              </div>
+
+              <div class="link-item">
+                <el-icon>
+                  <i class="fa-brands fa-youtube"></i>
+                </el-icon>
+                <span>Youtube：</span>
+                <a href="https://www.youtube.com/@agentParty" 
+                  target="_blank" 
+                  class="social-link">
+                  @agentParty
                 </a>
               </div>
 
@@ -4757,6 +4893,30 @@
                 </el-icon>
                 <span>QQ交流群：</span>
                 <span class="qq-group">931057213</span>
+              </div>
+
+              <div class="link-item">
+                <el-icon>
+                  <i class="fa-solid fa-file"></i>
+                </el-icon>
+                <span>中文文档：</span>
+                <a href="https://gcnij7egmcww.feishu.cn/wiki/DPRKwdetCiYBhPkPpXWcugujnRc" 
+                  target="_blank" 
+                  class="social-link">
+                  点击访问
+                </a>
+              </div>
+
+              <div class="link-item">
+                <el-icon>
+                  <i class="fa-solid fa-file"></i>
+                </el-icon>
+                <span>English Doc：</span>
+                <a href="https://temporal-lantern-7e8.notion.site/super-agent-party-211b2b2cb6f180c899d1c27a98c4965d" 
+                  target="_blank" 
+                  class="social-link">
+                  Click to access
+                </a>
               </div>
             </div>
 
@@ -5114,6 +5274,154 @@
                       </div>
                     </el-form>
                   </div>
+
+                  <!-- 微信机器人配置页面 -->
+                  <div v-show="subMenu === 'wx_bot'" v-if="isWindows">
+                    <el-form class="settings-form" :model="WXBotConfig" label-position="top">
+                      <div class="tool-item">
+                        <!-- 微信机器人配置头部 -->
+                        <div class="tool-header" style="display: flex; justify-content: space-between; align-items: center;">
+                          <span>
+                            <el-icon><i class="fa-brands fa-weixin"></i></el-icon>
+                            {{ t('wx_bot_config') }}
+                          </span>
+                          <div>
+                            <!-- 启动按钮 -->
+                            <el-tooltip :content="t('start_bot')" placement="top">
+                              <el-button 
+                                type="primary" 
+                                @click="startWXBot" 
+                                :disabled="!isWXBotConfigValid || isWXBotRunning || isWXStarting"
+                                circle
+                              >
+                                <template v-if="isWXStarting">
+                                  <i class="fa-solid fa-spinner fa-spin"></i>
+                                </template>
+                                <template v-else>
+                                  <i class="fa-solid fa-play"></i>
+                                </template>
+                              </el-button>
+                            </el-tooltip>
+                            
+                            <!-- 停止按钮 -->
+                            <el-tooltip :content="t('stop_bot')" placement="top">
+                              <el-button 
+                                type="danger" 
+                                @click="stopWXBot" 
+                                :disabled="!isWXBotRunning || isWXStopping"
+                                circle
+                              >
+                                <template v-if="isWXStopping">
+                                  <i class="fa-solid fa-spinner fa-spin"></i>
+                                </template>
+                                <template v-else>
+                                  <i class="fa-solid fa-stop"></i>
+                                </template>
+                              </el-button>
+                            </el-tooltip>
+                            
+                            <!-- 重载按钮 -->
+                            <el-tooltip :content="t('reload_bot')" placement="top">
+                              <el-button 
+                                @click="reloadWXBotConfig" 
+                                :disabled="!isWXBotRunning || isWXReloading"
+                                circle
+                              >
+                                <template v-if="isWXReloading">
+                                  <i class="fa-solid fa-rotate fa-spin"></i>
+                                </template>
+                                <template v-else>
+                                  <i class="fa-solid fa-rotate"></i>
+                                </template>
+                              </el-button>
+                            </el-tooltip>
+                          </div>
+                        </div>
+                        <div class="tool-content">
+                            <!-- 主智能体选择 -->
+                            <el-form-item :label="t('mainAgent')" required>
+                              <el-select 
+                                v-model="WXBotConfig.WXAgent"
+                                @change="changeWXAgent">
+                                <el-option
+                                  :label="t('defaultAgent')"
+                                  value="super-model"
+                                >
+                                </el-option>
+                                <el-option
+                                  v-for="(agent, id) in agents"
+                                  :key="id"
+                                  :label="agent.name"
+                                  :value="id"
+                                >
+                                </el-option>
+                              </el-select>
+                            </el-form-item>
+                            <el-form-item :label="t('separators')" required>
+                              <el-select
+                                v-model="WXBotConfig.separators"
+                                multiple
+                                filterable
+                                allow-create
+                                @keyup.enter.native="handleEnter"
+                                @create="handleCreateSeparator"
+                              >
+                                <el-option
+                                  v-for="sep in filteredSeparators"
+                                  :key="sep.value"
+                                  :label="sep.label"
+                                  :value="sep.value"
+                                />
+                              </el-select>
+                            </el-form-item>
+                            <el-form-item :label="t('conversationRounds')" class="form-item-align">
+                              <el-slider
+                                v-model="WXBotConfig.memoryLimit"
+                                :min="0"
+                                :max="1000"
+                                :step="2"
+                                @input="autoSaveSettings"
+                              />
+                            </el-form-item>
+                            <el-form-item :label="t('reasoningVisibleEnable')" class="form-item-align" label-position="left">
+                              <el-switch
+                                v-model="WXBotConfig.reasoningVisible"
+                                @change="autoSaveSettings"
+                              ></el-switch>
+                            </el-form-item>
+                            <el-form-item :label="t('quickRestartEnable')" class="form-item-align" label-position="left">
+                              <el-switch
+                                v-model="WXBotConfig.quickRestart"
+                                @change="autoSaveSettings"
+                              ></el-switch>
+                            </el-form-item>
+                            <el-form-item :label="t('nickName')" required>
+                              <el-select
+                                v-model="WXBotConfig.nickNameList"
+                                multiple
+                                filterable
+                                allow-create
+                                :placeholder="t('nickNamePlaceholder')"
+                                class="full-width-input"
+                                @change="autoSaveSettings"
+                              >
+                              </el-select>
+                            </el-form-item>
+                            <el-form-item :label="t('groupWakeWord')" class="form-item-align">
+                              <el-input
+                                v-model="WXBotConfig.wakeWord"
+                                :placeholder="t('wakeWordPlaceholder')"
+                                @input="autoSaveSettings"
+                                class="full-width-input"
+                              />
+                            </el-form-item>
+                        </div>
+                      </div>
+                    </el-form>
+                  </div>
+                  <div v-show="subMenu === 'wx_bot'" v-if="!isWindows">
+                    <el-empty :description="t('windowsOnly')" />
+                  </div>
                   <!-- 桌宠配置页面 -->
                   <div v-show="subMenu === 'table_pet'">
                     <el-form class="settings-form" :model="VRMConfig" label-position="top">
@@ -5337,6 +5645,185 @@
                             </el-button>
                           </template>
                         </el-dialog>
+                      </div>
+                    </el-form>
+                  </div>
+
+                  <!-- 直播页面 -->
+                  <div v-show="subMenu === 'live_stream'">
+                    <el-form class="settings-form" :model="liveConfig" label-position="top">
+                      <div class="tool-item">
+                        <!-- 直播配置头部 -->
+                        <div class="tool-header" style="display: flex; justify-content: space-between; align-items: center;">
+                          <span>
+                            <el-icon><i class="fa-solid fa-video"></i></el-icon>
+                            {{ t('live_stream') }}
+                          </span>
+                          <div>
+                            <!-- 启动按钮 -->
+                            <el-tooltip :content="t('start_live')" placement="top">
+                              <el-button 
+                                type="primary" 
+                                @click="startLive" 
+                                :disabled="!isLiveConfigValid || isLiveRunning || isLiveStarting"
+                                circle
+                              >
+                                <template v-if="isLiveStarting">
+                                  <i class="fa-solid fa-spinner fa-spin"></i>
+                                </template>
+                                <template v-else>
+                                  <i class="fa-solid fa-play"></i>
+                                </template>
+                              </el-button>
+                            </el-tooltip>
+                            
+                            <!-- 停止按钮 -->
+                            <el-tooltip :content="t('stop_live')" placement="top">
+                              <el-button 
+                                type="danger" 
+                                @click="stopLive" 
+                                :disabled="!isLiveRunning || isLiveStopping"
+                                circle
+                              >
+                                <template v-if="isLiveStopping">
+                                  <i class="fa-solid fa-spinner fa-spin"></i>
+                                </template>
+                                <template v-else>
+                                  <i class="fa-solid fa-stop"></i>
+                                </template>
+                              </el-button>
+                            </el-tooltip>
+                            
+                            <!-- 重载按钮 -->
+                            <el-tooltip :content="t('reload_live')" placement="top">
+                              <el-button 
+                                @click="reloadLiveConfig" 
+                                :disabled="!isLiveRunning || isLiveReloading"
+                                circle
+                              >
+                                <template v-if="isLiveReloading">
+                                  <i class="fa-solid fa-rotate fa-spin"></i>
+                                </template>
+                                <template v-else>
+                                  <i class="fa-solid fa-rotate"></i>
+                                </template>
+                              </el-button>
+                            </el-tooltip>
+                          </div>
+                        </div>
+
+                        <div class="tool-item">
+                          <div class="tool-header">
+                            <div class="header-left">
+                              <span>
+                                {{t('liveSetting')}}
+                              </span>
+                            </div>
+                          </div>
+                          <div class="tool-content">
+                            <el-form-item :label="t('onlyDanmaku')" class="form-item-align" label-position="left">
+                              <el-switch 
+                                v-model="liveConfig.onlyDanmaku" 
+                                @change="autoSaveSettings"
+                              ></el-switch>
+                            </el-form-item>   
+                            <el-form-item :label="t('danmakuQueueLimit')" class="form-item-align" label-position="left">
+                              <el-slider
+                                v-model="liveConfig.danmakuQueueLimit"
+                                :min="1"
+                                :max="30"
+                                :step="1"
+                                @change="autoSaveSettings"
+                              />
+                            </el-form-item> 
+                          </div>
+                        </div>
+
+                        <div class="tool-item">
+                          <div class="tool-header">
+                            <div class="header-left">
+                              <span>
+                                {{t('bilibili')}}
+                                <el-link
+                                  type="primary"
+                                  :underline="false"
+                                  href="https://open-live.bilibili.com/" 
+                                  target="_blank"
+                                >
+                                  <el-icon class="mr-1">
+                                    <i class="fa-solid fa-key"></i>
+                                  </el-icon>{{ t('gotoBilibiliOpenLive') }}
+                                </el-link>
+                              </span>
+                            </div>
+                            <el-switch v-model="liveConfig.bilibili_enabled" @click.stop @change="autoSaveSettings"/>
+                          </div>
+                          <div class="tool-content">
+                            <el-form-item :label="t('liveType')">
+                              <el-select
+                                v-model="liveConfig.bilibili_type"
+                                :placeholder="t('liveTypePlaceholder')"
+                                class="full-width-input"
+                                @change="autoSaveSettings"
+                              >
+                                <el-option :label="t('web')" value="web"></el-option>
+                                <el-option :label="t('bilibili_open_live')" value="open_live"></el-option>
+                              </el-select>
+                            </el-form-item>      
+                            <el-form-item :label="t('roomID')" v-if="liveConfig.bilibili_type === 'web'">
+                              <el-input
+                                v-model="liveConfig.bilibili_room_id"
+                                :placeholder="t('roomIDPlaceholder')"
+                                class="full-width-input"
+                                @change="autoSaveSettings"
+                              />
+                            </el-form-item>
+                            <el-form-item :label="t('sessdata')" v-if="liveConfig.bilibili_type === 'web'">
+                              <el-input
+                                v-model="liveConfig.bilibili_sessdata"
+                                :placeholder="t('sessdataPlaceholder')"
+                                class="full-width-input"
+                                show-password
+                                @change="autoSaveSettings"
+                              />
+                            </el-form-item>
+                            <el-form-item label="ACCESS KEY ID" v-if="liveConfig.bilibili_type === 'open_live'">
+                              <el-input
+                                v-model="liveConfig.bilibili_ACCESS_KEY_ID"
+                                :placeholder="t('ACCESS_KEY_ID_Placeholder')"
+                                class="full-width-input"
+                                show-password
+                                @change="autoSaveSettings"
+                              />
+                            </el-form-item>
+                            <el-form-item label="ACCESS KEY SECRET" v-if="liveConfig.bilibili_type === 'open_live'">
+                              <el-input
+                                v-model="liveConfig.bilibili_ACCESS_KEY_SECRET"
+                                :placeholder="t('ACCESS_KEY_SECRET_Placeholder')"
+                                class="full-width-input"
+                                show-password
+                                @change="autoSaveSettings"
+                              />
+                            </el-form-item>
+                            <el-form-item label="APP ID" v-if="liveConfig.bilibili_type === 'open_live'">
+                              <el-input
+                                v-model="liveConfig.bilibili_APP_ID"
+                                :placeholder="t('APP_ID_Placeholder')"
+                                class="full-width-input"
+                                @change="autoSaveSettings"
+                              />
+                            </el-form-item>
+                            <el-form-item label="ROOM OWNER AUTH CODE" v-if="liveConfig.bilibili_type === 'open_live'">
+                              <el-input
+                                v-model="liveConfig.bilibili_ROOM_OWNER_AUTH_CODE"
+                                :placeholder="t('ROOM_OWNER_AUTH_CODE_Placeholder')"
+                                class="full-width-input"
+                                show-password
+                                @change="autoSaveSettings"
+                              />
+                            </el-form-item>
+                          </div>
+                        </div>
                       </div>
                     </el-form>
                   </div>

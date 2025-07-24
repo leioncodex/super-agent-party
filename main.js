@@ -541,8 +541,8 @@ app.whenReady().then(async () => {
       vrmWindow = new BrowserWindow({
         width: windowWidth,
         height: windowHeight,
-        x: width - windowWidth - 20,  // 右边距 20px
-        y: height - windowHeight - 40, // 下边距 40px（考虑任务栏）
+        x: 0, 
+        y: 0, 
         transparent: true,
         frame: false,
         resizable: false,

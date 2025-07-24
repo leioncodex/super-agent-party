@@ -5,7 +5,9 @@ from io import BytesIO
 import os
 import sys
 import tempfile
+import threading
 import wave
+import aiohttp
 import httpx
 from scipy.io import wavfile
 import numpy as np
@@ -47,6 +49,9 @@ from concurrent.futures import ThreadPoolExecutor
 import argparse
 from mem0 import Memory
 from py.qq_bot_manager import QQBotManager
+# 如果是windows系统
+if os.name == 'nt':
+    from py.wx_bot_manager import WXBotManager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -271,6 +276,15 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
     from py.code_interpreter import e2b_code_async,local_run_code_async
     from py.custom_http import fetch_custom_http
     from py.comfyui_tool import comfyui_tool_call
+    from py.utility_tools import (
+        time_async,
+        get_weather_async,
+        get_location_coordinates_async,
+        get_weather_by_city_async,
+        get_wikipedia_summary_and_sections,
+        get_wikipedia_section_content,
+        search_arxiv_papers
+    )
     _TOOL_HOOKS = {
         "DDGsearch_async": DDGsearch_async,
         "searxng_async": searxng_async,
@@ -295,6 +309,13 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         "Serper_search_async": Serper_search_async,
         "bochaai_search_async": bochaai_search_async,
         "comfyui_tool_call": comfyui_tool_call,
+        "time_async": time_async,
+        "get_weather_async": get_weather_async,
+        "get_location_coordinates_async": get_location_coordinates_async,
+        "get_weather_by_city_async":get_weather_by_city_async,
+        "get_wikipedia_summary_and_sections": get_wikipedia_summary_and_sections,
+        "get_wikipedia_section_content": get_wikipedia_section_content,
+        "search_arxiv_papers": search_arxiv_papers
     }
     if "multi_tool_use." in tool_name:
         tool_name = tool_name.replace("multi_tool_use.", "")
@@ -432,7 +453,7 @@ async def images_add_in_messages(request_messages: List[Dict], images: List[Dict
     return messages
 
 async def tools_change_messages(request: ChatRequest, settings: dict):
-    if settings['tools']['time']['enabled']:
+    if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'beforeThinking':
         time_message = f"消息发送时间：{local_timezone}  {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}\n\n"
         request.messages[-1]['content'] = time_message + request.messages[-1]['content']
     if settings['tools']['inference']['enabled']:
@@ -616,6 +637,15 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
     from py.llm_tool import get_llm_tool
     from py.pollinations import pollinations_image_tool,openai_image_tool,siliconflow_image_tool
     from py.code_interpreter import e2b_code_tool,local_run_code_tool
+    from py.utility_tools import (
+        time_tool, 
+        weather_tool,
+        location_tool,
+        timer_weather_tool,
+        wikipedia_summary_tool,
+        wikipedia_section_tool,
+        arxiv_tool 
+    ) 
     m0 = None
     memoryId = None
     if settings["memorySettings"]["is_memory"]:
@@ -678,6 +708,17 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
         get_a2a_tool_fuction = await get_a2a_tool(settings)
         if get_a2a_tool_fuction:
             tools.append(get_a2a_tool_fuction)
+        if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'afterThinking':
+            tools.append(time_tool)
+        if settings["tools"]["accuweather"]['enabled']:
+            tools.append(weather_tool)
+            tools.append(location_tool)
+            tools.append(timer_weather_tool)
+        if settings["tools"]["wikipedia"]['enabled']:
+            tools.append(wikipedia_summary_tool)
+            tools.append(wikipedia_section_tool)
+        if settings["tools"]["arxiv"]['enabled']:
+            tools.append(arxiv_tool)
         if settings['text2imgSettings']['enabled']:
             if settings['text2imgSettings']['engine'] == 'pollinations':
                 tools.append(pollinations_image_tool)
@@ -867,7 +908,8 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{tid}{await t("tool_result")}]({fileLink})\n\n",
-                                        "async_tool_id": tid
+                                        "async_tool_id": tid,
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }
@@ -908,7 +950,8 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{tid}{await t("tool_result")}]({fileLink})\n\n",
-                                        "async_tool_id": tid
+                                        "async_tool_id": tid,
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }
@@ -960,7 +1003,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                     "delta": {
                                         "role":"assistant",
                                         "content": "",
-                                        "tool_content": f"{await t("KB_search")}\n\n"
+                                        "tool_content": f"{await t("KB_search")}\n\n",
                                     }
                                 }
                             ]
@@ -991,6 +1034,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{await t("search_result")}]({fileLink})\n\n",
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }
@@ -1055,6 +1099,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{await t("search_result")}]({fileLink})\n\n",
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }
@@ -1681,6 +1726,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 "choices": [{
                                     "delta": {
                                         "tool_content": f"\n\n[{response_content.name}{await t("tool_result")}]({fileLink})\n\n",
+                                        "tool_link": fileLink,
                                     }
                                 }]
                             }
@@ -2133,6 +2179,16 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
     from py.llm_tool import get_llm_tool
     from py.pollinations import pollinations_image_tool,openai_image_tool,siliconflow_image_tool
     from py.code_interpreter import e2b_code_tool,local_run_code_tool
+    from py.utility_tools import time_tool
+    from py.utility_tools import (
+        time_tool, 
+        weather_tool,
+        location_tool,
+        timer_weather_tool,
+        wikipedia_summary_tool,
+        wikipedia_section_tool,
+        arxiv_tool
+    ) 
     m0 = None
     if settings["memorySettings"]["is_memory"]:
         memoryId = settings["memorySettings"]["selectedMemory"]
@@ -2196,6 +2252,17 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
     get_a2a_tool_fuction = await get_a2a_tool(settings)
     if get_a2a_tool_fuction:
         tools.append(get_a2a_tool_fuction)
+    if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'afterThinking':
+        tools.append(time_tool)
+    if settings["tools"]["accuweather"]['enabled']:
+        tools.append(weather_tool)
+        tools.append(location_tool)
+        tools.append(timer_weather_tool)
+    if settings["tools"]["wikipedia"]['enabled']:
+        tools.append(wikipedia_summary_tool)
+        tools.append(wikipedia_section_tool)
+    if settings["tools"]["arxiv"]['enabled']:
+        tools.append(arxiv_tool)
     if settings['text2imgSettings']['enabled']:
         if settings['text2imgSettings']['engine'] == 'pollinations':
             tools.append(pollinations_image_tool)
@@ -4567,6 +4634,520 @@ async def cur_language():
 async def vrm_config():
     settings = await load_settings()
     return {"VRMConfig": settings.get("VRMConfig", {})}
+
+import http.cookies
+from typing import Optional, List
+import py.blivedm as blivedm
+import py.blivedm.models.web as web_models
+import py.blivedm.models.open_live as open_models
+
+# 全局变量存储直播客户端和相关状态
+live_client = None
+live_thread = None
+current_loop = None
+stop_event = None  # 新增：用于通知线程停止
+
+# Pydantic模型
+class LiveConfig(BaseModel):
+    bilibili_enabled: bool = False
+    bilibili_type: str = "web"
+    bilibili_room_id: str = ""
+    bilibili_sessdata: str = ""
+    bilibili_ACCESS_KEY_ID: str = ""
+    bilibili_ACCESS_KEY_SECRET: str = ""
+    bilibili_APP_ID: str = ""
+    bilibili_ROOM_OWNER_AUTH_CODE: str = ""
+
+class LiveConfigRequest(BaseModel):
+    config: LiveConfig
+
+class ApiResponse(BaseModel):
+    success: bool
+    message: str
+
+# WebSocket管理器
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, data: dict):
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(data)
+            except:
+                disconnected.append(connection)
+        
+        # 清理断开的连接
+        for connection in disconnected:
+            self.disconnect(connection)
+
+manager = ConnectionManager()
+
+# API路由
+@app.post("/api/live/start", response_model=ApiResponse)
+async def start_live(request: LiveConfigRequest):
+    global live_client, live_thread, stop_event
+    
+    try:
+        if live_client is not None:
+            return ApiResponse(success=False, message="直播监听已在运行")
+        
+        config = request.config
+        
+        # 验证配置
+        if not config.bilibili_enabled:
+            return ApiResponse(success=False, message="请先启用B站直播监听")
+        
+        if config.bilibili_type == "web":
+            if not config.bilibili_room_id:
+                return ApiResponse(success=False, message="请输入房间ID")
+        elif config.bilibili_type == "open_live":
+            if not all([
+                config.bilibili_ACCESS_KEY_ID,
+                config.bilibili_ACCESS_KEY_SECRET,
+                config.bilibili_APP_ID,
+                config.bilibili_ROOM_OWNER_AUTH_CODE
+            ]):
+                return ApiResponse(success=False, message="请完整填写开放平台配置信息")
+        
+        # 创建停止事件
+        stop_event = threading.Event()
+        
+        # 创建新线程运行直播监听
+        live_thread = threading.Thread(target=run_live_client, args=(config.dict(),))
+        live_thread.daemon = True
+        live_thread.start()
+        
+        # 等待一下确保客户端启动
+        await asyncio.sleep(0.5)
+        
+        return ApiResponse(success=True, message="直播监听启动成功")
+    except Exception as e:
+        return ApiResponse(success=False, message=f"启动失败: {str(e)}")
+
+@app.post("/api/live/stop", response_model=ApiResponse)
+async def stop_live():
+    global live_client, live_thread, current_loop, stop_event
+    
+    try:
+        if live_client is None:
+            return ApiResponse(success=True, message="直播监听未运行")
+        
+        print("开始停止直播监听...")
+        
+        # 设置停止事件
+        if stop_event:
+            stop_event.set()
+        
+        # 如果有事件循环，在其中停止客户端
+        if current_loop and not current_loop.is_closed():
+            try:
+                # 创建一个任务来停止客户端
+                future = asyncio.run_coroutine_threadsafe(
+                    stop_live_client(), 
+                    current_loop
+                )
+                # 等待停止完成，最多等待5秒
+                future.result(timeout=5)
+                print("客户端停止成功")
+            except asyncio.TimeoutError:
+                print("停止客户端超时")
+            except Exception as e:
+                print(f"停止客户端时出错: {e}")
+        
+        # 等待线程结束
+        if live_thread and live_thread.is_alive():
+            live_thread.join(timeout=3)
+            if live_thread.is_alive():
+                print("警告: 线程未能在超时时间内结束")
+        
+        # 清理全局变量
+        live_client = None
+        live_thread = None
+        current_loop = None
+        stop_event = None
+        
+        print("直播监听停止完成")
+        return ApiResponse(success=True, message="直播监听停止成功")
+        
+    except Exception as e:
+        print(f"停止直播监听时出错: {e}")
+        return ApiResponse(success=False, message=f"停止失败: {str(e)}")
+
+async def stop_live_client():
+    """停止直播客户端的异步函数"""
+    global live_client
+    
+    if live_client:
+        try:
+            await live_client.stop_and_close()
+            print("直播客户端已停止")
+        except Exception as e:
+            print(f"停止直播客户端时出错: {e}")
+        finally:
+            live_client = None
+
+@app.post("/api/live/reload", response_model=ApiResponse)
+async def reload_live(request: LiveConfigRequest):
+    try:
+        # 先停止
+        stop_result = await stop_live()
+        if not stop_result.success:
+            return stop_result
+            
+        # 等待一下确保完全停止
+        await asyncio.sleep(2)
+        
+        # 再启动
+        return await start_live(request)
+    except Exception as e:
+        return ApiResponse(success=False, message=f"重载失败: {str(e)}")
+
+# WebSocket路由
+@app.websocket("/ws/live/danmu")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # 保持连接活跃，接收心跳消息
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+def init_session(sessdata: str = "") -> Optional[aiohttp.ClientSession]:
+    """初始化aiohttp会话"""
+    cookies = http.cookies.SimpleCookie()
+    if sessdata:
+        cookies['SESSDATA'] = sessdata
+        cookies['SESSDATA']['domain'] = 'bilibili.com'
+
+    session = aiohttp.ClientSession()
+    if sessdata:
+        session.cookie_jar.update_cookies(cookies)
+    return session
+
+def run_live_client(config: dict):
+    """在新线程中运行直播客户端"""
+    global live_client, current_loop, stop_event
+    
+    try:
+        # 创建新的事件循环
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        current_loop = loop
+        
+        print("开始运行直播客户端...")
+        
+        # 运行异步函数
+        loop.run_until_complete(start_live_client(config))
+        
+    except Exception as e:
+        print(f"直播客户端运行错误: {e}")
+        # 通知前端错误
+        if current_loop and not current_loop.is_closed():
+            try:
+                asyncio.run_coroutine_threadsafe(manager.broadcast({
+                    'type': 'error',
+                    'message': str(e)
+                }), current_loop)
+            except:
+                pass
+    finally:
+        print("直播客户端线程结束")
+        # 清理
+        if current_loop and not current_loop.is_closed():
+            try:
+                current_loop.close()
+            except:
+                pass
+        current_loop = None
+        live_client = None
+
+async def start_live_client(config: dict):
+    """启动直播客户端"""
+    global live_client, stop_event
+    
+    session = None
+    
+    try:
+        bilibili_type = config.get('bilibili_type', 'web')
+        
+        if bilibili_type == 'web':
+            # Web类型客户端
+            room_id = int(config.get('bilibili_room_id', 0))
+            sessdata = config.get('bilibili_sessdata', '')
+            
+            # 初始化session
+            session = init_session(sessdata)
+            
+            live_client = blivedm.BLiveClient(room_id, session=session)
+            handler = WebSocketHandler()
+            live_client.set_handler(handler)
+            
+        elif bilibili_type == 'open_live':
+            # 开放平台类型客户端
+            access_key_id = config.get('bilibili_ACCESS_KEY_ID', '')
+            access_key_secret = config.get('bilibili_ACCESS_KEY_SECRET', '')
+            app_id = int(config.get('bilibili_APP_ID', 0))
+            room_owner_auth_code = config.get('bilibili_ROOM_OWNER_AUTH_CODE', '')
+            
+            live_client = blivedm.OpenLiveClient(
+                access_key_id=access_key_id,
+                access_key_secret=access_key_secret,
+                app_id=app_id,
+                room_owner_auth_code=room_owner_auth_code,
+            )
+            handler = OpenLiveWebSocketHandler()
+            live_client.set_handler(handler)
+        
+        else:
+            raise ValueError(f"不支持的直播类型: {bilibili_type}")
+        
+        print(f"启动{bilibili_type}类型的直播客户端")
+        live_client.start()
+        
+        # 保持运行，直到收到停止信号
+        try:
+            while not (stop_event and stop_event.is_set()):
+                await asyncio.sleep(1)
+            print("收到停止信号，准备停止客户端")
+        except asyncio.CancelledError:
+            print("客户端被取消")
+            
+    except Exception as e:
+        print(f"启动直播客户端错误: {e}")
+        raise
+    finally:
+        # 清理资源
+        if live_client:
+            try:
+                await live_client.stop_and_close()
+                print("客户端已关闭")
+            except Exception as e:
+                print(f"关闭客户端时出错: {e}")
+        
+        if session:
+            try:
+                await session.close()
+                print("Session已关闭")
+            except Exception as e:
+                print(f"关闭Session时出错: {e}")
+
+if os.name == 'nt':
+
+    class WXBotConfig(BaseModel):
+        WXAgent: str
+        memoryLimit: int
+        separators: List[str]
+        reasoningVisible: bool
+        quickRestart: bool
+        nickNameList: List[str]
+        wakeWord: str
+
+    # 全局机器人管理器
+    wx_bot_manager = WXBotManager()
+
+    @app.post("/start_wx_bot")
+    async def start_wx_bot(config: WXBotConfig):
+        try:
+            wx_bot_manager.start_bot(config)
+            return {
+                "success": True,
+                "message": "微信机器人已成功启动",
+                "environment": "thread-based"
+            }
+        except Exception as e:
+            logger.error(f"启动微信机器人失败: {e}")
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False, 
+                    "message": f"启动失败: {str(e)}",
+                    "error_type": "startup_error"
+                }
+            )
+
+    @app.post("/stop_wx_bot")
+    async def stop_wx_bot():
+        try:
+            wx_bot_manager.stop_bot()
+            return {"success": True, "message": "微信机器人已停止"}
+        except Exception as e:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": str(e)}
+            )
+
+    @app.get("/wx_bot_status")
+    async def wx_bot_status():
+        status = wx_bot_manager.get_status()
+        if status.get("startup_error") and not status.get("is_running"):
+            status["error_message"] = f"启动失败: {status['startup_error']}"
+        return status
+
+    @app.post("/reload_wx_bot")
+    async def reload_wx_bot(config: WXBotConfig):
+        try:
+            wx_bot_manager.stop_bot()
+            await asyncio.sleep(1)
+            wx_bot_manager.start_bot(config)
+            return {
+                "success": True,
+                "message": "微信机器人已重新加载",
+                "config_changed": True
+            }
+        except Exception as e:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": str(e)}
+            )
+
+
+class WebSocketHandler(blivedm.BaseHandler):
+    """Web类型WebSocket处理器"""
+    
+    def _on_heartbeat(self, client: blivedm.BLiveClient, message: web_models.HeartbeatMessage):
+        print(f'[{client.room_id}] 心跳')
+
+    def _on_danmaku(self, client: blivedm.BLiveClient, message: web_models.DanmakuMessage):
+        msg_text = f'{message.uname}发送弹幕：{message.msg}'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "danmaku"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
+    
+    def _on_gift(self, client: blivedm.BLiveClient, message: web_models.GiftMessage):
+        msg_text = f'{message.uname} 赠送{message.gift_name}x{message.num} （{message.coin_type}瓜子x{message.total_coin}）'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "gift"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
+    
+    def _on_buy_guard(self, client: blivedm.BLiveClient, message: web_models.GuardBuyMessage):
+        msg_text = f'{message.username} 上舰，guard_level={message.guard_level}'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "buy_guard"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
+    
+    def _on_super_chat(self, client: blivedm.BLiveClient, message: web_models.SuperChatMessage):
+        msg_text = f'{message.uname}发送醒目留言：{message.message}'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "super_chat"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
+
+    def _on_interact_word(self, client: blivedm.BLiveClient, message: web_models.InteractWordMessage):
+        if message.msg_type == 1:
+            msg_text =  f'{message.username} 进入房间'
+            data = {
+                'type': 'message',
+                'content': msg_text,
+                "danmu_type": "enter_room"
+            }
+            print(msg_text)
+            asyncio.create_task(manager.broadcast(data))
+        elif message.msg_type == 2:
+            msg_text = f'{message.username} 关注了你'
+            data = {
+                'type': 'message',
+                'content': msg_text,
+                "danmu_type": "follow"
+            }
+            print(msg_text)
+            asyncio.create_task(manager.broadcast(data))
+
+
+class OpenLiveWebSocketHandler(blivedm.BaseHandler):
+    """开放平台类型WebSocket处理器"""
+    
+    def _on_heartbeat(self, client: blivedm.OpenLiveClient, message: web_models.HeartbeatMessage):
+        print(f'[开放平台] 心跳')
+
+    def _on_open_live_danmaku(self, client: blivedm.OpenLiveClient, message: open_models.DanmakuMessage):
+        msg_text = f'{message.uname}发送弹幕：{message.msg}'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "danmaku"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
+
+    def _on_open_live_gift(self, client: blivedm.OpenLiveClient, message: open_models.GiftMessage):
+        coin_type = '金瓜子' if message.paid else '银瓜子'
+        total_coin = message.price * message.gift_num
+        msg_text = f'{message.uname} 赠送{message.gift_name}x{message.gift_num} （{coin_type}x{total_coin}）'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "gift"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
+
+    def _on_open_live_buy_guard(self, client: blivedm.OpenLiveClient, message: open_models.GuardBuyMessage):
+        msg_text = f'{message.user_info.uname} 购买 大航海等级={message.guard_level}'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "buy_guard"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
+
+    def _on_open_live_super_chat(self, client: blivedm.OpenLiveClient, message: open_models.SuperChatMessage):
+        msg_text = f'{message.uname}发送醒目留言：{message.message}'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "super_chat"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
+
+    def _on_open_live_like(self, client: blivedm.OpenLiveClient, message: open_models.LikeMessage):
+        msg_text = f'{message.uname} 点赞'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "like"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
+
+    def _on_open_live_enter_room(self, client: blivedm.OpenLiveClient, message: open_models.RoomEnterMessage):
+        msg_text = f'{message.uname} 进入房间'
+        data = {
+            'type': 'message',
+            'content': msg_text,
+            "danmu_type": "enter_room"
+        }
+        print(msg_text)
+        asyncio.create_task(manager.broadcast(data))
 
 settings_lock = asyncio.Lock()
 @app.websocket("/ws")

@@ -24,6 +24,20 @@
         "enabled": false
       },
       "time": {
+        "enabled": false,
+        "triggerMode": "beforeThinking"
+      },
+      "accuweather": {
+        "enabled": false,
+        "apiKey": ""
+      },
+      "wikipedia": {
+        "enabled": false
+      },
+      "arxiv": {
+        "enabled": false
+      },
+      "toolMemorandum": {
         "enabled": false
       },
       "getFile": {
@@ -169,6 +183,27 @@
       "gsvPromptText": "",
       "gsvRefAudioPath": "",
       "gsvAudioOptions": []
+    },
+    "liveConfig": {
+      "onlyDanmaku": true,
+      "danmakuQueueLimit": 5,
+      "bilibili_enabled": false,
+      "bilibili_type": "web",
+      "bilibili_room_id": "",
+      "bilibili_sessdata": "",
+      "bilibili_ACCESS_KEY_ID": "",
+      "bilibili_ACCESS_KEY_SECRET": "",
+      "bilibili_APP_ID": "",
+      "bilibili_ROOM_OWNER_AUTH_CODE": ""
+    },
+    "WXBotConfig": {
+      "WXAgent":"super-model",
+      "memoryLimit": 30,
+      "separators": ["。", "\n", "？", "！"],
+      "reasoningVisible": true,
+      "quickRestart": true,
+      "nickNameList": [],
+      "wakeWord": "小派"
     },
     "VRMConfig": {
       "enabledExpressions": false,
