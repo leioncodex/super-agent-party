@@ -4199,6 +4199,28 @@
                         ></el-option>
                       </el-select>
                     </div>
+                    <div class="input-box">
+                      <!-- 种子位置选择 -->
+                      <el-select v-model="selectedSeedInput" value-key="id" :placeholder="t('selectSeedInput')" class="full-width-input">
+                        <el-option
+                          v-for="(node, index) in seedInputOptions"
+                          :key="index"
+                          :label="node.label"
+                          :value="node.value"
+                        ></el-option>
+                      </el-select>
+                    </div>
+                    <div class="input-box">
+                      <!-- 种子位置选择 -->
+                      <el-select v-model="selectedSeedInput2" value-key="id" :placeholder="t('selectSeedInput')" class="full-width-input">
+                        <el-option
+                          v-for="(node, index) in seedInputOptions"
+                          :key="index"
+                          :label="node.label"
+                          :value="node.value"
+                        ></el-option>
+                      </el-select>
+                    </div>
                     <el-alert
                         type="info"
                         :closable="false"

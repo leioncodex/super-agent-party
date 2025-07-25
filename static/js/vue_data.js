@@ -1163,6 +1163,9 @@ main();`,
     selectedImageInput: null,
     selectedTextInput2: null,
     selectedImageInput2: null,
+    selectedSeedInput: null,
+    selectedSeedInput2: null,
     textInputOptions: [], // 确保这里是一个空数组
     imageInputOptions: [], // 确保这里是一个空数组
+    seedInputOptions: [], // 确保这里是一个空数组
 };

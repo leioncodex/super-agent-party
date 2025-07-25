@@ -1,6 +1,7 @@
 
 import json
 import os
+import random
 import time
 import uuid
 
@@ -193,6 +194,18 @@ async def comfyui_tool_call(tool_name, text_input = None, image_input = None,tex
                 return "图片上传失败"
         else:
             return "图片上传失败"
+
+    if "seed_input" in using_workflow and using_workflow["seed_input"] is not None:
+        seed_nodeId = using_workflow["seed_input"].get("nodeId")
+        seed_inputField = using_workflow["seed_input"].get("inputField")
+        if seed_nodeId and seed_inputField:
+            prompt[seed_nodeId]["inputs"][seed_inputField] = random.randint(0, 2**32 - 1)
+
+    if "seed_input2" in using_workflow and using_workflow["seed_input2"] is not None:
+        seed_nodeId = using_workflow["seed_input2"].get("nodeId")
+        seed_inputField = using_workflow["seed_input2"].get("inputField")
+        if seed_nodeId and seed_inputField:
+            prompt[seed_nodeId]["inputs"][seed_inputField] = random.randint(0, 2**32 - 1)
 
     image_path_list = get_all(prompt,server_address,settings)
 
