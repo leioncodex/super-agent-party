@@ -542,7 +542,7 @@ app.whenReady().then(async () => {
         width: windowWidth,
         height: windowHeight,
         x: width-windowWidth-40, 
-        y: height-windowHeight-40, 
+        y: 0, 
         transparent: true,
         frame: false,
         resizable: false,
