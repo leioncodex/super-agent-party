@@ -158,7 +158,7 @@ let vue_data = {
         enabled: false,
       },
       toolMemorandum: {
-        enabled: false,
+        enabled: true,
       },
       getFile: {
         enabled: false,
@@ -293,6 +293,7 @@ let vue_data = {
       language: 'zh-CN',
       theme: 'light',
       network:"local",
+      proxy: '',
     },
     networkOptions:[
       { value: 'local', label: 'local' }, 

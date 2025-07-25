@@ -16,7 +16,7 @@ import base64
 import pyperclip
 import asyncio
 from openai import AsyncOpenAI
-from py.get_setting import get_port,UPLOAD_FILES_DIR
+from py.get_setting import get_port,UPLOAD_FILES_DIR,load_settings
 class WXBotManager:
     def __init__(self):
         self.bot_thread: Optional[threading.Thread] = None
@@ -249,6 +249,7 @@ class WXClient:
         self.memoryLimit = 10
         self.memoryList = {}
         self.asyncToolsID = {}
+        self.fileLinks = {}
         self.separators = ['。', '\n', '？', '！']
         self.reasoningVisible = False
         self.quickRestart = True
@@ -301,6 +302,7 @@ class WXClient:
 
     async def _handle_message_async(self, msg, chat):
         """异步处理消息的实际逻辑"""
+        settings = await load_settings()
         c_id = msg.sender
         c_name = msg.sender
         chat_info = msg.chat_info()
@@ -363,13 +365,17 @@ class WXClient:
                 asyncToolsID = self.asyncToolsID[c_id]
             else:
                 self.asyncToolsID[c_id] = []
-
+            if c_id in self.fileLinks:
+                fileLinks = self.fileLinks[c_id]
+            else:
+                fileLinks = []
             stream = await self.client.chat.completions.create(
                 model=self.WXAgent,
                 messages=self.memoryList[c_id],
                 stream=True,
                 extra_body={
                     "asyncToolsID": asyncToolsID,
+                    "fileLinks": fileLinks
                 }
             )
             
@@ -386,6 +392,13 @@ class WXClient:
                         reasoning_content = delta.get("reasoning_content", "")
                         tool_content = delta.get("tool_content", "")
                         async_tool_id = delta.get("async_tool_id", "")
+                        tool_link = delta.get("tool_link", "")
+
+                        if tool_link and settings["tools"]["toolMemorandum"]["enabled"]:
+                            if c_id not in self.fileLinks:
+                                self.fileLinks[c_id] = []
+                            self.fileLinks[c_id].append(tool_link)
+                            
                         if async_tool_id:
                             # 判断async_tool_id在不在self.asyncToolsID[c_id]中
                             if async_tool_id not in self.asyncToolsID[c_id]:

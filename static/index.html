@@ -264,7 +264,7 @@
                   </div>
                 </div>
                 <!-- AI回复内容 -->
-                <div v-else-if="message.role === 'assistant'"  class="markdown-body" v-html="formatMessage(message.content)"></div>
+                <div v-else-if="message.role === 'assistant'"  class="markdown-body" v-html="message.briefly ? formatMessage(message.pure_content??msg.content) : formatMessage(message.content)"></div>
                 <!-- 系统消息内容 -->
                 <div v-else class="user-message-content" data-mjx-disabled="true">
                   <div v-html="t('system_prompt') + message.content"></div>
@@ -275,6 +275,24 @@
                 <el-tooltip v-if="mainAgent === 'super-model' || message.role !== 'system'" :content="t('edit')" placement="bottom">
                   <el-button @click="openEditDialog(message.role, message.content,index)" circle size="small">
                     <i class="fa-solid fa-pen-to-square"></i>
+                  </el-button>
+                </el-tooltip>
+                <el-tooltip v-if="message.role === 'assistant'" :content="t('briefly')" placement="bottom">
+                  <el-button 
+                    class="briefly-btn" 
+                    @click="toggleBriefly(index)"
+                    circle 
+                    size="small">
+                    <i class="fa-solid fa-asterisk"></i>
+                  </el-button>
+                </el-tooltip>
+                <el-tooltip v-if="message.role === 'assistant'" :content="t('rewrite')" placement="bottom">
+                  <el-button 
+                    class="rewrite-btn" 
+                    @click="rewrite(index)"
+                    circle 
+                    size="small">
+                    <i class="fa-solid fa-rotate"></i>
                   </el-button>
                 </el-tooltip>
                 <el-tooltip :content="t('copy')" placement="bottom">
@@ -3901,6 +3919,27 @@
                 </el-form-item>
               </div>
             </div>
+
+            <div class="tool-item">
+              <div class="tool-header">
+                <span>
+                  <el-icon>
+                    <i class="fa-solid fa-wifi"></i>
+                  </el-icon>
+                  {{ t('proxySettings') }}
+                </span>
+              </div>
+              <div class="tool-content">
+                <el-form-item class="form-item-align">
+                  <el-input
+                    v-model="systemSettings.proxy"
+                    :placeholder="t('proxyPlaceholder')"
+                    class="full-width-input"
+                    @input="updateProxy"
+                  ></el-input>
+                </el-form-item>
+              </div>
+            </div>
           </el-form>
           <!--eldialog 询问用户是否立即重启-->
           <el-dialog
@@ -5452,6 +5491,17 @@
                                 <i class="fa-solid fa-cube"></i>
                               </el-icon>{{ t('gotoVroidHub') }}
                             </el-link>
+                            <span>{{ '  ' }}</span>
+                            <el-link
+                              type="primary"
+                              :underline="false"
+                              href="https://www.aplaybox.com/search?value=VRM" 
+                              target="_blank"
+                            >
+                              <el-icon class="mr-1">
+                                <i class="fa-solid fa-cube"></i>
+                              </el-icon>{{ t('gotoAplaybox') }}
+                            </el-link>
                           </span>
                           <div>
                             <!-- 启动按钮 -->
@@ -5510,7 +5560,7 @@
                             <el-form-item :label="t('windowWidth')" class="form-item-align">
                               <el-slider
                                 v-model="VRMConfig.windowWidth"
-                                :min="100"
+                                :min="300"
                                 :max="2560"
                                 :step="10"
                                 @change="autoSaveSettings"
@@ -5519,7 +5569,7 @@
                             <el-form-item :label="t('windowHeight')" class="form-item-align">
                               <el-slider
                                 v-model="VRMConfig.windowHeight"
-                                :min="100"
+                                :min="300"
                                 :max="2560"
                                 :step="10"
                                 @change="autoSaveSettings"

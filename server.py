@@ -108,6 +108,10 @@ async def lifespan(app: FastAPI):
     if settings:
         client = AsyncOpenAI(api_key=settings['api_key'], base_url=settings['base_url'])
         reasoner_client = AsyncOpenAI(api_key=settings['reasoner']['api_key'],base_url=settings['reasoner']['base_url'])
+        if settings["systemSettings"]["proxy"]:
+            # 设置代理环境变量
+            os.environ['http_proxy'] = settings["systemSettings"]["proxy"].strip()
+            os.environ['https_proxy'] = settings["systemSettings"]["proxy"].strip()
     else:
         client = AsyncOpenAI()
         reasoner_client = AsyncOpenAI()
@@ -5148,6 +5152,20 @@ class OpenLiveWebSocketHandler(blivedm.BaseHandler):
         }
         print(msg_text)
         asyncio.create_task(manager.broadcast(data))
+
+@app.get("/api/update_proxy")
+async def update_proxy():
+    try:
+        settings = await load_settings()
+        if settings:
+            if settings["systemSettings"]["proxy"]:
+                # 设置代理环境变量
+                os.environ['http_proxy'] = settings["systemSettings"]["proxy"].strip()
+                os.environ['https_proxy'] = settings["systemSettings"]["proxy"].strip()
+        return {"message": "Proxy updated successfully", "success": True}
+    except Exception as e:
+        return {"message": str(e), "success": False}
+
 
 settings_lock = asyncio.Lock()
 @app.websocket("/ws")

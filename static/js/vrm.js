@@ -278,7 +278,7 @@ function setNaturalPose(vrm) {
             // 根据手指部位设置不同的弯曲度
             if (boneName.includes('Thumb')) {
                 // 拇指稍微向内
-                bone.rotation.y = boneName.includes('left') ? 0.35 * v : -0.35 * v;
+                bone.rotation.y = boneName.includes('left') ? 0.35 : -0.35;
             } else if (boneName.includes('Proximal')) {
                 // 近端指骨轻微弯曲
                 bone.rotation.z = boneName.includes('left') ? -0.35 * v : 0.35 * v;
