@@ -3760,7 +3760,7 @@ let vue_methods = {
     initWebSpeechAPI() {
       if(isElectron){
         showNotification(this.t('webSpeechNotSupportedInElectron'), 'error');
-        const url = ``;
+        const url = this.partyURL;
         window.electronAPI.openExternal(url);
         this.asrSettings.enabled = false;
         return false;
@@ -3780,7 +3780,9 @@ let vue_methods = {
       // 配置语音识别参数
       this.recognition.continuous = true; // 改为非持续识别，由VAD控制
       this.recognition.interimResults = true;
-
+      if (this.asrSettings.webSpeechLanguage != 'auto'){
+        this.recognition.lang = this.asrSettings.webSpeechLanguage;
+      }
       // 识别结果处理
       this.recognition.onresult = (event) => {
         let finalTranscript = '';

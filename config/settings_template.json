@@ -157,6 +157,7 @@
       "enabled": false,
       "engine": "webSpeech",
       "selectedProvider": null,
+      "webSpeechLanguage": "auto",
       "vendor": "OpenAI",
       "model": "",
       "base_url": "",
