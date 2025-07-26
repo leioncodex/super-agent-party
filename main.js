@@ -390,6 +390,64 @@ app.whenReady().then(async () => {
       app.relaunch();
       app.exit();
     })
+
+    let vrmWindow = null;
+
+    ipcMain.handle('start-vrm-window', async (_,windowConfig = {}) => {
+      if (vrmWindow) {
+        vrmWindow.focus();
+        return;
+      }
+
+      const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+      
+      // 使用传入的配置或默认值
+      const windowWidth = windowConfig.width || 540;
+      const windowHeight = windowConfig.height || 960;
+      
+      vrmWindow = new BrowserWindow({
+        width: windowWidth,
+        height: windowHeight,
+        x: width-windowWidth-40, 
+        y: 0, 
+        transparent: true,
+        frame: false,
+        resizable: false,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        hasShadow: false,
+        focusable: false,
+        acceptFirstMouse: true,
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: true,
+          enableRemoteModule: true,
+          sandbox: false,
+          webgl: true,
+          devTools: isDev,
+          webAudio: true,
+          autoplayPolicy: 'no-user-gesture-required',
+          preload: path.join(__dirname, 'static/js/preload.js')
+        }
+      });
+      // 加载页面
+      await vrmWindow.loadURL(`http://${HOST}:${PORT}/vrm.html`);
+
+      // 窗口关闭处理
+      vrmWindow.on('closed', () => {
+        vrmWindow = null;
+      });
+
+    });
+
+    // 停止VRM窗口
+    ipcMain.handle('stop-vrm-window', () => {
+      if (vrmWindow && !vrmWindow.isDestroyed()) {
+        vrmWindow.close();
+        vrmWindow = null;
+      }
+    });
     // 检查更新IPC
     ipcMain.handle('check-for-updates', async () => {
       if (isDev) {
@@ -522,63 +580,6 @@ app.whenReady().then(async () => {
         await win.webContents.executeJavaScript(`
           window.stopQQBotHandler && window.stopQQBotHandler()
         `);
-      }
-    });
-    let vrmWindow = null;
-
-    ipcMain.handle('start-vrm-window', async (_,windowConfig = {}) => {
-      if (vrmWindow) {
-        vrmWindow.focus();
-        return;
-      }
-
-      const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-      
-      // 使用传入的配置或默认值
-      const windowWidth = windowConfig.width || 540;
-      const windowHeight = windowConfig.height || 960;
-      
-      vrmWindow = new BrowserWindow({
-        width: windowWidth,
-        height: windowHeight,
-        x: width-windowWidth-40, 
-        y: 0, 
-        transparent: true,
-        frame: false,
-        resizable: false,
-        alwaysOnTop: true,
-        skipTaskbar: true,
-        hasShadow: false,
-        focusable: false,
-        acceptFirstMouse: true,
-        backgroundColor: 'rgba(0, 0, 0, 0)',
-        webPreferences: {
-          contextIsolation: true,
-          nodeIntegration: true,
-          enableRemoteModule: true,
-          sandbox: false,
-          webgl: true,
-          devTools: isDev,
-          webAudio: true,
-          autoplayPolicy: 'no-user-gesture-required',
-          preload: path.join(__dirname, 'static/js/preload.js')
-        }
-      });
-      // 加载页面
-      await vrmWindow.loadURL(`http://${HOST}:${PORT}/vrm.html`);
-
-      // 窗口关闭处理
-      vrmWindow.on('closed', () => {
-        vrmWindow = null;
-      });
-
-    });
-
-    // 停止VRM窗口
-    ipcMain.handle('stop-vrm-window', () => {
-      if (vrmWindow && !vrmWindow.isDestroyed()) {
-        vrmWindow.close();
-        vrmWindow = null;
       }
     });
 

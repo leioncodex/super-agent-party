@@ -3716,6 +3716,7 @@ async def vrm_websocket_endpoint(websocket: WebSocket):
             if message['type'] == 'requestAudioData':
                 audio_id = message['data']['audioId']
                 expressions = message['data']['expressions']
+                text = message['data']['text']
                 cached_audio = tts_manager.get_cached_audio(audio_id)
                 
                 if cached_audio:
@@ -3724,7 +3725,8 @@ async def vrm_websocket_endpoint(websocket: WebSocket):
                         'data': {
                             'audioId': audio_id,
                             'audioData': base64.b64encode(cached_audio).decode('utf-8'),
-                            'expressions':expressions
+                            'expressions':expressions,
+                            'text':text
                         }
                     }))
             
