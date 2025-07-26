@@ -41,6 +41,9 @@
 ### 记忆模块：支持永久记忆，支持lorebook世界观构建
 ![image](doc/image/memory.jpeg)
 
+### 微信机器人：模拟用户操作，非入侵式的接管你的微信，避免风控
+![image](doc/image/wxbot.jpeg)
+
 ### QQ机器人：支持一键部署到QQ官方机器人，方便用户随时随地使用智能体
 ![image](doc/image/qqbot.jpeg)
 
