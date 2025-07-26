@@ -41,6 +41,9 @@
 ### Memory Module: Supports permanent memory and lorebook world-building  
 ![image](doc/image/memory.jpeg)  
 
+### WeChat bot: Simulate user operations, take over your WeChat in a non-intrusive way, and avoid risk control
+![image](doc/image/wxbot.jpeg)
+
 ### QQ Bot: Supports one-click deployment to the official QQ bot, enabling users to access the agent anytime, anywhere  
 ![image](doc/image/qqbot.jpeg)  
 
