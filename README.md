@@ -20,10 +20,15 @@
 
 ### 🚀 **A 3D AI desktop companion with endless possibilities!**  
 
-- ✅Empower LLM APIs with enterprise-level capabilities without modifying a single line of code. Seamlessly enhance your LLM interfaces with advanced features such as knowledge bases, real-time internet connectivity, permanent memory, code execution tools, deep thought control, in-depth research, visual capabilities, drawing abilities, auditory functions, speech capabilities, and custom tools—creating a plug-and-play LLM enhancement platform.  
-- ✅At the same time, you can also configure your intelligent agent and deploy it to any front-end with just one click (it has already implemented classic chat interfaces, WeChat bots, Bilibili live-streaming bots, QQ official bots, and VRM desktop pets).
-- ✅You can also use other agents, smart tools, and intelligent workflows as tools for agent-party agents (already implemented for ComfyUI, MCP, and A2A).  
-- ✅Multi-platform support: Windows, macOS, Linux, Docker, Web.
+- ✅ Seamless capability enhancement: It is possible to achieve an enterprise-level upgrade of the LLM API without code modification, seamlessly integrating knowledge bases, real-time networking, permanent memory, code execution, multimodal capabilities (vision/drawing/audition/speech), deep thinking control and research, and other modular functions into the existing model interface, creating a pluggable LLM enhancement platform.
+
+- ✅ One-click deployment across all channels: It supports the rapid deployment of intelligent agents to multiple types of terminals, and is compatible with scenarios such as classic chat interfaces, WeChat/QQ official robots, Bilibili live interaction, and VRM virtual desktop pets, ready to use out of the box.
+
+- ✅ Ecological tool interconnection: It can freely access third-party intelligent entities and workflows as a tool chain (already adapted to systems such as ComfyUI/MCP/A2A), and achieve cross-platform capability aggregation through the agent-party architecture.
+
+- ✅ Standardized interface opening: Provide OpenAI API-compatible interfaces and MCP protocol support, making it easy for developers to directly connect to external systems and achieve rapid transfer and secondary development of the agent's capabilities.
+
+- ✅ Compatible and adaptable across all platforms: It covers the native running environments of Windows/macOS/Linux, supports Docker containerized deployment and web-based cloud services, and meets the needs of multi-scene technology stacks.
 
 ![image](doc/image/demo.png)
 
