@@ -3363,6 +3363,7 @@ let vue_methods = {
   populateInputOptions(workflowJson) {
     this.textInputOptions = [];
     this.imageInputOptions = [];
+    this.seedInputOptions = [];
     
     for (const nodeId in workflowJson) {
       const node = workflowJson[nodeId];
@@ -3396,6 +3397,17 @@ let vue_methods = {
           });
         });
       }
+
+      // 查找所有包含seed的种子输入字段
+      const seedInputKeys = Object.keys(node.inputs).filter(
+        key => key.includes('seed') && typeof node.inputs[key] === 'number' // 确保值是数字类型
+      )
+      seedInputKeys.forEach(key => {
+        this.seedInputOptions.push({
+          label: `${node._meta.title} - ${key} (ID: ${nodeId})`,
+          value: { nodeId, inputField: key, id : `${nodeId}-${key}` },
+        });
+      })
     }
   },
 
@@ -3412,6 +3424,8 @@ let vue_methods = {
         textInput2: this.selectedTextInput2,
         imageInput: this.selectedImageInput,
         imageInput2: this.selectedImageInput2,
+        seedInput: this.selectedSeedInput,
+        seedInput2: this.selectedSeedInput2,
         description: this.workflowDescription,
       };
 
@@ -3439,6 +3453,8 @@ let vue_methods = {
           this.selectedImageInput = null; // 重置选中
           this.selectedTextInput2 = null; // 重置选中
           this.selectedImageInput2 = null; // 重置选中
+          this.selectedSeedInput = null; // 重置选中
+          this.selectedSeedInput2 = null; // 重置选中
           this.workflowDescription = ''; // 清空描述
           await this.autoSaveSettings();
           showNotification('上传成功');
@@ -3457,6 +3473,8 @@ let vue_methods = {
       this.selectedImageInput = null; // 重置选中
       this.selectedTextInput2 = null; // 重置选中
       this.selectedImageInput2 = null; // 重置选中
+      this.selectedSeedInput = null; // 重置选中
+      this.selectedSeedInput2 = null; // 重置选中
       this.workflowDescription = ''; // 清空描述
     },
     async deleteVideo(video) {
@@ -3742,7 +3760,7 @@ let vue_methods = {
     initWebSpeechAPI() {
       if(isElectron){
         showNotification(this.t('webSpeechNotSupportedInElectron'), 'error');
-        const url = ``;
+        const url = this.partyURL;
         window.electronAPI.openExternal(url);
         this.asrSettings.enabled = false;
         return false;
@@ -3762,7 +3780,9 @@ let vue_methods = {
       // 配置语音识别参数
       this.recognition.continuous = true; // 改为非持续识别，由VAD控制
       this.recognition.interimResults = true;
-
+      if (this.asrSettings.webSpeechLanguage != 'auto'){
+        this.recognition.lang = this.asrSettings.webSpeechLanguage;
+      }
       // 识别结果处理
       this.recognition.onresult = (event) => {
         let finalTranscript = '';

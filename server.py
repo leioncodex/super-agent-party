@@ -4603,6 +4603,8 @@ async def add_workflow(file: UploadFile = File(...), workflow_data: str = Form(.
                 "text_input_2": workflow_data_dict.get("textInput2"),
                 "image_input": workflow_data_dict.get("imageInput"),
                 "image_input_2": workflow_data_dict.get("imageInput2"),
+                "seed_input": workflow_data_dict.get("seedInput"),
+                "seed_input2": workflow_data_dict.get("seedInput2"),
                 "description": workflow_data_dict.get("description")
             }
         }

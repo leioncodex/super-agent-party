@@ -361,6 +361,7 @@ let vue_data = {
       enabled: false,
       engine: 'webSpeech',
       selectedProvider: null,
+      webSpeechLanguage: 'auto',
       vendor: "OpenAI",
       model: "",
       base_url: "",
@@ -372,6 +373,16 @@ let vue_data = {
       wakeWord: "小派",
       hotwords: "小派 80\nagent party 60",
     },
+    supportedLanguages: [
+      { code: 'zh-CN', name: '中文' },
+      { code: 'en-US', name: 'English' },
+      { code: 'ja-JP', name: '日本語' },
+      { code: 'ko-KR', name: '한국어' },
+      { code: 'es-ES', name: 'Español' },
+      { code: 'fr-FR', name: 'Français' },
+      { code: 'de-DE', name: 'Deutsch' },
+      { code: 'ru-RU', name: 'Русский' },
+    ],
     userInputBuffer: '',
     ttsSettings: {
       enabled: false,
@@ -1163,6 +1174,9 @@ main();`,
     selectedImageInput: null,
     selectedTextInput2: null,
     selectedImageInput2: null,
+    selectedSeedInput: null,
+    selectedSeedInput2: null,
     textInputOptions: [], // 确保这里是一个空数组
     imageInputOptions: [], // 确保这里是一个空数组
+    seedInputOptions: [], // 确保这里是一个空数组
 };

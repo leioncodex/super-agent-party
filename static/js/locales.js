@@ -463,6 +463,8 @@ const translations = {
         'selectTextInput': '请选择文本输入',
         'imageInput': '图片输入',
         'selectImageInput': '请选择图片输入',
+        'seedInput': '随机种子输入',
+        'selectSeedInput': '请选择随机种子输入',
         'comfyuiWorkflowInfo': '尽可能地在第一个输入框中描述这个工作流的功能，以及每个输入的作用，例如：第一个文字输入为正向图片提示词，第二个文字输入为反向图片提示词，第三个图片输入为需要修改的图片，第四个图片输入是需要参考的风格图片。不是每一个文字输入和图片输入都需要填，没有填充的输入项会被忽略。',
         'repo_owner': '仓库拥有者',
         'repo_owner_placeholder': '请输入仓库拥有者',
@@ -629,6 +631,9 @@ const translations = {
         'rewrite': '重写',
         'proxySettings': '代理设置',
         'proxyPlaceholder': '请输入代理地址，例如：http://127.0.0.1:7890',
+        'wxNotice': '启动机器人之前，你必须先登录微信，并且保证微信窗口在屏幕上。agent party将模拟用户行为接管你的微信。',
+        'language': '语言',
+        'webSpeechAPI': 'Web Speech API',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1093,6 +1098,8 @@ const translations = {
         'selectTextInput': 'Please select text input',
         'imageInput': 'Image Input',
         'selectImageInput': 'Please select image input',
+        'seedInput': 'Seed Input',
+        'selectSeedInput': 'Please select seed input',
         'comfyuiWorkflowInfo': 'As much as possible, describe the function of this workflow in the first input box, as well as the role of each input, for example: the first text input is a forward image prompt, the second text input is a reverse image prompt, the third image input is an image that needs to be modified, and the fourth image input is a style image that needs to be referenced. Not every text and image input item needs to be filled in, and unfilled input items will be ignored.',
         'repo_owner': 'Repository Owner',
         'repo_owner_placeholder': 'Please enter the repository owner',
@@ -1257,5 +1264,8 @@ const translations = {
         'rewrite': 'Rewrite',
         'proxySettings': 'Proxy Settings',
         'proxyPlaceholder': 'Please enter the proxy address, such as http://127.0.0.1:7890',
+        'wxNotice': 'Before starting the robot, you must log in to WeChat and ensure that the WeChat window is on the screen. The agent party will simulate user behavior and take over your WeChat account.',
+        'language': 'Language',
+        'webSpeechAPI': 'Web Speech API',
     }
   };
