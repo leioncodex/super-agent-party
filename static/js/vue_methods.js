@@ -2501,7 +2501,7 @@ let vue_methods = {
       this.isBrowserOpening = true;
       
       setTimeout(() => {
-        const url = ``;
+        const url = this.partyURL;
         if (isElectron) {
           window.electronAPI.openExternal(url);
         } else {
@@ -5382,6 +5382,22 @@ let vue_methods = {
       console.log(data);
     }else {
       console.error('更新代理失败');
+    }
+  },
+  async openUserfile(){
+    const response = await fetch('/api/get_userfile',{
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (response.ok) {
+      // 拿到userfile
+      const data = await response.json();
+      let userfile = data.userfile;    // 打开文件夹
+      if (this.isElectron){
+        window.electronAPI.openPath(userfile);
+      }
     }
   }
 }

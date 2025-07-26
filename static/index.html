@@ -3971,6 +3971,18 @@
                 </el-form-item>
               </div>
             </div>
+            <div class="browser-mode-btn-container" v-show="isElectron">
+              <el-button
+                class="browser-mode-btn"
+                type="primary"
+                @click="openUserfile"
+                round
+                size="large">
+                <span class="ml-2">
+                  {{ t('openUserfile') }}
+                </span>
+              </el-button>
+            </div>
           </el-form>
           <!--eldialog 询问用户是否立即重启-->
           <el-dialog
@@ -4288,13 +4300,13 @@
                       <div class="agent-header">
                         <span class="agent-name">{{ agent.name }}</span>
                         <!-- 添加复制功能 -->
-                        <el-botton
+                        <el-button
                           size="small"
                           type="info"
                           @click="copyAgentName(agent.name)"
                         >
                           <i class="fa-regular fa-copy"></i>
-                        </el-botton>
+                        </el-button>
                       </div>
                       <!-- 带复制功能的ID展示 -->
                       <el-tag 
@@ -4900,7 +4912,8 @@
         <!-- logo页面 -->
         <div v-show="activeMenu === 'logo'" class="page logo-container">
           <div class="license-notice">
-            <h2>开源协议声明 / Open Source License</h2>
+            <h1>Super Agent Party v0.2.4</h1>
+            <h3>开源协议声明 / Open Source License</h3>
             <div class="notice-section">
               <p class="warning-text">❗ 注意！本项目是基于AGPL协议开源的，请遵守AGPL协议，以避免不必要的法律问题！</p>
               <p class="warning-text-en">❗ Attention! This project is open source based on the AGPL agreement, please abide by the AGPL agreement to avoid unnecessary legal problems!</p>
