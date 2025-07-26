@@ -4781,15 +4781,15 @@ let vue_methods = {
       }
     } else {
       // 浏览器环境
-      window.open(`/vrm.html`, '_blank');
+      window.open(`${this.partyURL}/vrm.html`, '_blank');
     }
   },
   async startVRMweb() {
     if (this.isElectron) {
-      window.electronAPI.openExternal(`/vrm.html`);
+      window.electronAPI.openExternal(`${this.partyURL}/vrm.html`);
     }else {
       // 浏览器环境
-      window.open(`/vrm.html`, '_blank');
+      window.open(`${this.partyURL}/vrm.html`, '_blank');
     }
   },
     async checkServerPort() {
