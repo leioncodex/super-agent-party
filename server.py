@@ -368,8 +368,6 @@ class ChatRequest(BaseModel):
     stream: bool = False
     max_tokens: int = None
     top_p: float = 1
-    frequency_penalty: float = 0
-    presence_penalty: float = 0
     fileLinks: List[str] = None
     enable_thinking: bool = False
     enable_deep_research: bool = False
@@ -1270,8 +1268,6 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                         stream=True,
                         max_tokens=request.max_tokens or settings['max_tokens'],
                         top_p=request.top_p or settings['top_p'],
-                        frequency_penalty=request.frequency_penalty,
-                        presence_penalty=request.presence_penalty,
                         extra_body = extra_params, # 其他参数
                     )
                 else:
@@ -1282,8 +1278,6 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                         stream=True,
                         max_tokens=request.max_tokens or settings['max_tokens'],
                         top_p=request.top_p or settings['top_p'],
-                        frequency_penalty=request.frequency_penalty,
-                        presence_penalty=request.presence_penalty,
                         extra_body = extra_params, # 其他参数
                     )
                 tool_calls = []
@@ -1837,8 +1831,6 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             stream=True,
                             max_tokens=request.max_tokens or settings['max_tokens'],
                             top_p=request.top_p or settings['top_p'],
-                            frequency_penalty=request.frequency_penalty,
-                            presence_penalty=request.presence_penalty,
                             extra_body = extra_params, # 其他参数
                         )
                     else:
@@ -1849,8 +1841,6 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             stream=True,
                             max_tokens=request.max_tokens or settings['max_tokens'],
                             top_p=request.top_p or settings['top_p'],
-                            frequency_penalty=request.frequency_penalty,
-                            presence_penalty=request.presence_penalty,
                             extra_body = extra_params, # 其他参数
                         )
                     tool_calls = []
@@ -2561,8 +2551,6 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                 stream=False,
                 max_tokens=request.max_tokens or settings['max_tokens'],
                 top_p=request.top_p or settings['top_p'],
-                frequency_penalty=request.frequency_penalty,
-                presence_penalty=request.presence_penalty,
                 extra_body = extra_params, # 其他参数
             )
         else:
@@ -2573,8 +2561,6 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                 stream=False,
                 max_tokens=request.max_tokens or settings['max_tokens'],
                 top_p=request.top_p or settings['top_p'],
-                frequency_penalty=request.frequency_penalty,
-                presence_penalty=request.presence_penalty,
                 extra_body = extra_params, # 其他参数
             )
         if response.choices[0].message.tool_calls:
@@ -2783,8 +2769,6 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     stream=False,
                     max_tokens=request.max_tokens or settings['max_tokens'],
                     top_p=request.top_p or settings['top_p'],
-                    frequency_penalty=request.frequency_penalty,
-                    presence_penalty=request.presence_penalty,
                     extra_body = extra_params, # 其他参数
                 )
             else:
@@ -2795,8 +2779,6 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     stream=False,
                     max_tokens=request.max_tokens or settings['max_tokens'],
                     top_p=request.top_p or settings['top_p'],
-                    frequency_penalty=request.frequency_penalty,
-                    presence_penalty=request.presence_penalty,
                     extra_body = extra_params, # 其他参数
                 )
             if response.choices[0].message.tool_calls:
