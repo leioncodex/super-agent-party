@@ -82,8 +82,8 @@ document.body.classList.add(isElectron ? 'electron' : 'web');
 
 // 优化渲染器设置
 const renderer = new THREE.WebGPURenderer({
-    alpha: isElectron,
-    premultipliedAlpha: isElectron,
+    alpha: true,
+    premultipliedAlpha: true,
     antialias: true,  // 添加抗锯齿
     powerPreference: "high-performance",  // 使用高性能GPU
     forceWebGL: false  // 确保使用WebGPU
@@ -92,7 +92,7 @@ const renderer = new THREE.WebGPURenderer({
 // 添加性能优化设置
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制像素比例
-renderer.setClearColor(isElectron ? 0x00000000 : 0xffffff, isElectron ? 0 : 1);
+renderer.setClearColor(0x00000000, 0);
 
 // 用fetch查询/cur_language的值
 async function fetchLanguage() {
@@ -186,35 +186,13 @@ controls.update();
 // scene
 const scene = new THREE.Scene();
 
-// 创建地板 - 自发光白色材质
-const floorGeometry = new THREE.PlaneGeometry( 20, 20 );
-const floorMaterial = new THREE.MeshStandardMaterial( { 
-    color: 0xffffff,        // 纯白色
-    metalness: 0.1,         
-    roughness: 0.1,         
-    side: THREE.DoubleSide,
-    emissive: 0xffffff,     // 添加自发光
-    emissiveIntensity: 0.3  // 自发光强度
-} );
-
-// 修改地板材质（仅在 Electron 中隐藏地板）
-if (isElectron) {
-    floorMaterial.visible = false;
-    floorMaterial.opacity = 0;
-    floorMaterial.transparent = true;
-}
-const floor = new THREE.Mesh( floorGeometry, floorMaterial );
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = 0;
-scene.add( floor );
-
 // light
 const light = new THREE.DirectionalLight( 0xffffff, Math.PI );
 light.position.set( 1.0, 1.0, 1.0 ).normalize();
 scene.add( light );
 
 // 添加环境光，让整体更柔和
-const ambientLight = new THREE.AmbientLight( 0xffffff, 0.3 );
+const ambientLight = new THREE.AmbientLight( 0xffffff, 0.1 );
 scene.add( ambientLight );
 
 // gltf and vrm
