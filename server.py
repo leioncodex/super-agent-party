@@ -89,7 +89,7 @@ ALLOWED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']
 
 ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', '3gp', 'm4v']
 
-from py.get_setting import load_settings,save_settings,base_path,configure_host_port,UPLOAD_FILES_DIR,AGENT_DIR,MEMORY_CACHE_DIR,KB_DIR,DEFAULT_VRM_DIR
+from py.get_setting import load_settings,save_settings,base_path,configure_host_port,UPLOAD_FILES_DIR,AGENT_DIR,MEMORY_CACHE_DIR,KB_DIR,DEFAULT_VRM_DIR,USER_DATA_DIR
 from py.llm_tool import get_image_base64,get_image_media_type
 
 
@@ -5147,6 +5147,14 @@ async def update_proxy():
                 os.environ['http_proxy'] = settings["systemSettings"]["proxy"].strip()
                 os.environ['https_proxy'] = settings["systemSettings"]["proxy"].strip()
         return {"message": "Proxy updated successfully", "success": True}
+    except Exception as e:
+        return {"message": str(e), "success": False}
+
+@app.get("/api/get_userfile")
+async def get_userfile():
+    try:
+        userfile = USER_DATA_DIR
+        return {"message": "Userfile loaded successfully", "userfile": userfile, "success": True}
     except Exception as e:
         return {"message": str(e), "success": False}
 

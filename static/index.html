@@ -3971,6 +3971,18 @@
                 </el-form-item>
               </div>
             </div>
+            <div class="browser-mode-btn-container" v-show="isElectron">
+              <el-button
+                class="browser-mode-btn"
+                type="primary"
+                @click="openUserfile"
+                round
+                size="large">
+                <span class="ml-2">
+                  {{ t('openUserfile') }}
+                </span>
+              </el-button>
+            </div>
           </el-form>
           <!--eldialog 询问用户是否立即重启-->
           <el-dialog
