@@ -4426,6 +4426,7 @@ let vue_methods = {
           message.audioChunks[index] = { 
             url: audioUrl, 
             expressions: chunk_expressions, // 添加表情
+            text: chunk_text,
             index 
           };
           this.cur_audioDatas[index]= audioDataUrl;
@@ -4436,6 +4437,7 @@ let vue_methods = {
           message.audioChunks[index] = { 
             url: null, 
             expressions: chunk_expressions, // 添加表情
+            text: chunk_text,
             index
           };
           this.cur_audioDatas[index]= null;
@@ -4501,7 +4503,7 @@ let vue_methods = {
             audioDataUrl: this.cur_audioDatas[currentIndex],
             chunkIndex: currentIndex,
             totalChunks: lastMessage.ttsChunks.length,
-            text: lastMessage.ttsChunks[currentIndex],
+            text: audioChunk.text,
             expressions: audioChunk.expressions
           });
           console.log(audioChunk.expressions);
