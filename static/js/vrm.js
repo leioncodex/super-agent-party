@@ -392,31 +392,41 @@ function initSubtitleElement() {
     document.body.appendChild(subtitleElement);
 }
 
-// 拖拽功能实现
+// 改进拖拽功能
 function startDragSubtitle(e) {
     if (!isSubtitleEnabled) return;
     
     isDraggingSubtitle = true;
+    
+    // 获取字幕元素的初始位置
     const rect = subtitleElement.getBoundingClientRect();
-    subtitleOffsetX = e.clientX - rect.left;
+    
+    // 计算鼠标相对于字幕中心点的偏移量
+    subtitleOffsetX = e.clientX - (rect.left + rect.width / 2);
     subtitleOffsetY = e.clientY - rect.top;
+    
+    // 禁用过渡效果
     subtitleElement.style.transition = 'none';
-    subtitleElement.style.transform = 'none'; // 取消居中
 }
 
 function dragSubtitle(e) {
     if (isDraggingSubtitle) {
-        const x = e.clientX - subtitleOffsetX;
-        const y = e.clientY - subtitleOffsetY;
+        // 计算字幕中心点的目标位置
+        const centerX = e.clientX - subtitleOffsetX;
+        const centerY = e.clientY - subtitleOffsetY;
         
-        // 限制在窗口范围内
-        const maxX = window.innerWidth - subtitleElement.offsetWidth;
-        const maxY = window.innerHeight - subtitleElement.offsetHeight;
+        // 限制在窗口范围内，保持水平居中
+        const halfWidth = subtitleElement.offsetWidth / 2;
+        const clampedX = Math.max(halfWidth, Math.min(centerX, window.innerWidth - halfWidth));
         
-        const clampedX = Math.max(0, Math.min(x, maxX));
-        const clampedY = Math.max(0, Math.min(y, maxY));
-        
+        // 设置位置时保持水平居中
         subtitleElement.style.left = `${clampedX}px`;
+        subtitleElement.style.transform = 'translateX(-50%)'; // 水平居中
+        
+        // 垂直位置保持不变
+        const maxY = window.innerHeight - subtitleElement.offsetHeight;
+        const clampedY = Math.max(0, Math.min(centerY, maxY));
+        
         subtitleElement.style.top = `${clampedY}px`;
         subtitleElement.style.bottom = 'auto'; // 取消底部定位
     }
@@ -428,7 +438,6 @@ function endDragSubtitle() {
         subtitleElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
     }
 }
-
 
 // 修改字幕显示/隐藏功能
 function toggleSubtitle(enable) {
@@ -505,7 +514,6 @@ if (isElectron) {
     }, 1400);
 }
 
-// 修改 updateSubtitle 函数
 function updateSubtitle(text, chunkIndex) {
     if (!isSubtitleEnabled) return;
     
@@ -517,22 +525,14 @@ function updateSubtitle(text, chunkIndex) {
     setTimeout(() => {
         subtitleElement.textContent = text;
         
-        // 自动调整宽度和位置
-        const rect = subtitleElement.getBoundingClientRect();
+        // 自动调整宽度
         const maxWidth = window.innerWidth * 0.8;
         subtitleElement.style.width = 'max-content';
         subtitleElement.style.minWidth = '100px';
         
+        const rect = subtitleElement.getBoundingClientRect();
         if (rect.width > maxWidth) {
             subtitleElement.style.width = `${maxWidth}px`;
-        }
-        
-        // 重置位置到中心底部（如果没有被拖动过）
-        if (!isDraggingSubtitle && subtitleElement.style.bottom === 'auto') {
-            subtitleElement.style.left = '50%';
-            subtitleElement.style.bottom = '30%';
-            subtitleElement.style.top = 'auto';
-            subtitleElement.style.transform = 'translateX(-50%)';
         }
         
         subtitleElement.style.opacity = '1';
