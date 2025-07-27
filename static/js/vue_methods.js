@@ -4016,7 +4016,7 @@ let vue_methods = {
         },
         onFrameProcessed: (probabilities, frame) => {
           // 处理每一帧
-          if (probabilities["isSpeech"] > 0.4) {
+          if (probabilities["isSpeech"] > 0.2) {
             if (this.ttsSettings.enabledInterruption) {
               // 关闭正在播放的音频
               if (this.currentAudio) {
@@ -4277,6 +4277,8 @@ let vue_methods = {
       buffer = buffer.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '');
       // 移除常见的markdown符号，例如：**  --- 
       buffer = buffer.replace(/[*_~`]/g, '');
+      // 移除常见的markdown符号，例如以 - 开头的行
+      buffer = buffer.replace(/^\s*- /gm, '');
       // 匹配markdown中的链接,[]()，并替换为空字符串
       buffer = buffer.replace(/\[.*?\]\(.*?\)/g, '');
 

@@ -113,7 +113,7 @@ function isPortAvailable(port) {
 }
 
 // 新增：查找可用端口
-async function findAvailablePort(startPort = DEFAULT_PORT, maxAttempts = 10) {
+async function findAvailablePort(startPort = DEFAULT_PORT, maxAttempts = 100) {
   for (let i = 0; i < maxAttempts; i++) {
     const port = startPort + i
     if (await isPortAvailable(port)) {
