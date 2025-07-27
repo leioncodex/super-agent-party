@@ -636,6 +636,8 @@ const translations = {
         'language': '语言',
         'webSpeechAPI': 'Web Speech API',
         'openUserfile': '打开数据文件夹',
+        'SubtitleEnabled': '字幕已开启',
+        'SubtitleDisabled': '字幕已关闭',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1271,5 +1273,7 @@ const translations = {
         'language': 'Language',
         'webSpeechAPI': 'Web Speech API',
         'openUserfile': 'Open data folder',
+        'SubtitleEnabled': 'Subtitle Enabled',
+        'SubtitleDisabled': 'Subtitle Disabled',
     }
   };
