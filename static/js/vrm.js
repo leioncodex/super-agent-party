@@ -361,6 +361,8 @@ function initSubtitleElement() {
         position: fixed;
         bottom: 30%;
         left: 50%;
+        width: auto;
+        max-width: 80%;
         transform: translateX(-50%);
         padding: 12px 24px;
         background: rgba(0, 0, 0, 0.8);
@@ -528,7 +530,7 @@ function updateSubtitle(text, chunkIndex) {
         // 重置位置到中心底部（如果没有被拖动过）
         if (!isDraggingSubtitle && subtitleElement.style.bottom === 'auto') {
             subtitleElement.style.left = '50%';
-            subtitleElement.style.bottom = '80px';
+            subtitleElement.style.bottom = '30%';
             subtitleElement.style.top = 'auto';
             subtitleElement.style.transform = 'translateX(-50%)';
         }
