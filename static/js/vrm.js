@@ -142,7 +142,7 @@ async function getVRMpath() {
             return userModel.path;
         }
         else {
-            return 'http://127.0.0.1:3456/vrm/Alice.vrm';
+            return `${window.location.protocol}//${window.location.host}/vrm/Alice.vrm`;
         }
     }
 }
