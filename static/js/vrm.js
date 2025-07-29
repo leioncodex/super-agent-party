@@ -4,74 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VRMLoaderPlugin, MToonMaterialLoaderPlugin, VRMUtils, VRMLookAt } from '@pixiv/three-vrm';
 import { MToonNodeMaterial } from '@pixiv/three-vrm/nodes';
 
-const _v3A = new THREE.Vector3();
 let isVRM1 = true;
-// extended lookat
-class VRMSmoothLookAt extends VRMLookAt {
-
-    constructor( humanoid, applier ) {
-
-        super( humanoid, applier );
-
-        // a factor used for animation
-        this.smoothFactor = 10.0;
-
-        // maximum angles the lookAt tracks
-        this.yawLimit = 45.0;
-        this.pitchLimit = 45.0;
-
-        // Actual angles applied, animated
-        this._yawDamped = 0.0;
-        this._pitchDamped = 0.0;
-
-    }
-
-    update( delta ) {
-
-        if ( this.target && this.autoUpdate ) {
-
-            // this updates `_yaw` and `_pitch`
-            this.lookAt( this.target.getWorldPosition( _v3A ) );
-
-            // limit angles
-            if (
-
-                this.yawLimit < Math.abs( this._yaw ) ||
-                this.pitchLimit < Math.abs( this._pitch )
-
-            ) {
-
-                this._yaw = 0.0;
-                this._pitch = 0.0;
-
-            }
-
-            // animate angles
-            const k = 1.0 - Math.exp( - this.smoothFactor * delta );
-
-            this._yawDamped += ( this._yaw - this._yawDamped ) * k;
-            this._pitchDamped += ( this._pitch - this._pitchDamped ) * k;
-
-            // apply the animated angles
-            this.applier.applyYawPitch( this._yawDamped, this._pitchDamped );
-
-            // there is no need to update twice
-            this._needsUpdate = false;
-
-        }
-
-        // usual update procedure
-        if ( this._needsUpdate ) {
-
-            this._needsUpdate = false;
-
-            this.applier.applyYawPitch( this._yaw, this._pitch );
-
-        }
-
-    }
-
-}
 
 // renderer
 // 检测运行环境
@@ -191,6 +124,11 @@ const light = new THREE.DirectionalLight( 0xffffff, Math.PI );
 light.position.set( 1.0, 1.0, 1.0 ).normalize();
 scene.add( light );
 
+
+// lookat target
+const lookAtTarget = new THREE.Object3D();
+camera.add( lookAtTarget );
+
 // 添加环境光，让整体更柔和
 const ambientLight = new THREE.AmbientLight( 0xffffff, 0.1 );
 scene.add( ambientLight );
@@ -302,16 +240,7 @@ loader.load(
 
         } );
 
-        // replace the lookAt to our extended one
-        if ( vrm.lookAt ) {
-            const smoothLookAt = new VRMSmoothLookAt( vrm.humanoid, vrm.lookAt.applier );
-            smoothLookAt.copy( vrm.lookAt );
-            vrm.lookAt = smoothLookAt;
-
-            // set the lookAt target to camera
-            vrm.lookAt.target = camera;
-        }
-
+        vrm.lookAt.target = camera;
         currentVrm = vrm;
         console.log( vrm );
         scene.add( vrm.scene );
@@ -1701,14 +1630,7 @@ async function switchToModel(index) {
                     obj.frustumCulled = false;
                 });
                 
-                // 替换lookAt为扩展版本
-                if (vrm.lookAt) {
-                    const smoothLookAt = new VRMSmoothLookAt(vrm.humanoid, vrm.lookAt.applier);
-                    smoothLookAt.copy(vrm.lookAt);
-                    vrm.lookAt = smoothLookAt;
-                    vrm.lookAt.target = camera;
-                }
-                
+                vrm.lookAt.target = camera;
                 currentVrm = vrm;
                 console.log('New VRM loaded:', vrm);
                 scene.add(vrm.scene);
