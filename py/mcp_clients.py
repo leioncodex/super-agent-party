@@ -46,6 +46,7 @@ class ConnectionManager:
                     env=config.get('env', None)
                 )
                 transport = await self._exit_stack.enter_async_context(stdio_client(server_params))
+                self.stdio, self.write = transport
             else:
                 mcptype = config.get('type', 'ws')
                 client_map = {
@@ -54,8 +55,11 @@ class ConnectionManager:
                     'streamablehttp': streamablehttp_client
                 }
                 transport = await self._exit_stack.enter_async_context(client_map[mcptype](config['url']))
-
-            self.stdio, self.write = transport
+                if mcptype == 'streamablehttp':
+                    self.stdio, self.write, _ = transport
+                else:
+                    self.stdio, self.write = transport
+                
             self.session = await self._exit_stack.enter_async_context(ClientSession(self.stdio, self.write))
             
             # 初始化会话
