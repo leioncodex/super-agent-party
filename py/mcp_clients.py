@@ -1,197 +1,154 @@
+# mcp_client_fixed.py
 import json
 import asyncio
 import logging
 import shutil
-from typing import Dict, List, Any, AsyncIterator
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from mcp.client.sse import sse_client
+from typing import Dict, Any, AsyncIterator, Optional
+
+from mcp import ClientSession
+from mcp.client.stdio   import stdio_client
+from mcp.client.sse     import sse_client
 from mcp.client.websocket import websocket_client
 from mcp.client.streamable_http import streamablehttp_client
 from contextlib import AsyncExitStack, asynccontextmanager
-import nest_asyncio
-from dotenv import load_dotenv
 
-load_dotenv()
-nest_asyncio.apply()
-
-def get_command_path(command_name, default_command='uv'):
-    """获取可执行文件路径"""
+# ---------- 工具 ----------
+def get_command_path(command_name: str, default_command: str = "uv") -> str:
     path = shutil.which(command_name) or shutil.which(default_command)
     if not path:
         raise FileNotFoundError(f"未找到 {command_name} 或 {default_command}")
     return path
 
+# ---------- 连接管理 ----------
 class ConnectionManager:
-    def __init__(self):
-        self._exit_stack = AsyncExitStack()
-        self.session: ClientSession = None
-        self.stdio = None
-        self.write = None
-        self.tools = []
+    def __init__(self) -> None:
+        self.session: Optional[ClientSession] = None
+        self.tools: list[str] = []
 
     @asynccontextmanager
-    async def connect(self, config: dict) -> AsyncIterator['ConnectionManager']:
-        """安全连接上下文管理器"""
-        try:
-            # 清理旧连接
-            await self._exit_stack.aclose()
-            self._exit_stack = AsyncExitStack()
-
-            # 建立新连接
-            if 'command' in config:
+    async def connect(self, config: dict) -> AsyncIterator["ConnectionManager"]:
+        async with AsyncExitStack() as stack:
+            # 1. 建立传输层
+            if "command" in config:
+                from mcp.client.stdio import StdioServerParameters
                 server_params = StdioServerParameters(
-                    command=get_command_path(config['command']),
-                    args=config.get('args', []),
-                    env=config.get('env', None)
+                    command=get_command_path(config["command"]),
+                    args=config.get("args", []),
+                    env=config.get("env"),
                 )
-                transport = await self._exit_stack.enter_async_context(stdio_client(server_params))
-                self.stdio, self.write = transport
+                read, write = await stack.enter_async_context(stdio_client(server_params))
             else:
-                mcptype = config.get('type', 'ws')
+                mcptype = config.get("type", "ws")
                 client_map = {
-                    'ws': websocket_client,
-                    'sse': sse_client,
-                    'streamablehttp': streamablehttp_client
+                    "ws": websocket_client,
+                    "sse": sse_client,
+                    "streamablehttp": streamablehttp_client,
                 }
-                transport = await self._exit_stack.enter_async_context(client_map[mcptype](config['url']))
-                if mcptype == 'streamablehttp':
-                    self.stdio, self.write, _ = transport
+                client = client_map[mcptype](config["url"])
+                transport = await stack.enter_async_context(client)
+                if mcptype == "streamablehttp":
+                    read, write, _ = transport
                 else:
-                    self.stdio, self.write = transport
-                
-            self.session = await self._exit_stack.enter_async_context(ClientSession(self.stdio, self.write))
-            
-            # 初始化会话
+                    read, write = transport
+
+            # 2. 建立会话
+            self.session = await stack.enter_async_context(ClientSession(read, write))
             await self.session.initialize()
-            tools = await self.session.list_tools()
-            self.tools = [tool.name for tool in tools.tools]
-            print(f"Connected to server. Available tools: {self.tools}")
-            
+            self.tools = [t.name for t in (await self.session.list_tools()).tools]
+            logging.info("Connected to MCP server. Tools: %s", self.tools)
+
             yield self
-        finally:
-            # 保证在同一个任务中清理
-            await self._exit_stack.aclose()
-            self.session = None
+            # 3. AsyncExitStack 会自动关闭所有资源
 
+# ---------- 客户端 ----------
 class McpClient:
-    def __init__(self):
-        self._conn: ConnectionManager = None
-        self._config: dict = None
+    def __init__(self) -> None:
+        self._conn: Optional[ConnectionManager] = None
+        self._config: Optional[dict] = None
         self._lock = asyncio.Lock()
-        self._monitor_task = None
-        self._ping_task = None
-        self._active = asyncio.Event()
+        self._monitor_task: Optional[asyncio.Task] = None
         self._shutdown = False
-        self.disabled = False
 
-    async def initialize(self, server_name: str, server_config: dict):
-        """非阻塞初始化"""
-        if self._monitor_task:
-            self._monitor_task.cancel()
-
+    async def initialize(self, server_name: str, server_config: dict) -> None:
+        """非阻塞初始化：拉起连接监控协程"""
         self._config = server_config
-        self._monitor_task = asyncio.create_task(self._connection_monitor())
+        if self._monitor_task is None or self._monitor_task.done():
+            self._monitor_task = asyncio.create_task(self._connection_monitor())
 
-    async def _check_connection(self) -> bool:
-        """综合连接状态检查"""
-        try:
-            if not self._active.is_set():
-                return False
-            return await asyncio.wait_for(self._conn.session.send_ping(), timeout=3)
-        except:
-            return False
-
-    async def close(self):
-        """安全关闭连接"""
+    async def close(self) -> None:
         self._shutdown = True
-        
-        # 取消并等待监控任务
         if self._monitor_task and not self._monitor_task.done():
             self._monitor_task.cancel()
             try:
                 await self._monitor_task
             except asyncio.CancelledError:
-                pass  # 预期中的任务取消
-            
-        # 取消心跳任务
-        if self._ping_task and not self._ping_task.done():
-            self._ping_task.cancel()
-            try:
-                await self._ping_task
-            except asyncio.CancelledError:
                 pass
-            
-        # 清理连接资源
-        async with self._lock:
-            if self._conn:
-                await self._conn._exit_stack.aclose()
-                self._conn = None
 
-    async def _connection_monitor(self):
-        try:
-            while not self._shutdown:
-                try:
+    async def _connection_monitor(self) -> None:
+        """持续重连逻辑：仅在一个协程里管理 AsyncExitStack"""
+        while not self._shutdown:
+            try:
+                async with ConnectionManager().connect(self._config) as conn:
                     async with self._lock:
-                        # 创建新连接
-                        conn = ConnectionManager()
-                        async with conn.connect(self._config) as active_conn:
-                            self._conn = active_conn
-                            self._active.set()
-                            
-                            # 将心跳检查放在连接上下文内
-                            try:
-                                while not self._shutdown:
-                                    # 检查连接状态时使用带超时的ping
-                                    try:
-                                        await asyncio.wait_for(
-                                            self._conn.session.send_ping(),
-                                            timeout=3
-                                        )
-                                    except (asyncio.TimeoutError, Exception):
-                                        break  # 连接已断开
-                                    await asyncio.sleep(5)
-                            finally:
-                                self._active.clear()
-                                self._conn = None
-                    
-                    # 连接断开后等待重连
-                    await asyncio.sleep(5)
-                    
-                except Exception as e:
-                    logging.error(f"连接错误: {e}", exc_info=True)
-                    await asyncio.sleep(5)
-                        
-        except asyncio.CancelledError:
-            logging.debug("监控任务正常终止")
-        finally:
-            # 确保资源清理
-            async with self._lock:
-                if self._conn:
-                    await self._conn._exit_stack.aclose()
+                        self._conn = conn
+                    # 心跳检测
+                    while not self._shutdown:
+                        try:
+                            await asyncio.wait_for(self._conn.session.send_ping(), timeout=3)
+                        except Exception:
+                            break  # 断线，跳出 inner loop
+                        await asyncio.sleep(30)
+            except Exception as e:
+                logging.exception("Connection failed, will retry: %s", e)
+            finally:
+                async with self._lock:
                     self._conn = None
+            if not self._shutdown:
+                await asyncio.sleep(5)
 
+    # ---------- 外部 API ----------
     async def get_openai_functions(self):
-        if self.disabled or not self._conn:
-            return []
-            
-        response = await self._conn.session.list_tools()
-        tools = []
-        for tool in response.tools:
-            function = {
-                "type": "function",
-                "function": {
-                    "name": tool.name, 
-                    "description": tool.description,
-                    "parameters": tool.inputSchema
+        async with self._lock:
+            if not self._conn or not self._conn.session:
+                return []
+            tools = (await self._conn.session.list_tools()).tools
+            return [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": t.name,
+                        "description": t.description,
+                        "parameters": t.inputSchema,
+                    },
                 }
-            }
-            tools.append(function)
-        return tools
+                for t in tools
+            ]
 
     async def call_tool(self, tool_name: str, tool_params: Dict[str, Any]) -> Any:
-        if self.disabled or not self._conn:
-            return None
-        
-        response = await self._conn.session.call_tool(tool_name, tool_params)
-        return response
+        async with self._lock:
+            if not self._conn or not self._conn.session:
+                return None
+            return await self._conn.session.call_tool(tool_name, tool_params)
+
+
+# ---------- 使用示例 ----------
+if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
+    async def main():
+        client = McpClient()
+        await client.initialize(
+            "example",
+            {
+                "type": "sse",
+                "url": "http://127.0.0.1:8000/mcp",
+            },
+        )
+        await asyncio.sleep(2)
+        funcs = await client.get_openai_functions()
+        print("OpenAI functions:", funcs)
+        await asyncio.sleep(30)  # 保持连接
+        await client.close()
+
+    asyncio.run(main())
