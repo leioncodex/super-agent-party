@@ -132,7 +132,6 @@ class McpClient:
         try:
             while not self._shutdown:
                 try:
-                    # 将整个连接周期放入锁保护范围
                     async with self._lock:
                         # 创建新连接
                         conn = ConnectionManager()
@@ -140,23 +139,29 @@ class McpClient:
                             self._conn = active_conn
                             self._active.set()
                             
-                            # 将心跳检查放在连接上下文中
+                            # 将心跳检查放在连接上下文内
                             try:
                                 while not self._shutdown:
-                                    if not await self._check_connection():
-                                        break
+                                    # 检查连接状态时使用带超时的ping
+                                    try:
+                                        await asyncio.wait_for(
+                                            self._conn.session.send_ping(),
+                                            timeout=3
+                                        )
+                                    except (asyncio.TimeoutError, Exception):
+                                        break  # 连接已断开
                                     await asyncio.sleep(5)
                             finally:
                                 self._active.clear()
                                 self._conn = None
-                                
+                    
                     # 连接断开后等待重连
                     await asyncio.sleep(5)
                     
                 except Exception as e:
-                    logging.error(f"连接错误: {e}")
+                    logging.error(f"连接错误: {e}", exc_info=True)
                     await asyncio.sleep(5)
-                    
+                        
         except asyncio.CancelledError:
             logging.debug("监控任务正常终止")
         finally:
