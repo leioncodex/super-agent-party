@@ -68,10 +68,12 @@ class McpClient:
         self._lock = asyncio.Lock()
         self._monitor_task: Optional[asyncio.Task] = None
         self._shutdown = False
+        self._on_failure_callback: Optional[callable] = None  # 新增：失败回调
 
-    async def initialize(self, server_name: str, server_config: dict) -> None:
+    async def initialize(self, server_name: str, server_config: dict, on_failure_callback: Optional[callable] = None) -> None:
         """非阻塞初始化：拉起连接监控协程"""
         self._config = server_config
+        self._on_failure_callback = on_failure_callback  # 设置回调
         if self._monitor_task is None or self._monitor_task.done():
             self._monitor_task = asyncio.create_task(self._connection_monitor())
 
@@ -100,6 +102,8 @@ class McpClient:
                         await asyncio.sleep(30)
             except Exception as e:
                 logging.exception("Connection failed, will retry: %s", e)
+                if self._on_failure_callback:
+                    await self._on_failure_callback(str(e))  # 调用回调
             finally:
                 async with self._lock:
                     self._conn = None
