@@ -1168,6 +1168,7 @@ let vue_methods = {
           this.currentAudio = null;
           this.stopGenerate();
         }
+        this.TTSrunning = false;
       }
 
       // 声明变量并初始化为 null
@@ -3924,6 +3925,14 @@ let vue_methods = {
             }
           }
         }
+        else if (this.ttsSettings.enabledInterruption && this.ttsSettings.enabled) {
+            console.log('All audio chunks played');
+            lastMessage.currentChunk = 0;
+            this.TTSrunning = false;
+            this.cur_audioDatas = [];
+            // 通知VRM所有音频播放完成
+            this.sendTTSStatusToVRM('allChunksCompleted', {});
+        }
         if (data.is_final) {
           // 最终结果
           if (this.userInputBuffer.length > 0) {
@@ -4420,7 +4429,7 @@ let vue_methods = {
         
         while (lastMessage.ttsQueue.size < max_concurrency && 
               nextIndex < lastMessage.ttsChunks.length) {
-          
+          if (!this.TTSrunning) break;
           const index = nextIndex++;
           lastMessage.ttsQueue.add(index);
           
