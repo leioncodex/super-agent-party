@@ -68,37 +68,12 @@ class McpClient:
         self._lock = asyncio.Lock()
         self._monitor_task: Optional[asyncio.Task] = None
         self._shutdown = False
-        self._on_failure_callback: Optional[callable] = None
-        # fail-fast 相关
-        self._fail_fast: bool = False
-        self._first_done = asyncio.Event()
-        self._first_error: Optional[str] = None
 
-    async def initialize(
-        self,
-        server_name: str,
-        server_config: dict,
-        on_failure_callback: Optional[callable] = None,
-        *,
-        fail_fast: bool = False,
-    ) -> None:
-        """初始化连接监控协程
-        fail_fast=True: 首次连接失败立即抛异常
-        fail_fast=False: 无限重连
-        """
+    async def initialize(self, server_name: str, server_config: dict) -> None:
+        """非阻塞初始化：拉起连接监控协程"""
         self._config = server_config
-        self._on_failure_callback = on_failure_callback
-        self._fail_fast = fail_fast
-        self._first_error = None
-        self._first_done.clear()
-
         if self._monitor_task is None or self._monitor_task.done():
             self._monitor_task = asyncio.create_task(self._connection_monitor())
-
-        if fail_fast:
-            await self._first_done.wait()
-            if self._first_error:
-                raise Exception(self._first_error)
 
     async def close(self) -> None:
         self._shutdown = True
@@ -110,14 +85,13 @@ class McpClient:
                 pass
 
     async def _connection_monitor(self) -> None:
-        """连接循环：支持 fail-fast 与无限重连两种模式"""
-        first_attempt = True
+        """持续重连逻辑：仅在一个协程里管理 AsyncExitStack"""
         while not self._shutdown:
             try:
                 async with ConnectionManager().connect(self._config) as conn:
                     async with self._lock:
                         self._conn = conn
-                    # 心跳
+                    # 心跳检测
                     while not self._shutdown:
                         try:
                             await asyncio.wait_for(self._conn.session.send_ping(), timeout=3)
@@ -126,28 +100,11 @@ class McpClient:
                         await asyncio.sleep(30)
             except Exception as e:
                 logging.exception("Connection failed, will retry: %s", e)
-                if first_attempt and self._fail_fast:
-                    # fail-fast：首次失败立即报告
-                    self._first_error = str(e)
-                    if self._on_failure_callback:
-                        await self._on_failure_callback(self._first_error)
-                    self._first_done.set()
-                    return
-
-                # 无限重连模式：仅日志 + 回调
-                if self._on_failure_callback:
-                    await self._on_failure_callback(str(e))
             finally:
                 async with self._lock:
                     self._conn = None
-
-            first_attempt = False
             if not self._shutdown:
                 await asyncio.sleep(5)
-
-        # 协程结束，通知可能阻塞的 initialize
-        if self._fail_fast and not self._first_done.is_set():
-            self._first_done.set()
 
     # ---------- 外部 API ----------
     async def get_openai_functions(self):

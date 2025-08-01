@@ -2584,7 +2584,50 @@ let vue_methods = {
       this.newMCPType = this.mcpServers[name].type
       this.showAddMCPDialog = true
     },
-  
+    async restartMCPServer(name) {
+      try {
+        let mcpId = name
+        this.mcpServers[name].processingStatus = 'initializing'
+        this.mcpServers[name].disabled = true
+        await this.autoSaveSettings();
+        const response = await fetch(`/create_mcp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mcpId })
+        });
+        
+          // 启动状态轮询
+          const checkStatus = async () => {
+            const statusRes = await fetch(`/mcp_status/${mcpId}`);
+            return statusRes.json();
+          };
+          
+          const interval = setInterval(async () => {
+            const { status } = await checkStatus();
+            
+            if (status === 'ready') {
+              clearInterval(interval);
+              this.mcpServers[mcpId].processingStatus = 'ready';
+              this.mcpServers[mcpId].disabled = false;
+              await this.autoSaveSettings();
+              showNotification(this.t('mcpAdded'), 'success');
+            } else if (status.startsWith('failed')) {
+              clearInterval(interval);
+              this.mcpServers[mcpId].processingStatus = 'server_error';
+              this.mcpServers[mcpId].disabled = true;
+              await this.autoSaveSettings();
+              showNotification(this.t('mcpCreationFailed'), 'error');
+            }
+          }, 2000);
+          
+          await this.autoSaveSettings();
+        } catch (error) {
+          console.error('MCP服务器添加失败:', error);
+          showNotification(error.message, 'error');
+        }
+        await this.autoSaveSettings();
+
+    },
     async removeMCPServer(name) {
       this.deletingMCPName = name
       this.showMCPConfirm = true

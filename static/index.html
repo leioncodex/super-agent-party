@@ -4522,8 +4522,16 @@
                       </template>
                       <div class="card-actions">
                         <el-button
+                          @click="restartMCPServer(name)"
+                          type="info"
+                          circle
+                          size="small"
+                        >
+                          <i class="fa-solid fa-rotate-right"></i>
+                        </el-button>
+                        <el-button
                           @click="editMCPServer(name)"
-                          type="default"
+                          type="primary"
                           circle
                           size="small"
                         >
