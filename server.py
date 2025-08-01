@@ -140,8 +140,7 @@ async def lifespan(app: FastAPI):
                 mcp_client.initialize(
                     server_name,
                     server_config,
-                    on_failure_callback=on_failure,
-                    fail_fast=True
+                    on_failure_callback=on_failure
                 ),
                 timeout=6
             )
