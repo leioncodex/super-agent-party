@@ -638,6 +638,8 @@ const translations = {
         'openUserfile': '打开数据文件夹',
         'SubtitleEnabled': '字幕已开启',
         'SubtitleDisabled': '字幕已关闭',
+        'bufferWord': '缓冲词',
+        'bufferWordPlaceholder': '请输入缓冲词，可以让语音合成显得更快，例如：嗯，好的',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1275,5 +1277,7 @@ const translations = {
         'openUserfile': 'Open data folder',
         'SubtitleEnabled': 'Subtitle Enabled',
         'SubtitleDisabled': 'Subtitle Disabled',
+        'bufferWord': 'Buffer Word',
+        'bufferWordPlaceholder': 'Please enter a buffer word to make Text To Speech appear faster, for example: Um, OK',
     }
   };

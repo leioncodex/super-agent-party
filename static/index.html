@@ -1962,6 +1962,18 @@ if ('serviceWorker' in navigator) {
                         :step="1"
                         @change="autoSaveSettings">
                     </el-form-item>
+                    <el-form-item :label="t('bufferWord')" required>
+                      <el-select
+                        v-model="ttsSettings.bufferWordList"
+                        multiple
+                        filterable
+                        allow-create
+                        :placeholder="t('bufferWordPlaceholder')"
+                        class="full-width-input"
+                        @change="autoSaveSettings"
+                      >
+                      </el-select>
+                    </el-form-item>
                     </div>
                   </div>
                   <div class="tool-item" v-show="ttsSettings.engine === 'edgetts'">

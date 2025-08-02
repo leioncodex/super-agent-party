@@ -390,6 +390,7 @@ let vue_data = {
       separators:["。", "\n", "？", "！", "，","～","!","?",",","~"],
       maxConcurrency: 2,
       enabledInterruption: false,
+      bufferWordList: ["嗯。","这个嘛~","我想想！","好的。"],
       edgettsLanguage: 'zh-CN',
       edgettsGender: 'Female',
       edgettsVoice: 'XiaoyiNeural',

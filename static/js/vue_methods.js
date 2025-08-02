@@ -4424,10 +4424,31 @@ let vue_methods = {
       let nextIndex = 0;
 
       while (this.TTSrunning) {
-        if (nextIndex > 0||this.TTSrunning.engine == 'edgetts') {
-          max_concurrency = this.ttsSettings.maxConcurrency || 1;
+        max_concurrency = this.ttsSettings.maxConcurrency || 1; // 最大并发数
+        if (nextIndex == 0){
+          let remainingText = lastMessage.ttsChunks?.[0] || '';
+
+          for (const exp of this.expressionMap) {
+            const regex = new RegExp(exp, 'g');
+            if (remainingText.includes(exp)) {
+              remainingText = remainingText.replace(regex, '').trim(); // 移除表情标签
+            }
+          }
+          // 检查remainingText是否包含中文字符
+          const hasChinese = /[\u4e00-\u9fa5]/.test(remainingText);
+
+          if ((hasChinese && remainingText?.length > 5) || 
+              (!hasChinese && remainingText?.length > 10)) {
+              // 在lastMessage.ttsChunks开头第一个元素前插入内容
+              if (this.ttsSettings.bufferWordList.length > 0) {
+                  // 随机选择this.ttsSettings.bufferWordList中的一个单词
+                  const bufferWord = this.ttsSettings.bufferWordList[
+                      Math.floor(Math.random() * this.ttsSettings.bufferWordList.length)
+                  ];
+                  lastMessage.ttsChunks.unshift(bufferWord);
+              }
+          }
         }
-        
         while (lastMessage.ttsQueue.size < max_concurrency && 
               nextIndex < lastMessage.ttsChunks.length) {
           if (!this.TTSrunning) break;
