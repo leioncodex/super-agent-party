@@ -4332,6 +4332,7 @@ let vue_methods = {
       // 移除常见的markdown符号，例如以 - 开头的行
       buffer = buffer.replace(/^\s*- /gm, '');
       // 匹配markdown中的链接,[]()，并替换为空字符串
+      buffer = buffer.replace(/!\[.*?\]\(.*?\)/g, '');
       buffer = buffer.replace(/\[.*?\]\(.*?\)/g, '');
 
       if (!buffer || buffer.trim() === '') {
