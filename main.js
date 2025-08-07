@@ -225,9 +225,23 @@ async function startBackend() {
     const networkVisible = process.env.networkVisible === 'global';
     const BACKEND_HOST = networkVisible ? '0.0.0.0' : HOST
 
+    let execCommand = pythonExec;
+    if (!fs.existsSync(execCommand)) {
+      const fallbackExec = process.env.PYTHON || 'python';
+      dialog.showMessageBoxSync({
+        type: 'warning',
+        title: 'Python environment not found',
+        message:
+          'Local Python environment not found.\n' +
+          'Create one with:\n\npython -m venv .venv && pip install -r requirements.txt\n\n' +
+          `Falling back to: ${fallbackExec}`
+      });
+      execCommand = fallbackExec;
+    }
+
     if (isDev) {
       // 开发模式
-      backendProcess = spawn(pythonExec, [
+      backendProcess = spawn(execCommand, [
         'server.py',
         '--port', PORT.toString(),
         '--host', BACKEND_HOST,
