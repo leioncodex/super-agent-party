@@ -292,9 +292,15 @@ async function waitForBackend() {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/health`)
       if (response.ok) {
+        const data = await response.json()
         // 后端服务准备就绪，通知骨架屏页面
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('backend-ready', { port: PORT })
+          mainWindow.webContents.send('backend-ready', {
+            port: PORT,
+            version: data.version,
+            startTime: data.start_time,
+            dependencies: data.dependencies
+          })
         }
         return
       }
