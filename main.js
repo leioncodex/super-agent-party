@@ -7,6 +7,8 @@ const { spawn } = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const net = require('net') // 添加 net 模块用于端口检测
+require('ts-node/register')
+const logger = require('./src/logger').default
 
 let pythonExec;
 let isQuitting = false;
@@ -29,6 +31,7 @@ const HOST = '127.0.0.1'
 let PORT = 3456 // 改为 let，允许修改
 const DEFAULT_PORT = 3456 // 保存默认端口
 const isDev = process.env.NODE_ENV === 'development'
+logger.info('Application starting')
 const locales = {
   'zh-CN': {
     show: '显示窗口',
@@ -680,13 +683,13 @@ app.on('window-all-closed', () => {
 
 // 处理渲染进程崩溃
 app.on('render-process-gone', (event, webContents, details) => {
-  console.error('渲染进程崩溃:', details)
+  logger.error('渲染进程崩溃:', details)
   dialog.showErrorBox('应用崩溃', `渲染进程异常: ${details.reason}`)
 })
 
 // 处理主进程未捕获异常
 process.on('uncaughtException', (err) => {
-  console.error('未捕获异常:', err)
+  logger.error('未捕获异常:', err)
   if (loadingWindow && !loadingWindow.isDestroyed()) {
     loadingWindow.close()
   }

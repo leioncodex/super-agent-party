@@ -186,5 +186,6 @@ super-agent-data/
 .DS_Store
 botpy.log*
 build.bat
-test*
 wxauto*
+logs/*
+!logs/.gitkeep
