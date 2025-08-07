@@ -123,6 +123,17 @@ We provide two mainstream Linux installation package formats for your convenienc
   ./start_with_dev.sh
   ```
 
+## Création d’agent plug-and-play
+
+Le bouton **Créer un agent** active l’orchestrateur :
+
+1. `/api/agent/config` génère les dossiers de travail et la configuration du modèle Ollama.
+2. `/api/vectorize` ingère les fichiers et alimente le vector store LanceDB.
+3. `/api/embeddings` crée la mémoire initiale et la relie à ce store.
+4. L’orchestrateur assemble ces éléments et l’agent est prêt à l’emploi.
+
+Ce flux automatise dossiers, base vectorielle et mémoire pour qu’un nouvel agent soit opérationnel sans écrire de code.
+
 ## Usage
 
 - Desktop: Click the desktop icon to use immediately.
