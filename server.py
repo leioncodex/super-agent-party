@@ -7,17 +7,19 @@ import sys
 import tempfile
 import threading
 import wave
-import aiohttp
-import httpx
-from scipy.io import wavfile
-import numpy as np
-import websockets
+try:
+    import websockets
+except ImportError:  # pragma: no cover - optional dependency
+    websockets = None
 # 在程序最开始设置
 if hasattr(sys, '_MEIPASS'):
     # 打包后的程序
     os.environ['PYTHONPATH'] = sys._MEIPASS
     os.environ['PATH'] = sys._MEIPASS + os.pathsep + os.environ.get('PATH', '')
-import edge_tts
+try:
+    import edge_tts
+except ImportError:  # pragma: no cover - optional dependency
+    edge_tts = None
 import asyncio
 import copy
 from functools import partial
@@ -38,12 +40,10 @@ from fastapi import status
 from fastapi.responses import JSONResponse, StreamingResponse
 import uuid
 import time
-from typing import Any, List, Dict,Optional
+from typing import Any, List, Dict, Optional
 import shortuuid
 from py.mcp_clients import McpClient
-from contextlib import asynccontextmanager,suppress
-import requests
-import asyncio
+from contextlib import asynccontextmanager, suppress
 from concurrent.futures import ThreadPoolExecutor
 
 import argparse
@@ -3191,19 +3191,26 @@ def convert_audio_to_pcm16(audio_bytes: bytes, target_sample_rate: int = 16000) 
     将音频数据转换为PCM16格式，采样率16kHz
     """
     try:
+        from scipy.io import wavfile
+        import numpy as np
+        from scipy.signal import resample
+    except ImportError as e:  # pragma: no cover - optional dependency
+        raise HTTPException(status_code=500, detail="scipy and numpy are required for audio conversion") from e
+
+    try:
         # 创建临时文件
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
             temp_file.write(audio_bytes)
             temp_file_path = temp_file.name
-        
+
         try:
             # 读取音频文件
             sample_rate, audio_data = wavfile.read(temp_file_path)
-            
+
             # 转换为单声道
             if len(audio_data.shape) > 1:
                 audio_data = np.mean(audio_data, axis=1)
-            
+
             # 转换为float32进行重采样
             if audio_data.dtype != np.float32:
                 if audio_data.dtype == np.int16:
@@ -3212,22 +3219,21 @@ def convert_audio_to_pcm16(audio_bytes: bytes, target_sample_rate: int = 16000) 
                     audio_data = audio_data.astype(np.float32) / 2147483648.0
                 else:
                     audio_data = audio_data.astype(np.float32)
-            
+
             # 重采样到目标采样率
             if sample_rate != target_sample_rate:
-                from scipy.signal import resample
                 num_samples = int(len(audio_data) * target_sample_rate / sample_rate)
                 audio_data = resample(audio_data, num_samples)
-            
+
             # 转换为int16 PCM格式
             audio_data = (audio_data * 32767).astype(np.int16)
-            
+
             return audio_data.tobytes()
-            
+
         finally:
             # 删除临时文件
             os.unlink(temp_file_path)
-            
+
     except Exception as e:
         print(f"Audio conversion error: {e}")
         # 如果转换失败，尝试直接返回原始数据
@@ -3801,6 +3807,8 @@ async def text_to_speech(request: Request):
         tts_engine = tts_settings.get('engine', 'edgetts')
         
         if tts_engine == 'edgetts':
+            if edge_tts is None:
+                raise HTTPException(status_code=500, detail="edge-tts library is not installed")
             edgettsLanguage = tts_settings.get('edgettsLanguage', 'zh-CN')
             edgettsVoice = tts_settings.get('edgettsVoice', 'XiaoyiNeural')
             rate = tts_settings.get('edgettsRate', 1.0)
@@ -3834,6 +3842,10 @@ async def text_to_speech(request: Request):
             )
         # GSV处理逻辑
         elif tts_engine == 'GSV':
+            try:
+                import httpx
+            except ImportError as e:  # pragma: no cover - optional dependency
+                raise HTTPException(status_code=500, detail="httpx is required for GSV TTS") from e
             # 从设置获取所有参数并提供默认值
             gsv_config = {
                 'server': tts_settings.get('gsvServer', 'http://127.0.0.1:9880'),
@@ -4839,8 +4851,13 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-def init_session(sessdata: str = "") -> Optional[aiohttp.ClientSession]:
+def init_session(sessdata: str = "") -> Optional["aiohttp.ClientSession"]:
     """初始化aiohttp会话"""
+    try:
+        import aiohttp
+    except ImportError:  # pragma: no cover - optional dependency
+        return None
+
     cookies = http.cookies.SimpleCookie()
     if sessdata:
         cookies['SESSDATA'] = sessdata
