@@ -228,7 +228,8 @@ async function startBackend() {
     if (isDev) {
       // 开发模式
       backendProcess = spawn(pythonExec, [
-        'server.py',
+        '-m',
+        'backend',
         '--port', PORT.toString(),
         '--host', BACKEND_HOST,
       ], spawnOptions);
