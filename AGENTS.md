@@ -229,3 +229,7 @@ Super-Agent-Party, c’est :
 Demande → analyse du contexte → code généré via Codex → test local Tauri → PR + doc auto → onboarding ultra-rapide.
 
 ---
+
+## 📝 Log 2025-08-07
+
+- Added `codex_transform-agent-system-20250807.md` documenting objectives, decisions, and modules for the transform agent system.
