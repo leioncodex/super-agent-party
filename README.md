@@ -104,6 +104,14 @@ We provide two mainstream Linux installation package formats for your convenienc
 
 ### Source Code Deployment
 
+Before starting, ensure a Python virtual environment is available:
+
+```shell
+python -m venv .venv && pip install -r requirements.txt
+```
+
+If the `.venv` folder is missing, the application will fall back to `process.env.PYTHON` or `python` and display a reminder.
+
 - Windows:
   ```shell
   git clone https://github.com/heshengtao/super-agent-party.git
