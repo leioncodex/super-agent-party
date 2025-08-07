@@ -307,6 +307,10 @@ let vue_data = {
     ],
     showRestartDialog: false,
     agents: {},
+    availableTools: [
+      { name: 'shell', description: 'Execute shell commands' },
+      { name: 'web-fetch', description: 'Fetch content from a URL' }
+    ],
     showAgentForm: false,
     editingAgent: null,
     showAgentDialog: false,
@@ -314,7 +318,11 @@ let vue_data = {
     newAgent: {
       id: '',
       name: '',
-      system_prompt: ''
+      system_prompt: '',
+      tools: {
+        shell: false,
+        'web-fetch': false
+      }
     },
     editingAgent: false,
     currentLanguage: 'zh-CN',
