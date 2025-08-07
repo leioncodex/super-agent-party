@@ -96,10 +96,10 @@ from py.llm_tool import get_image_base64,get_image_media_type
 configure_host_port(args.host, args.port)
 
 @asynccontextmanager
-async def lifespan(app: FastAPI): 
+async def lifespan(app: FastAPI):
     from py.get_setting import init_db
     await init_db()
-    global settings, client, reasoner_client, mcp_client_list,local_timezone,logger,locales
+    global settings, client, reasoner_client, mcp_client_list, local_timezone, logger, locales
     with open(base_path + "/config/locales.json", "r", encoding="utf-8") as f:
         locales = json.load(f)
     from tzlocal import get_localzone
@@ -107,7 +107,7 @@ async def lifespan(app: FastAPI):
     settings = await load_settings()
     if settings:
         client = AsyncOpenAI(api_key=settings['api_key'], base_url=settings['base_url'])
-        reasoner_client = AsyncOpenAI(api_key=settings['reasoner']['api_key'],base_url=settings['reasoner']['base_url'])
+        reasoner_client = AsyncOpenAI(api_key=settings['reasoner']['api_key'], base_url=settings['reasoner']['base_url'])
         if settings["systemSettings"]["proxy"]:
             # 设置代理环境变量
             os.environ['http_proxy'] = settings["systemSettings"]["proxy"].strip()
@@ -116,22 +116,47 @@ async def lifespan(app: FastAPI):
         client = AsyncOpenAI()
         reasoner_client = AsyncOpenAI()
     mcp_init_tasks = []
+
     async def init_mcp_with_timeout(server_name, server_config):
-        """带超时处理的异步初始化函数"""
         try:
             mcp_client = McpClient()
-            if not server_config['disabled']:
-                await asyncio.wait_for(
-                    mcp_client.initialize(server_name, server_config),
-                    timeout=6
-                )
+            if server_config.get('disabled'):
+                return server_name, None, "disabled"
+
+            # 同步回调，仅在首次失败时标记
+            first_error = None
+
+            async def on_failure(msg: str):
+                nonlocal first_error
+                first_error = msg
+                logger.error("on_failure: %s -> %s", server_name, msg)
+                settings['mcpServers'][server_name]['disabled'] = True
+                settings['mcpServers'][server_name]['processingStatus'] = 'server_error'
+                mcp_client_list[server_name] = McpClient()
+                mcp_client_list[server_name].disabled = True
+
+            # fail_fast=True：首次连接失败即抛
+            await asyncio.wait_for(
+                mcp_client.initialize(
+                    server_name,
+                    server_config,
+                    on_failure_callback=on_failure
+                ),
+                timeout=6
+            )
+            # 如果 initialize 抛异常，直接走到下面的 except
+            # 如果成功到达这里，再检查 on_failure 是否已被触发
+            if first_error:
+                return server_name, None, first_error
             return server_name, mcp_client, None
+
         except asyncio.TimeoutError:
-            logger.error(f"MCP client {server_name} initialization timeout")
+            logger.error("%s initialize timed out", server_name)
             return server_name, None, "timeout"
         except Exception as e:
-            logger.error(f"MCP client {server_name} initialization failed: {str(e)}")
-            return server_name, None, "error"
+            logger.exception("%s initialize crashed", server_name)
+            return server_name, None, str(e)
+
     if settings:
         # 创建所有初始化任务
         for server_name, server_config in settings['mcpServers'].items():
@@ -141,20 +166,24 @@ async def lifespan(app: FastAPI):
         # 通过回调处理结果
         async def check_results():
             """后台收集任务结果"""
+            logger.info("check_results started with %d tasks", len(mcp_init_tasks))
             for task in asyncio.as_completed(mcp_init_tasks):
                 server_name, mcp_client, error = await task
                 if error:
+                    logger.error(f"MCP client {server_name} initialization failed: {error}")
                     settings['mcpServers'][server_name]['disabled'] = True
                     settings['mcpServers'][server_name]['processingStatus'] = 'server_error'
                     mcp_client_list[server_name] = McpClient()
                     mcp_client_list[server_name].disabled = True
                 else:
+                    logger.info(f"MCP client {server_name} initialized successfully")
                     mcp_client_list[server_name] = mcp_client
             await save_settings(settings)  # 所有任务完成后统一保存
             await broadcast_settings_update(settings)  # 所有任务完成后统一广播
         # 在后台运行结果收集
         asyncio.create_task(check_results())
     yield
+
 # WebSocket端点增加连接管理
 active_connections = []
 # 新增广播函数
@@ -166,6 +195,7 @@ async def broadcast_settings_update(settings):
                 "type": "settings",
                 "data": settings  # 直接使用内存中的最新配置
             })
+            print("Settings broadcasted to client")
         except Exception as e:
             logger.error(f"Broadcast failed: {e}")
 
@@ -3716,6 +3746,7 @@ async def vrm_websocket_endpoint(websocket: WebSocket):
             if message['type'] == 'requestAudioData':
                 audio_id = message['data']['audioId']
                 expressions = message['data']['expressions']
+                text = message['data']['text']
                 cached_audio = tts_manager.get_cached_audio(audio_id)
                 
                 if cached_audio:
@@ -3724,7 +3755,8 @@ async def vrm_websocket_endpoint(websocket: WebSocket):
                         'data': {
                             'audioId': audio_id,
                             'audioData': base64.b64encode(cached_audio).decode('utf-8'),
-                            'expressions':expressions
+                            'expressions':expressions,
+                            'text':text
                         }
                     }))
             
@@ -3886,7 +3918,12 @@ async def get_mcp_status(mcp_id: str):
     status = mcp_status.get(mcp_id, "not_found")
     return {"mcp_id": mcp_id, "status": status}
 async def process_mcp(mcp_id: str):
-    global mcp_client_list
+    global mcp_client_list, mcp_status
+
+    async def on_failure(error_message: str):
+        mcp_client_list[mcp_id].disabled = True
+        mcp_status[mcp_id] = f"failed: {error_message}"
+
     mcp_status[mcp_id] = "initializing"
     try:
         # 获取对应服务器的配置
@@ -3895,7 +3932,7 @@ async def process_mcp(mcp_id: str):
         
         # 执行初始化逻辑
         mcp_client_list[mcp_id] = McpClient()    
-        await asyncio.wait_for(mcp_client_list[mcp_id].initialize(mcp_id, server_config), timeout=6)
+        await asyncio.wait_for(mcp_client_list[mcp_id].initialize(mcp_id, server_config, on_failure_callback=on_failure), timeout=6)
         mcp_status[mcp_id] = "ready"
         mcp_client_list[mcp_id].disabled = False
         

@@ -1,7 +1,7 @@
 [project]
 name = "super-agent-party"
-version = "v0.2.4"
-description = "超级智能体派对v0.2.4 | 轻松链接一切!"
+version = "v0.2.5"
+description = "超级智能体派对v0.2.5 | 轻松链接一切!"
 license = "AGPL-3.0"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -49,4 +49,7 @@ dependencies = [
     "wxauto>=39.1.12; sys_platform == 'win32'",
     "wikipedia-api>=0.8.1",
     "arxiv>=2.2.0",
+    "anyio>=4.9.0",
+    "httpcore>=1.0.9",
+    "httpx>=0.28.1",
 ]

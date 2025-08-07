@@ -3,6 +3,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Super Agent party</title>
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/transition.css">
   <!-- GitHub Markdown CSS for styling -->
@@ -35,6 +36,17 @@
        
  github repo: https://github.com/heshengtao/super-agent-party
 `);
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('SW registered: ', registration);
+      })
+      .catch(registrationError => {
+        console.log('SW registration failed: ', registrationError);
+      });
+  });
+}
   </script>
   <!-- Include markdown-it and highlight.js scripts -->
   <script src="js/markdown-it.min.js"></script>
@@ -1949,6 +1961,18 @@
                         :max="16"
                         :step="1"
                         @change="autoSaveSettings">
+                    </el-form-item>
+                    <el-form-item :label="t('bufferWord')" required>
+                      <el-select
+                        v-model="ttsSettings.bufferWordList"
+                        multiple
+                        filterable
+                        allow-create
+                        :placeholder="t('bufferWordPlaceholder')"
+                        class="full-width-input"
+                        @change="autoSaveSettings"
+                      >
+                      </el-select>
                     </el-form-item>
                     </div>
                   </div>
@@ -4522,8 +4546,16 @@
                       </template>
                       <div class="card-actions">
                         <el-button
+                          @click="restartMCPServer(name)"
+                          type="info"
+                          circle
+                          size="small"
+                        >
+                          <i class="fa-solid fa-rotate-right"></i>
+                        </el-button>
+                        <el-button
                           @click="editMCPServer(name)"
-                          type="default"
+                          type="primary"
                           circle
                           size="small"
                         >

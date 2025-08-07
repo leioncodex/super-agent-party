@@ -277,7 +277,7 @@ const translations = {
         'editMessage': '编辑消息',
         'enterContent': '请输入内容',
         'edit': '编辑',
-        'defaultSystemPrompt': '你是一个智能助手。',
+        'defaultSystemPrompt': ' ',
         'system_prompt': '系统提示词：',
         'expand': '展开',
         'collapse': '收起',
@@ -636,6 +636,10 @@ const translations = {
         'language': '语言',
         'webSpeechAPI': 'Web Speech API',
         'openUserfile': '打开数据文件夹',
+        'SubtitleEnabled': '字幕已开启',
+        'SubtitleDisabled': '字幕已关闭',
+        'bufferWord': '缓冲词',
+        'bufferWordPlaceholder': '请输入缓冲词，可以让语音合成显得更快，例如：嗯，好的',
     },
     'en-US': {
         'chat': 'Chat',
@@ -914,7 +918,7 @@ const translations = {
         'editMessage': 'Edit Message', 
         'enterContent': 'Please enter content',
         'edit': 'Edit',
-        'defaultSystemPrompt': 'You are a helpful assistant.',
+        'defaultSystemPrompt': ' ',
         'system_prompt': 'System Prompt:',
         'expand': 'Expand',
         'collapse': 'Collapse',
@@ -1271,5 +1275,9 @@ const translations = {
         'language': 'Language',
         'webSpeechAPI': 'Web Speech API',
         'openUserfile': 'Open data folder',
+        'SubtitleEnabled': 'Subtitle Enabled',
+        'SubtitleDisabled': 'Subtitle Disabled',
+        'bufferWord': 'Buffer Word',
+        'bufferWordPlaceholder': 'Please enter a buffer word to make Text To Speech appear faster, for example: Um, OK',
     }
   };

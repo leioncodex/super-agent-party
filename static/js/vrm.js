@@ -4,74 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VRMLoaderPlugin, MToonMaterialLoaderPlugin, VRMUtils, VRMLookAt } from '@pixiv/three-vrm';
 import { MToonNodeMaterial } from '@pixiv/three-vrm/nodes';
 
-const _v3A = new THREE.Vector3();
 let isVRM1 = true;
-// extended lookat
-class VRMSmoothLookAt extends VRMLookAt {
-
-    constructor( humanoid, applier ) {
-
-        super( humanoid, applier );
-
-        // a factor used for animation
-        this.smoothFactor = 10.0;
-
-        // maximum angles the lookAt tracks
-        this.yawLimit = 45.0;
-        this.pitchLimit = 45.0;
-
-        // Actual angles applied, animated
-        this._yawDamped = 0.0;
-        this._pitchDamped = 0.0;
-
-    }
-
-    update( delta ) {
-
-        if ( this.target && this.autoUpdate ) {
-
-            // this updates `_yaw` and `_pitch`
-            this.lookAt( this.target.getWorldPosition( _v3A ) );
-
-            // limit angles
-            if (
-
-                this.yawLimit < Math.abs( this._yaw ) ||
-                this.pitchLimit < Math.abs( this._pitch )
-
-            ) {
-
-                this._yaw = 0.0;
-                this._pitch = 0.0;
-
-            }
-
-            // animate angles
-            const k = 1.0 - Math.exp( - this.smoothFactor * delta );
-
-            this._yawDamped += ( this._yaw - this._yawDamped ) * k;
-            this._pitchDamped += ( this._pitch - this._pitchDamped ) * k;
-
-            // apply the animated angles
-            this.applier.applyYawPitch( this._yawDamped, this._pitchDamped );
-
-            // there is no need to update twice
-            this._needsUpdate = false;
-
-        }
-
-        // usual update procedure
-        if ( this._needsUpdate ) {
-
-            this._needsUpdate = false;
-
-            this.applier.applyYawPitch( this._yaw, this._pitch );
-
-        }
-
-    }
-
-}
 
 // renderer
 // 检测运行环境
@@ -142,7 +75,7 @@ async function getVRMpath() {
             return userModel.path;
         }
         else {
-            return 'http://127.0.0.1:3456/vrm/Alice.vrm';
+            return `${window.location.protocol}//${window.location.host}/vrm/Alice.vrm`;
         }
     }
 }
@@ -190,6 +123,11 @@ const scene = new THREE.Scene();
 const light = new THREE.DirectionalLight( 0xffffff, Math.PI );
 light.position.set( 1.0, 1.0, 1.0 ).normalize();
 scene.add( light );
+
+
+// lookat target
+const lookAtTarget = new THREE.Object3D();
+camera.add( lookAtTarget );
 
 // 添加环境光，让整体更柔和
 const ambientLight = new THREE.AmbientLight( 0xffffff, 0.1 );
@@ -302,16 +240,7 @@ loader.load(
 
         } );
 
-        // replace the lookAt to our extended one
-        if ( vrm.lookAt ) {
-            const smoothLookAt = new VRMSmoothLookAt( vrm.humanoid, vrm.lookAt.applier );
-            smoothLookAt.copy( vrm.lookAt );
-            vrm.lookAt = smoothLookAt;
-
-            // set the lookAt target to camera
-            vrm.lookAt.target = camera;
-        }
-
+        vrm.lookAt.target = camera;
         currentVrm = vrm;
         console.log( vrm );
         scene.add( vrm.scene );
@@ -342,6 +271,213 @@ loader.load(
     }
 
 );
+
+// 在全局变量区域添加字幕相关变量
+let subtitleElement = null;
+let currentSubtitleChunkIndex = -1;
+let subtitleTimeout = null;
+let isSubtitleEnabled = true; // 字幕默认开启
+let isDraggingSubtitle = false;
+let subtitleOffsetX = 0;
+let subtitleOffsetY = 0;
+
+
+// 修改初始化字幕元素
+function initSubtitleElement() {
+    subtitleElement = document.createElement('div');
+    subtitleElement.id = 'subtitle-container';
+    subtitleElement.style.cssText = `
+        position: fixed;
+        bottom: 30%;
+        left: 50%;
+        width: auto;
+        max-width: 80%;
+        transform: translateX(-50%);
+        padding: 12px 24px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        border-radius: 8px;
+        font-family: 'Arial', sans-serif;
+        font-size: 1.2em;
+        text-align: center;
+        backdrop-filter: blur(10px);
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        z-index: 9998;
+        white-space: pre-wrap;
+        line-height: 1.5;
+        cursor: move;
+        user-select: none;
+        min-width: 100px;
+        max-width: 80%;
+        width: max-content;
+    `;
+
+    // 添加拖拽事件监听
+    subtitleElement.addEventListener('mousedown', startDragSubtitle);
+    document.addEventListener('mousemove', dragSubtitle);
+    document.addEventListener('mouseup', endDragSubtitle);
+
+    document.body.appendChild(subtitleElement);
+}
+
+// 改进拖拽功能
+function startDragSubtitle(e) {
+    if (!isSubtitleEnabled) return;
+    
+    isDraggingSubtitle = true;
+    
+    // 获取字幕元素的初始位置
+    const rect = subtitleElement.getBoundingClientRect();
+    
+    // 计算鼠标相对于字幕中心点的偏移量
+    subtitleOffsetX = e.clientX - (rect.left + rect.width / 2);
+    subtitleOffsetY = e.clientY - rect.top;
+    
+    // 禁用过渡效果
+    subtitleElement.style.transition = 'none';
+}
+
+function dragSubtitle(e) {
+    if (isDraggingSubtitle) {
+        // 计算字幕中心点的目标位置
+        const centerX = e.clientX - subtitleOffsetX;
+        const centerY = e.clientY - subtitleOffsetY;
+        
+        // 限制在窗口范围内，保持水平居中
+        const halfWidth = subtitleElement.offsetWidth / 2;
+        const clampedX = Math.max(halfWidth, Math.min(centerX, window.innerWidth - halfWidth));
+        
+        // 设置位置时保持水平居中
+        subtitleElement.style.left = `${clampedX}px`;
+        subtitleElement.style.transform = 'translateX(-50%)'; // 水平居中
+        
+        // 垂直位置保持不变
+        const maxY = window.innerHeight - subtitleElement.offsetHeight;
+        const clampedY = Math.max(0, Math.min(centerY, maxY));
+        
+        subtitleElement.style.top = `${clampedY}px`;
+        subtitleElement.style.bottom = 'auto'; // 取消底部定位
+    }
+}
+
+function endDragSubtitle() {
+    if (isDraggingSubtitle) {
+        isDraggingSubtitle = false;
+        subtitleElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    }
+}
+
+// 修改字幕显示/隐藏功能
+function toggleSubtitle(enable) {
+    isSubtitleEnabled = enable;
+    if (subtitleElement) {
+        subtitleElement.style.display = enable ? 'block' : 'none';
+    }
+}
+
+// 在控制面板中添加字幕开关按钮
+if (isElectron) {
+    setTimeout(async () => {
+        const controlPanel = document.getElementById('control-panel');
+        if (controlPanel) {
+            // 字幕开关按钮
+            const subtitleButton = document.createElement('div');
+            subtitleButton.id = 'subtitle-handle';
+            subtitleButton.innerHTML = '<i class="fas fa-closed-captioning"></i>';
+            subtitleButton.style.cssText = `
+                width: 36px;
+                height: 36px;
+                background: rgba(255,255,255,0.95);
+                border: 2px solid rgba(0,0,0,0.1);
+                border-radius: 50%;
+                color: #333;
+                cursor: pointer;
+                -webkit-app-region: no-drag;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                transition: all 0.2s ease;
+                user-select: none;
+                pointer-events: auto;
+                backdrop-filter: blur(10px);
+                color: ${isSubtitleEnabled ? '#28a745' : '#dc3545'};
+            `;
+
+            // 添加悬停效果
+            subtitleButton.addEventListener('mouseenter', () => {
+                subtitleButton.style.background = 'rgba(255,255,255,1)';
+                subtitleButton.style.transform = 'scale(1.1)';
+                subtitleButton.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+            });
+
+            subtitleButton.addEventListener('mouseleave', () => {
+                subtitleButton.style.background = 'rgba(255,255,255,0.95)';
+                subtitleButton.style.transform = 'scale(1)';
+                subtitleButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            });
+
+            // 点击事件
+            subtitleButton.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                isSubtitleEnabled = !isSubtitleEnabled;
+                toggleSubtitle(isSubtitleEnabled);
+                subtitleButton.style.color = isSubtitleEnabled ? '#28a745' : '#dc3545';
+                subtitleButton.title = isSubtitleEnabled ? await t('SubtitleEnabled') : await t('SubtitleDisabled');
+            });
+
+            // 初始状态
+            subtitleButton.title = isSubtitleEnabled ? await t('SubtitleEnabled') : await t('SubtitleDisabled');
+
+            // 添加到控制面板
+            const prevModelButton = controlPanel.querySelector('#prev-model-handle');
+            if (prevModelButton) {
+                controlPanel.insertBefore(subtitleButton, prevModelButton);
+            } else {
+                controlPanel.appendChild(subtitleButton);
+            }
+        }
+    }, 1400);
+}
+
+function updateSubtitle(text, chunkIndex) {
+    if (!isSubtitleEnabled) return;
+    
+    if (!subtitleElement) initSubtitleElement();
+    
+    currentSubtitleChunkIndex = chunkIndex;
+    
+    subtitleElement.style.opacity = '0';
+    setTimeout(() => {
+        subtitleElement.textContent = text;
+        
+        // 自动调整宽度
+        const maxWidth = window.innerWidth * 0.8;
+        subtitleElement.style.width = 'max-content';
+        subtitleElement.style.minWidth = '100px';
+        
+        const rect = subtitleElement.getBoundingClientRect();
+        if (rect.width > maxWidth) {
+            subtitleElement.style.width = `${maxWidth}px`;
+        }
+        
+        subtitleElement.style.opacity = '1';
+    }, 300);
+    
+    if (subtitleTimeout) clearTimeout(subtitleTimeout);
+}
+
+// 清除字幕
+function clearSubtitle() {
+    if (subtitleElement) {
+        subtitleElement.style.opacity = '0';
+        currentSubtitleChunkIndex = -1;
+    }
+}
+
 
 // animate
 const clock = new THREE.Clock();
@@ -525,6 +661,18 @@ function animate() {
     }
     
     renderer.renderAsync(scene, camera);
+    // 处理窗口大小变化时字幕位置
+    if (subtitleElement && !isDraggingSubtitle) {
+        const rect = subtitleElement.getBoundingClientRect();
+        
+        // 如果字幕在窗口外，重置到默认位置
+        if (rect.bottom > window.innerHeight || rect.right > window.innerWidth) {
+            subtitleElement.style.left = '50%';
+            subtitleElement.style.bottom = '30%';
+            subtitleElement.style.top = 'auto';
+            subtitleElement.style.transform = 'translateX(-50%)';
+        }
+    }
 }
 
 // 初始化第一次眨眼时间
@@ -883,12 +1031,16 @@ function handleTTSMessage(message) {
             chunkAnimations.clear();
             currentChunkIndex = -1;
             stopLipSync();
+            clearSubtitle(); // 清除之前的字幕
             prepareSpeechAnimation(data);
             break;
             
         case 'startSpeaking':
             console.log('Starting speech animation for chunk:', data.chunkIndex);
             currentChunkIndex = data.chunkIndex;
+            if (data.text) {
+                updateSubtitle(data.text, data.chunkIndex);
+            }
             startLipSyncForChunk(data);
             break;
             
@@ -896,6 +1048,10 @@ function handleTTSMessage(message) {
             console.log('Chunk ended:', data.chunkIndex);
             // 停止特定chunk的动画
             stopChunkAnimation(data.chunkIndex);
+            // 如果当前显示的是这个chunk的字幕，则清除
+            if (currentSubtitleChunkIndex === data.chunkIndex) {
+                clearSubtitle();
+            }
             break;
             
         case 'stopSpeaking':
@@ -906,6 +1062,7 @@ function handleTTSMessage(message) {
         case 'allChunksCompleted':
             console.log('All TTS chunks completed');
             stopAllAnimations();
+            clearSubtitle();
             sendToMain('animationComplete', { status: 'completed' });
             break;
     }
@@ -1473,14 +1630,7 @@ async function switchToModel(index) {
                     obj.frustumCulled = false;
                 });
                 
-                // 替换lookAt为扩展版本
-                if (vrm.lookAt) {
-                    const smoothLookAt = new VRMSmoothLookAt(vrm.humanoid, vrm.lookAt.applier);
-                    smoothLookAt.copy(vrm.lookAt);
-                    vrm.lookAt = smoothLookAt;
-                    vrm.lookAt.target = camera;
-                }
-                
+                vrm.lookAt.target = camera;
                 currentVrm = vrm;
                 console.log('New VRM loaded:', vrm);
                 scene.add(vrm.scene);

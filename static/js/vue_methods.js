@@ -1168,6 +1168,7 @@ let vue_methods = {
           this.currentAudio = null;
           this.stopGenerate();
         }
+        this.TTSrunning = false;
       }
 
       // 声明变量并初始化为 null
@@ -2584,7 +2585,50 @@ let vue_methods = {
       this.newMCPType = this.mcpServers[name].type
       this.showAddMCPDialog = true
     },
-  
+    async restartMCPServer(name) {
+      try {
+        let mcpId = name
+        this.mcpServers[name].processingStatus = 'initializing'
+        this.mcpServers[name].disabled = true
+        await this.autoSaveSettings();
+        const response = await fetch(`/create_mcp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mcpId })
+        });
+        
+          // 启动状态轮询
+          const checkStatus = async () => {
+            const statusRes = await fetch(`/mcp_status/${mcpId}`);
+            return statusRes.json();
+          };
+          
+          const interval = setInterval(async () => {
+            const { status } = await checkStatus();
+            
+            if (status === 'ready') {
+              clearInterval(interval);
+              this.mcpServers[mcpId].processingStatus = 'ready';
+              this.mcpServers[mcpId].disabled = false;
+              await this.autoSaveSettings();
+              showNotification(this.t('mcpAdded'), 'success');
+            } else if (status.startsWith('failed')) {
+              clearInterval(interval);
+              this.mcpServers[mcpId].processingStatus = 'server_error';
+              this.mcpServers[mcpId].disabled = true;
+              await this.autoSaveSettings();
+              showNotification(this.t('mcpCreationFailed'), 'error');
+            }
+          }, 2000);
+          
+          await this.autoSaveSettings();
+        } catch (error) {
+          console.error('MCP服务器添加失败:', error);
+          showNotification(error.message, 'error');
+        }
+        await this.autoSaveSettings();
+
+    },
     async removeMCPServer(name) {
       this.deletingMCPName = name
       this.showMCPConfirm = true
@@ -3881,6 +3925,14 @@ let vue_methods = {
             }
           }
         }
+        else if (this.ttsSettings.enabledInterruption && this.ttsSettings.enabled) {
+            console.log('All audio chunks played');
+            lastMessage.currentChunk = 0;
+            this.TTSrunning = false;
+            this.cur_audioDatas = [];
+            // 通知VRM所有音频播放完成
+            this.sendTTSStatusToVRM('allChunksCompleted', {});
+        }
         if (data.is_final) {
           // 最终结果
           if (this.userInputBuffer.length > 0) {
@@ -4016,7 +4068,7 @@ let vue_methods = {
         },
         onFrameProcessed: (probabilities, frame) => {
           // 处理每一帧
-          if (probabilities["isSpeech"] > 0.4) {
+          if (probabilities["isSpeech"] > 0.2) {
             if (this.ttsSettings.enabledInterruption) {
               // 关闭正在播放的音频
               if (this.currentAudio) {
@@ -4277,7 +4329,10 @@ let vue_methods = {
       buffer = buffer.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '');
       // 移除常见的markdown符号，例如：**  --- 
       buffer = buffer.replace(/[*_~`]/g, '');
+      // 移除常见的markdown符号，例如以 - 开头的行
+      buffer = buffer.replace(/^\s*- /gm, '');
       // 匹配markdown中的链接,[]()，并替换为空字符串
+      buffer = buffer.replace(/!\[.*?\]\(.*?\)/g, '');
       buffer = buffer.replace(/\[.*?\]\(.*?\)/g, '');
 
       if (!buffer || buffer.trim() === '') {
@@ -4369,13 +4424,34 @@ let vue_methods = {
       let nextIndex = 0;
 
       while (this.TTSrunning) {
-        if (nextIndex > 0||this.TTSrunning.engine == 'edgetts') {
-          max_concurrency = this.ttsSettings.maxConcurrency || 1;
+        max_concurrency = this.ttsSettings.maxConcurrency || 1; // 最大并发数
+        if (nextIndex == 0){
+          let remainingText = lastMessage.ttsChunks?.[0] || '';
+
+          for (const exp of this.expressionMap) {
+            const regex = new RegExp(exp, 'g');
+            if (remainingText.includes(exp)) {
+              remainingText = remainingText.replace(regex, '').trim(); // 移除表情标签
+            }
+          }
+          // 检查remainingText是否包含中文字符
+          const hasChinese = /[\u4e00-\u9fa5]/.test(remainingText);
+
+          if ((hasChinese && remainingText?.length > 5) || 
+              (!hasChinese && remainingText?.length > 10)) {
+              // 在lastMessage.ttsChunks开头第一个元素前插入内容
+              if (this.ttsSettings.bufferWordList.length > 0) {
+                  // 随机选择this.ttsSettings.bufferWordList中的一个单词
+                  const bufferWord = this.ttsSettings.bufferWordList[
+                      Math.floor(Math.random() * this.ttsSettings.bufferWordList.length)
+                  ];
+                  lastMessage.ttsChunks.unshift(bufferWord);
+              }
+          }
         }
-        
         while (lastMessage.ttsQueue.size < max_concurrency && 
               nextIndex < lastMessage.ttsChunks.length) {
-          
+          if (!this.TTSrunning) break;
           const index = nextIndex++;
           lastMessage.ttsQueue.add(index);
           
@@ -4426,6 +4502,7 @@ let vue_methods = {
           message.audioChunks[index] = { 
             url: audioUrl, 
             expressions: chunk_expressions, // 添加表情
+            text: chunk_text,
             index 
           };
           this.cur_audioDatas[index]= audioDataUrl;
@@ -4436,6 +4513,7 @@ let vue_methods = {
           message.audioChunks[index] = { 
             url: null, 
             expressions: chunk_expressions, // 添加表情
+            text: chunk_text,
             index
           };
           this.cur_audioDatas[index]= null;
@@ -4501,7 +4579,7 @@ let vue_methods = {
             audioDataUrl: this.cur_audioDatas[currentIndex],
             chunkIndex: currentIndex,
             totalChunks: lastMessage.ttsChunks.length,
-            text: lastMessage.ttsChunks[currentIndex],
+            text: audioChunk.text,
             expressions: audioChunk.expressions
           });
           console.log(audioChunk.expressions);

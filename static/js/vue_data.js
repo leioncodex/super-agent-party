@@ -60,11 +60,11 @@ if (isElectron) {
   }
   // 判断协议
   const protocol = window.location.protocol;
-  const backendURL = window.location.port ? `${protocol}//${HOST}:${PORT}` : `${protocol}//${HOST}`;
+  const backendURL = `${window.location.protocol}//${window.location.host}`;
 let vue_data = {
     isMac: false,
     isWindows: false,
-    partyURL:window.location.port ? `${protocol}//${HOST}:${PORT}` : `${protocol}//${HOST}`,
+    partyURL:`${window.location.protocol}//${window.location.host}`,
     downloadProgress: 0,
     updateDownloaded: false,
     updateAvailable: false,
@@ -216,7 +216,7 @@ let vue_data = {
     streamablehttp: `{
   "mcpServers": {
     "streamablehttp-server": {
-      "url": "http://127.0.0.1:8000/streamablehttp",
+      "url": "http://127.0.0.1:8000/mcp",
       "disabled": false
     }
   }
@@ -229,7 +229,7 @@ let vue_data = {
       crawler: 'jina',
       when: 'before_thinking',
       duckduckgo_max_results: 10, // 默认值
-      searxng_url: `http://${HOST}:8080`,
+      searxng_url: `http://127.0.0.1:8080`,
       searxng_max_results: 10, // 默认值
       tavily_max_results: 10, // 默认值
       tavily_api_key: '',
@@ -390,6 +390,7 @@ let vue_data = {
       separators:["。", "\n", "？", "！", "，","～","!","?",",","~"],
       maxConcurrency: 2,
       enabledInterruption: false,
+      bufferWordList: ["嗯。","这个嘛~","我想想！","好的。"],
       edgettsLanguage: 'zh-CN',
       edgettsGender: 'Female',
       edgettsVoice: 'XiaoyiNeural',

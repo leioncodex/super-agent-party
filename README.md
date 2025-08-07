@@ -70,7 +70,7 @@
 
   👉 [Click to download](https://github.com/heshengtao/super-agent-party/releases/download/v0.2.4/Super-Agent-Party-0.2.4-Mac.dmg)
 
-⭐ Note! After downloading, drag the app file from the dmg file to the `/Applications` directory. Then open the Terminal and execute the following command, entering the root password when prompted, to remove the Quarantine attribute added due to being downloaded from the internet:
+⭐Attention! After downloading, drag the app file of the dmg file into the `/Applications` directory, then open end point, execute the following command and enter the root password to remove the attached Quarantine attribute from the network download:
 
   ```shell
   sudo xattr -dr com.apple.quarantine /Applications/Super-Agent-Party.app
