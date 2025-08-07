@@ -57,6 +57,8 @@ if os.name == 'nt':
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+HOST = "127.0.0.1"
+PORT = 3456
 default_host = os.getenv("HOST", "127.0.0.1")
 default_port = int(os.getenv("PORT", "3456"))
 parser = argparse.ArgumentParser(description="Run the ASGI application server.")
@@ -87,6 +89,7 @@ ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', '3
 
 from py.get_setting import load_settings,save_settings,base_path,configure_host_port,UPLOAD_FILES_DIR,AGENT_DIR,MEMORY_CACHE_DIR,KB_DIR,DEFAULT_VRM_DIR,USER_DATA_DIR
 from py.llm_tool import get_image_base64,get_image_media_type
+
 
 
 configure_host_port(HOST, PORT)
@@ -212,6 +215,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def create_app(host: str, port: int) -> FastAPI:
+    """Return a configured FastAPI application."""
+    global HOST, PORT
+    HOST = host
+    PORT = port
+    configure_host_port(host, port)
+    return app
 
 async def t(text: str) -> str:
     state = app.state
@@ -5271,8 +5283,13 @@ app.mount("/", StaticFiles(directory=os.path.join(base_path, "static"), html=Tru
 if __name__ == "__main__":
     import uvicorn
 
+    parser = argparse.ArgumentParser(description="Run the ASGI application server.")
+    parser.add_argument("--host", default="127.0.0.1", help="Host for the ASGI server, default is 127.0.0.1")
+    parser.add_argument("--port", type=int, default=3456, help="Port for the ASGI server, default is 3456")
+    args = parser.parse_args()
+
     uvicorn.run(
-        app,
-        host=HOST,
-        port=PORT
+        create_app(args.host, args.port),
+        host=args.host,
+        port=args.port,
     )
