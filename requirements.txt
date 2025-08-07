@@ -50,3 +50,4 @@ pywin32; sys_platform == 'win32'
 wxauto; sys_platform == 'win32'
 wikipedia-api
 arxiv
+googletrans==4.0.0rc1
