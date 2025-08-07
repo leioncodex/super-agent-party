@@ -1,0 +1,30 @@
+{
+  "language": {
+    "en": "Inglés",
+    "fr": "Francés",
+    "es": "Español"
+  },
+  "languageSelector": {
+    "label": "Idioma"
+  },
+  "agentCreator": {
+    "title": "Gestión de Agentes",
+    "createButton": "\u2795 Crear agente",
+    "creating": "Creando...",
+    "namePrompt": "¿Nombre del agente?",
+    "role": "Rol",
+    "status": "Estado"
+  },
+  "menu": {
+    "show": "Mostrar ventana",
+    "exit": "Salir",
+    "cut": "Cortar",
+    "copy": "Copiar",
+    "paste": "Pegar",
+    "copyImage": "Copiar imagen",
+    "copyImageLink": "Copiar enlace de la imagen",
+    "supportedFiles": "Archivos soportados",
+    "allFiles": "Todos los archivos",
+    "supportedImages": "Imágenes soportadas"
+  }
+}
