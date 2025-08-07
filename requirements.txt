@@ -10,6 +10,8 @@ openpyxl
 striprtf
 odfpy
 aiohttp
+httpx
+websockets
 duckduckgo_search
 python-pptx
 tavily-python
