@@ -10,6 +10,9 @@ python-docx
 openpyxl
 striprtf
 odfpy
+aiohttp
+httpx
+websockets
 duckduckgo_search
 python-pptx
 tavily-python
@@ -45,3 +48,5 @@ pyinstaller
 e2b-code-interpreter
 pywin32; sys_platform == 'win32'
 wxauto; sys_platform == 'win32'
+wikipedia-api
+arxiv
