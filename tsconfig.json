@@ -10,4 +10,11 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src"]
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist"
+  },
+  "include": ["src/**/*", "tests/**/*"]
 }
