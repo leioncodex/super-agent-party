@@ -47,17 +47,21 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 import argparse
+from dotenv import load_dotenv
 from mem0 import Memory
 from py.qq_bot_manager import QQBotManager
 # 如果是windows系统
 if os.name == 'nt':
     from py.wx_bot_manager import WXBotManager
 
+load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+default_host = os.getenv("HOST", "127.0.0.1")
+default_port = int(os.getenv("PORT", "3456"))
 parser = argparse.ArgumentParser(description="Run the ASGI application server.")
-parser.add_argument("--host", default="127.0.0.1", help="Host for the ASGI server, default is 127.0.0.1")
-parser.add_argument("--port", type=int, default=3456, help="Port for the ASGI server, default is 3456")
+parser.add_argument("--host", default=default_host, help="Host for the ASGI server, default is HOST env or 127.0.0.1")
+parser.add_argument("--port", type=int, default=default_port, help="Port for the ASGI server, default is PORT env or 3456")
 args = parser.parse_args()
 HOST = args.host
 PORT = args.port
@@ -93,7 +97,7 @@ from py.get_setting import load_settings,save_settings,base_path,configure_host_
 from py.llm_tool import get_image_base64,get_image_media_type
 
 
-configure_host_port(args.host, args.port)
+configure_host_port(HOST, PORT)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

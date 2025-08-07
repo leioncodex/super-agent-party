@@ -8,6 +8,27 @@ const fs = require('fs')
 const os = require('os')
 const net = require('net') // 添加 net 模块用于端口检测
 
+require('dotenv').config()
+
+// 获取配置文件路径
+function getConfigPath() {
+  return path.join(app.getPath('userData'), 'config.json');
+}
+
+// 加载环境变量
+function loadEnvVariables() {
+  const configPath = getConfigPath();
+  if (fs.existsSync(configPath)) {
+    const rawData = fs.readFileSync(configPath);
+    const config = JSON.parse(rawData);
+    for (const key in config) {
+      process.env[key] = config[key];
+    }
+  }
+}
+
+loadEnvVariables();
+
 let pythonExec;
 let isQuitting = false;
 
@@ -25,9 +46,9 @@ let loadingWindow
 let tray = null
 let updateAvailable = false
 let backendProcess = null
-const HOST = '127.0.0.1'
-let PORT = 3456 // 改为 let，允许修改
-const DEFAULT_PORT = 3456 // 保存默认端口
+const HOST = process.env.HOST || '127.0.0.1'
+const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 3456
+let PORT = DEFAULT_PORT // 允许修改
 const isDev = process.env.NODE_ENV === 'development'
 const locales = {
   'zh-CN': {
@@ -80,25 +101,6 @@ const logDir = path.join(app.getPath('userData'), 'logs')
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true })
 }
-
-// 获取配置文件路径
-function getConfigPath() {
-  return path.join(app.getPath('userData'), 'config.json');
-}
-
-// 加载环境变量
-function loadEnvVariables() {
-  const configPath = getConfigPath();
-  if (fs.existsSync(configPath)) {
-    const rawData = fs.readFileSync(configPath);
-    const config = JSON.parse(rawData);
-    for (const key in config) {
-      process.env[key] = config[key];
-    }
-  }
-}
-
-loadEnvVariables();
 
 // 新增：检测端口是否可用
 function isPortAvailable(port) {
@@ -197,7 +199,8 @@ async function startBackend() {
     // 查找可用端口
     const availablePort = await findAvailablePort(DEFAULT_PORT)
     PORT = availablePort
-    
+    saveEnvVariable('PORT', PORT.toString())
+
     // 如果端口不是默认端口，记录变更
     if (PORT !== DEFAULT_PORT) {
       console.log(`默认端口 ${DEFAULT_PORT} 被占用，已切换到端口 ${PORT}`)
