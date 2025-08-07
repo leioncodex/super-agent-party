@@ -207,7 +207,7 @@ async function startBackend() {
     }
     
     const spawnOptions = {
-      stdio: ['ignore', 'ignore', 'ignore'],
+      stdio: ['pipe', 'pipe', 'pipe'],
       shell: false,
       env: {
         ...process.env,
@@ -222,7 +222,6 @@ async function startBackend() {
       spawnOptions.detached = false
       spawnOptions.shell = false
       spawnOptions.windowsVerbatimArguments = false
-      spawnOptions.stdio = ['ignore', 'ignore', 'ignore']
     }
 
     const networkVisible = process.env.networkVisible === 'global';
@@ -230,7 +229,12 @@ async function startBackend() {
 
     if (isDev) {
       // 开发模式
-      backendProcess = spawn(pythonExec, [
+      let pythonExecutable = pythonExec
+      if (!fs.existsSync(pythonExecutable)) {
+        pythonExecutable = process.platform === 'win32' ? 'python' : 'python3'
+        console.warn(`Python executable not found at ${pythonExec}, falling back to system ${pythonExecutable}`)
+      }
+      backendProcess = spawn(pythonExecutable, [
         'server.py',
         '--port', PORT.toString(),
         '--host', BACKEND_HOST,
@@ -252,21 +256,22 @@ async function startBackend() {
       })
     }
 
-    // 简化日志处理
-    if (isDev) {
-      const logStream = fs.createWriteStream(
-        path.join(logDir, `backend-${Date.now()}.log`),
-        { flags: 'a' }
-      )
-      
-      backendProcess.stdout?.on('data', (data) => {
-        logStream.write(`[INFO] ${data}`)
-      })
-      
-      backendProcess.stderr?.on('data', (data) => {
-        logStream.write(`[ERROR] ${data}`)
-      })
-    }
+    const logStream = fs.createWriteStream(
+      path.join(logDir, `backend-${Date.now()}.log`),
+      { flags: 'a' }
+    )
+
+    backendProcess.stdout?.on('data', (data) => {
+      const message = data.toString()
+      logStream.write(`[INFO] ${message}`)
+      console.log(`[backend] ${message}`)
+    })
+
+    backendProcess.stderr?.on('data', (data) => {
+      const message = data.toString()
+      logStream.write(`[ERROR] ${message}`)
+      console.error(`[backend] ${message}`)
+    })
 
     backendProcess.on('error', (err) => {
       console.error('Backend process error:', err)
@@ -274,6 +279,9 @@ async function startBackend() {
 
     backendProcess.on('close', (code) => {
       console.log(`Backend process exited with code ${code}`)
+      if (!isQuitting && code !== 0 && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('backend-exited', { code })
+      }
     })
 
     return PORT // 返回实际使用的端口
