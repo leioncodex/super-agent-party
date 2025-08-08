@@ -30,7 +30,7 @@ import shutil
 import signal
 from urllib.parse import urlparse
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, Request, WebSocketDisconnect
-from fastapi_mcp import FastApiMCP
+from py.mcp.server.fastmcp import FastMCP
 import logging
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -5294,13 +5294,11 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         state.active_connections.remove(websocket)
 
-mcp = FastApiMCP(
-    app,
-    name="Agent party MCP - chat with multiple agents",
-    include_operations=["get_agents", "chat_with_agent_party"],
-)
-
-mcp.mount()
+mcp = FastMCP(name="Agent party MCP - chat with multiple agents")
+mcp.tool(name="get_agents")(get_agents)
+mcp.tool(name="chat_with_agent_party")(chat_endpoint)
+app.mount("/", mcp.streamable_http_app())
+app.mount("/", mcp.sse_app())
 
 app.mount("/vrm", StaticFiles(directory=DEFAULT_VRM_DIR), name="vrm")
 app.mount("/uploaded_files", StaticFiles(directory=UPLOAD_FILES_DIR), name="uploaded_files")
