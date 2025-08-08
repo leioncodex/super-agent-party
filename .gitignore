@@ -186,8 +186,10 @@ super-agent-data/
 .DS_Store
 botpy.log*
 build.bat
-test*
-!tests/
+# test* pattern removed to allow tracking tests
+!tests/**
+!tests/test*
+!tests/test_comfyui_endpoints.py
 wxauto*
 # Orchestrator logs
 src/logs/*.json
