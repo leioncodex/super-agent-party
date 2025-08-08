@@ -64,6 +64,14 @@ def load_plugins(directory: str = "plugins") -> None:
                 for f in pycache.iterdir():
                     f.unlink()
             module = importlib.import_module(entry.name)
+
+    sys.path.insert(0, str(dir_path.resolve()))
+    for item in dir_path.iterdir():
+        if item.is_dir() and (item / "__init__.py").exists():
+            if item.name in sys.modules:
+                del sys.modules[item.name]
+            importlib.invalidate_caches()
+            module = importlib.import_module(item.name)
             if hasattr(module, "setup"):
                 module.setup(register_tool)
 
