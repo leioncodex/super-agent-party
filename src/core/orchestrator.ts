@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -16,6 +18,14 @@ export class Orchestrator {
 
   constructor(logDir = path.join(__dirname, '..', 'logs')) {
     this.logPath = path.join(logDir, 'logs.json');
+    if (fs.existsSync(this.logPath)) {
+      try {
+        const data = fs.readFileSync(this.logPath, 'utf-8');
+        this.logs = JSON.parse(data);
+      } catch {
+        this.logs = [];
+      }
+    }
   }
 
   enqueue(name: string, task: AgentTask) {
@@ -36,8 +46,8 @@ export class Orchestrator {
     const result = await entry.task();
     const log: LogEntry = { agent: entry.name, timestamp: Date.now(), result };
     this.logs.push(log);
-    await fs.mkdir(path.dirname(this.logPath), { recursive: true });
-    await fs.writeFile(this.logPath, JSON.stringify(this.logs, null, 2));
+    await fs.promises.mkdir(path.dirname(this.logPath), { recursive: true });
+    await fs.promises.writeFile(this.logPath, JSON.stringify(this.logs, null, 2));
   }
 
   getLogs(): LogEntry[] {
