@@ -185,8 +185,12 @@ python py/mcp/client.py
 
 ### py/mcp modules
 
+The MCP components are now modular and derived from Camel AI's `camel-toolkits-mcp` project:
+
+- `py/mcp/router.py` – router exposing Camel toolkits as MCP resources.
+- `py/mcp/server_main.py` – `run_stdio()` entrypoint that starts the router over stdio.
 - `py/mcp/client.py` – asynchronous MCP client supporting stdio, SSE, WebSocket and Streamable HTTP transports with automatic retries.
-- `py/mcp/__init__.py` – package initializer exposing `McpClient` for convenience imports.
+- `py/mcp/__init__.py` – package initializer exposing `McpClient`, `run_stdio`, and `mcp_router`.
 
 ## Features
 

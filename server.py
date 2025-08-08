@@ -30,7 +30,6 @@ import shutil
 import signal
 from urllib.parse import urlparse
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, Request, WebSocketDisconnect
-from fastapi_mcp import FastApiMCP
 import logging
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -100,7 +99,7 @@ def check_dependency(module_name: str) -> str:
 
 MAIN_DEPENDENCIES = ["edge_tts", "openai"]
 
-configure_host_port(args.host, args.port)
+configure_host_port(HOST, PORT)
 
 from py.comfyui_tool import run_workflow
 
@@ -5321,13 +5320,6 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         state.active_connections.remove(websocket)
 
-mcp = FastApiMCP(
-    app,
-    name="Agent party MCP - chat with multiple agents",
-    include_operations=["get_agents", "chat_with_agent_party"],
-)
-
-mcp.mount()
 
 app.mount("/vrm", StaticFiles(directory=DEFAULT_VRM_DIR), name="vrm")
 app.mount("/uploaded_files", StaticFiles(directory=UPLOAD_FILES_DIR), name="uploaded_files")
@@ -5337,16 +5329,28 @@ app.mount("/", StaticFiles(directory=os.path.join(base_path, "static"), html=Tru
 # 简化main函数
 if __name__ == "__main__":
     import uvicorn
+    from py.mcp import run_stdio
 
     default_host = os.getenv("HOST", HOST)
     default_port = int(os.getenv("PORT", PORT))
     parser = argparse.ArgumentParser(description="Run the ASGI application server.")
     parser.add_argument("--host", default=default_host, help="Host for the ASGI server, default is HOST env or 127.0.0.1")
     parser.add_argument("--port", type=int, default=default_port, help="Port for the ASGI server, default is PORT env or 3456")
+    parser.add_argument(
+        "--mcp-stdio",
+        action="store_true",
+        help="Run only the MCP stdio server and exit",
+    )
     args = parser.parse_args()
 
-    uvicorn.run(
-        create_app(args.host, args.port),
-        host=args.host,
-        port=args.port,
-    )
+    if args.mcp_stdio:
+        try:
+            run_stdio()
+        finally:
+            logger.info("MCP stdio server stopped")
+    else:
+        uvicorn.run(
+            create_app(args.host, args.port),
+            host=args.host,
+            port=args.port,
+        )
