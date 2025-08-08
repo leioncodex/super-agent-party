@@ -109,6 +109,7 @@ We provide two mainstream Linux installation package formats for your convenienc
   git clone https://github.com/heshengtao/super-agent-party.git
   cd super-agent-party
   uv sync
+  uv add camel-ai  # install CAMEL dependencies
   npm install
   start_with_dev.bat
   ```
@@ -118,6 +119,7 @@ We provide two mainstream Linux installation package formats for your convenienc
   git clone https://github.com/heshengtao/super-agent-party.git
   cd super-agent-party
   uv sync
+  uv add camel-ai  # install CAMEL dependencies
   npm install
   chmod +x start_with_dev.sh
   ./start_with_dev.sh
@@ -164,10 +166,27 @@ Ce flux automatise dossiers, base vectorielle et mémoire pour qu’un nouvel ag
     "mcpServers": {
       "super-agent-party": {
         "url": "http://127.0.0.1:3456/mcp",
+        "transport": "sse",
+        "retries": 3
       }
     }
   }
   ```
+
+### MCP client/server example
+
+```bash
+# launch server
+python server.py
+
+# launch client with explicit transport and retry settings
+python py/mcp/client.py
+```
+
+### py/mcp modules
+
+- `py/mcp/client.py` – asynchronous MCP client supporting stdio, SSE, WebSocket and Streamable HTTP transports with automatic retries.
+- `py/mcp/__init__.py` – package initializer exposing `McpClient` for convenience imports.
 
 ## Features
 

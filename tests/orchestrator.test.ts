@@ -33,4 +33,14 @@ describe('Orchestrator', () => {
     const logs = orch.getLogs();
     expect(logs.length).toBe(2);
   });
+
+  it('restores logs from file on initialization', async () => {
+    const orch1 = new Orchestrator(logDir);
+    orch1.enqueue('A', async () => 1);
+    await orch1.run('sequential');
+    const orch2 = new Orchestrator(logDir);
+    const logs = orch2.getLogs();
+    expect(logs.length).toBe(1);
+    expect(logs[0].agent).toBe('A');
+  });
 });
