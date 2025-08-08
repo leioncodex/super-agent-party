@@ -3,7 +3,12 @@ import { Tool } from './tool';
 export const webFetch: Tool = {
   name: 'web-fetch',
   description: 'Fetch content from a URL',
-  handler: async (url: string) => {
+  schema: {
+    type: 'object',
+    properties: { url: { type: 'string' } },
+    required: ['url']
+  },
+  handler: async ({ url }: { url: string }) => {
     const res = await fetch(url);
     return await res.text();
   }
