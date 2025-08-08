@@ -79,12 +79,25 @@ npm run dev
 8. Clicking the tool suite - knowledge base interface on the left sidebar can configure the knowledge base. Before configuring the knowledge base, you need to complete the configuration of the word embedding model in the model service interface on the left sidebar.
 9. Clicking the calling method interface on the left sidebar allows you to call the intelligent body created by this application in openai format. If the model name is `super-model`, it will call the currently configured intelligent body. If the model name is the intelligent body ID or intelligent body name you created in the intelligent body interface, it will call the intelligent body you created.
 
-### MCP Client/Server Example
+### MCP Server
+
+The MCP router now runs as a standalone module derived from Camel AI's toolkits.
+Start the server over stdio with:
 
 ```bash
-# launch server
-python server.py
+python py/mcp/server_main.py
+```
 
+You can also launch it via the main entrypoint:
+
+```bash
+python server.py --mcp-stdio
+```
+
+### MCP Client Example
+
+```bash
 # launch client with SSE transport and 3 retries
 python py/mcp/client.py
 ```
+
