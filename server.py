@@ -89,6 +89,7 @@ ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', '3
 
 from py.get_setting import load_settings,save_settings,base_path,configure_host_port,UPLOAD_FILES_DIR,AGENT_DIR,MEMORY_CACHE_DIR,KB_DIR,DEFAULT_VRM_DIR,USER_DATA_DIR
 from py.llm_tool import get_image_base64,get_image_media_type
+from py.comfyui_tool import run_workflow
 
 
 
@@ -325,7 +326,7 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
     from py.load_files import get_file_content
     from py.code_interpreter import e2b_code_async,local_run_code_async
     from py.custom_http import fetch_custom_http
-    from py.comfyui_tool import comfyui_tool_call
+    from py.comfyui_tool import comfyui_tool_call, run_workflow
     from py.utility_tools import (
         time_async,
         get_weather_async,
@@ -4676,6 +4677,45 @@ async def delete_workflow(filename: str):
             status_code=500,
             detail=f"Failed to delete file: {str(e)}"
         )
+
+
+@app.post("/comfyui/image")
+async def comfyui_image_endpoint(
+    text: str | None = Form(None),
+    image: str | None = Form(None),
+    extra_inputs: str | None = Form(None),
+):
+    extra = json.loads(extra_inputs) if extra_inputs else None
+    result, = await asyncio.gather(
+        run_workflow("comfyui_image", text=text, image=image, extra_inputs=extra)
+    )
+    return result
+
+
+@app.post("/comfyui/video")
+async def comfyui_video_endpoint(
+    text: str | None = Form(None),
+    image: str | None = Form(None),
+    extra_inputs: str | None = Form(None),
+):
+    extra = json.loads(extra_inputs) if extra_inputs else None
+    result, = await asyncio.gather(
+        run_workflow("comfyui_video", text=text, image=image, extra_inputs=extra)
+    )
+    return result
+
+
+@app.post("/comfyui/audio")
+async def comfyui_audio_endpoint(
+    text: str | None = Form(None),
+    image: str | None = Form(None),
+    extra_inputs: str | None = Form(None),
+):
+    extra = json.loads(extra_inputs) if extra_inputs else None
+    result, = await asyncio.gather(
+        run_workflow("comfyui_audio", text=text, image=image, extra_inputs=extra)
+    )
+    return result
 
 @app.get("/cur_language")
 async def cur_language():
