@@ -851,7 +851,7 @@ function animate() {
 
 // 初始化第一次眨眼时间
 const initialBlinkData = getRandomBlinkData();
-nextBlinkTime = initialBlinkData.interval;
+let nextBlinkTime = initialBlinkData.interval;
 
 if (isElectron) {
     // 等待一小段时间确保页面完全加载
