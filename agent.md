@@ -1,23 +1,23 @@
-# Agent Task: Tool Registry & Plugin Loader
+# Agent Task: Quantum Scheduler & Adaptive Scheduler Endpoint
 
-## Prompt 1: Python Tool Registry
-- **Target**: `py/agent_tool.py`
-- Introduce a registry storing metadata for each tool: `name`, `description`, `schema`, `handler`.
-- Provide `register_tool`, `get_tool`, and `call_tool` helpers.
-- Validate payloads against JSON Schema before calling the handler.
-- Load tool plugins from a `plugins/` directory at runtime and register them automatically.
+## Prompt 1: Implement QuantumScheduler
+- **Target**: `py/quantum_scheduler.py`
+- Create class `QuantumScheduler` with a classical heuristic fallback.
+- Add `anneal_schedule` leveraging D-Wave or Neal `SimulatedAnnealingSampler`.
+- Expose `schedule(tasks: List[Dict], mode: str)` selecting classic or quantum processing.
 
-## Prompt 2: TypeScript Tool Registry & Hot Plugins
-- **Target**: `src/tools/*`
-- Create `registry.ts` exposing `registerTool`, `getTool`, and `loadPlugins`.
-- Extend the `Tool` interface with a `schema` field.
-- Update existing tools (`shell.ts`, `web-fetch.ts`) to register themselves.
-- Support dynamic `import()` of plugin modules placed under `src/plugins`.
+## Prompt 2: Server `/schedule` Endpoint
+- **Target**: `server.py`
+- Import and instantiate `QuantumScheduler`.
+- Provide `/schedule` endpoint supporting modes `classic`, `quantum`, and `adaptive_energy`.
+- For `adaptive_energy`, gather CPU/GPU stats via `psutil` and forward them to the scheduler.
+- Return the resulting plan in JSON.
 
-## Prompt 3: CLI `agent add <repo-url>`
-- **Target**: new CLI script.
-- Implement command that clones the given repository into `plugins/`.
-- After cloning, invoke the registry loaders to activate the plugin tools without restarting.
+## Prompt 3: Orchestrator Integration
+- **Target**: `src/core/orchestrator.ts`
+- Call the `/schedule` endpoint.
+- Reorder agent execution according to the received plan and selected mode.
 
 ## Prompt 4: Tests
-- Add unit tests covering registry registration, plugin loading, and the CLI workflow.
+- Execute `pytest` for Python modules.
+- Execute `npm test` for TypeScript modules.
