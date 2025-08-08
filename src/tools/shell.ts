@@ -1,9 +1,12 @@
 import { Tool } from './tool';
+import { registerTool } from './registry';
 import { exec } from 'child_process';
 
 export const shell: Tool = {
   name: 'shell',
   description: 'Execute shell commands',
+  schema: { type: 'string', description: 'Shell command to execute' },
+  handler: (cmd: string) => new Promise((resolve, reject) => {
   schema: {
     type: 'object',
     properties: { cmd: { type: 'string' } },
@@ -19,3 +22,5 @@ export const shell: Tool = {
     });
   })
 };
+
+registerTool(shell);
