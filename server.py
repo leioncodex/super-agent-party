@@ -57,16 +57,8 @@ if os.name == 'nt':
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-HOST = "127.0.0.1"
-PORT = 3456
-default_host = os.getenv("HOST", "127.0.0.1")
-default_port = int(os.getenv("PORT", "3456"))
-parser = argparse.ArgumentParser(description="Run the ASGI application server.")
-parser.add_argument("--host", default=default_host, help="Host for the ASGI server, default is HOST env or 127.0.0.1")
-parser.add_argument("--port", type=int, default=default_port, help="Port for the ASGI server, default is PORT env or 3456")
-args = parser.parse_args()
-HOST = args.host
-PORT = args.port
+HOST = os.getenv("HOST", "127.0.0.1")
+PORT = int(os.getenv("PORT", "3456"))
 
 os.environ["no_proxy"] = "localhost,127.0.0.1"
 ALLOWED_EXTENSIONS = [
@@ -89,10 +81,7 @@ ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', '3
 
 from py.get_setting import load_settings,save_settings,base_path,configure_host_port,UPLOAD_FILES_DIR,AGENT_DIR,MEMORY_CACHE_DIR,KB_DIR,DEFAULT_VRM_DIR,USER_DATA_DIR
 from py.llm_tool import get_image_base64,get_image_media_type
-
-
-
-configure_host_port(HOST, PORT)
+from py.comfyui_tool import run_workflow
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -325,7 +314,7 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
     from py.load_files import get_file_content
     from py.code_interpreter import e2b_code_async,local_run_code_async
     from py.custom_http import fetch_custom_http
-    from py.comfyui_tool import comfyui_tool_call
+    from py.comfyui_tool import comfyui_tool_call, run_workflow
     from py.utility_tools import (
         time_async,
         get_weather_async,
@@ -4677,6 +4666,45 @@ async def delete_workflow(filename: str):
             detail=f"Failed to delete file: {str(e)}"
         )
 
+
+@app.post("/comfyui/image")
+async def comfyui_image_endpoint(
+    text: str | None = Form(None),
+    image: str | None = Form(None),
+    extra_inputs: str | None = Form(None),
+):
+    extra = json.loads(extra_inputs) if extra_inputs else None
+    result, = await asyncio.gather(
+        run_workflow("comfyui_image", text=text, image=image, extra_inputs=extra)
+    )
+    return result
+
+
+@app.post("/comfyui/video")
+async def comfyui_video_endpoint(
+    text: str | None = Form(None),
+    image: str | None = Form(None),
+    extra_inputs: str | None = Form(None),
+):
+    extra = json.loads(extra_inputs) if extra_inputs else None
+    result, = await asyncio.gather(
+        run_workflow("comfyui_video", text=text, image=image, extra_inputs=extra)
+    )
+    return result
+
+
+@app.post("/comfyui/audio")
+async def comfyui_audio_endpoint(
+    text: str | None = Form(None),
+    image: str | None = Form(None),
+    extra_inputs: str | None = Form(None),
+):
+    extra = json.loads(extra_inputs) if extra_inputs else None
+    result, = await asyncio.gather(
+        run_workflow("comfyui_audio", text=text, image=image, extra_inputs=extra)
+    )
+    return result
+
 @app.get("/cur_language")
 async def cur_language():
     settings = await load_settings()
@@ -5283,9 +5311,11 @@ app.mount("/", StaticFiles(directory=os.path.join(base_path, "static"), html=Tru
 if __name__ == "__main__":
     import uvicorn
 
+    default_host = os.getenv("HOST", HOST)
+    default_port = int(os.getenv("PORT", PORT))
     parser = argparse.ArgumentParser(description="Run the ASGI application server.")
-    parser.add_argument("--host", default="127.0.0.1", help="Host for the ASGI server, default is 127.0.0.1")
-    parser.add_argument("--port", type=int, default=3456, help="Port for the ASGI server, default is 3456")
+    parser.add_argument("--host", default=default_host, help="Host for the ASGI server, default is HOST env or 127.0.0.1")
+    parser.add_argument("--port", type=int, default=default_port, help="Port for the ASGI server, default is PORT env or 3456")
     args = parser.parse_args()
 
     uvicorn.run(

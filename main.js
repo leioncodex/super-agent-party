@@ -207,7 +207,7 @@ async function startBackend() {
     }
     
     const spawnOptions = {
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
       env: {
         ...process.env,
@@ -257,7 +257,7 @@ async function startBackend() {
     }
 
     const logStream = fs.createWriteStream(
-      path.join(logDir, `backend-${Date.now()}.log`),
+      path.join(logDir, 'backend.log'),
       { flags: 'a' }
     )
 
@@ -277,12 +277,21 @@ async function startBackend() {
       console.error('Backend process error:', err)
     })
 
-    backendProcess.on('close', (code) => {
+    const handleBackendExit = (code) => {
       console.log(`Backend process exited with code ${code}`)
-      if (!isQuitting && code !== 0 && mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('backend-exited', { code })
+      if (!isQuitting && code !== 0) {
+        const message = `Backend process exited with code ${code}`
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          dialog.showErrorBox('Backend Error', message)
+          mainWindow.webContents.send('backend-exited', { code })
+        } else {
+          console.error(message)
+        }
       }
-    })
+    }
+
+    backendProcess.on('close', handleBackendExit)
+    backendProcess.on('exit', handleBackendExit)
 
     return PORT // 返回实际使用的端口
   } catch (error) {
