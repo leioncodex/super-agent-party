@@ -504,13 +504,6 @@ function clearSubtitle() {
 const clock = new THREE.Clock();
 clock.start();
 
-// 在全局变量区域添加眨眼相关的变量
-let nextBlinkTime = 0;
-let isBlinking = false;
-let blinkStartTime = 0;
-let blinkPattern = 0; // 0: 单次眨眼, 1: 双次眨眼
-const singleBlinkDuration = 0.15;
-const doubleBlinkDuration = 0.4;
 
 // 闲置动作的时间偏移量，让各个动作不同步
 const idleOffsets = {
