@@ -42,7 +42,7 @@ import uuid
 import time
 from typing import Any, List, Dict, Optional
 import shortuuid
-from py.mcp_clients import McpClient
+from py.mcp.client import McpClient
 from contextlib import asynccontextmanager, suppress
 from concurrent.futures import ThreadPoolExecutor
 
