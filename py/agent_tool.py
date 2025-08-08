@@ -1,53 +1,40 @@
-import json
-from py.get_setting import HOST,PORT
-from openai import AsyncOpenAI
-async def get_agent_tool(settings):
-    tool_agent_list = []
-    for agent_id,agent_config in settings['agents'].items():
-        if agent_config['enabled']:
-            tool_agent_list.append({"agent_id": agent_id, "agent_skill": agent_config["system_prompt"]})
-    if len(tool_agent_list) > 0:
-        tool_agent_list = json.dumps(tool_agent_list, ensure_ascii=False, indent=4)
-        agent_tool = {
-            "type": "function",
-            "function": {
-                "name": "agent_tool_call",
-                "description": f"根据Agent给出的agent_skill调用指定Agent工具，返回结果。当前可用的Agent工具ID以及Agent工具的agent_skill有：{tool_agent_list}",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "agent_id": {
-                            "type": "string",
-                            "description": "需要调用的Agent工具ID",
-                        },
-                        "query": {
-                            "type": "string",
-                            "description": "需要向Agent工具发送的问题",
-                        }
-                    },
-                    "required": ["agent_id", "query"]
-                }
-            }
-        }
-    else:
-        agent_tool = None
-    return agent_tool
+import importlib
+import asyncio
+from pathlib import Path
+from typing import Callable, Dict, Any
+import jsonschema
 
-async def agent_tool_call(agent_id, query):
-    try:
-        client = AsyncOpenAI(
-            api_key="super-secret-key",
-            base_url=f"http://{HOST}:{PORT}/v1"
-        )
-        response = await client.chat.completions.create(
-            model=agent_id,
-            messages=[
-                {"role": "user", "content": query}
-            ]
-        )
-        res = response.choices[0].message.content
-        return str(res)
-    except Exception as e:
-        print(f"Error: {e}")
-        return str(e)
+registry: Dict[str, Dict[str, Any]] = {}
+PLUGIN_DIR = Path(__file__).resolve().parent.parent / "plugins"
 
+def register_tool(name: str, func: Callable, schema: Dict[str, Any]) -> None:
+    jsonschema.Draft7Validator.check_schema(schema)
+    registry[name] = {"func": func, "schema": schema}
+
+def get_tool(name: str):
+    return registry.get(name)
+
+async def call_tool(name: str, args: Dict[str, Any]):
+    tool = get_tool(name)
+    if not tool:
+        raise KeyError(f"Tool '{name}' not found")
+    jsonschema.validate(args, tool["schema"])
+    result = tool["func"](**args)
+    if asyncio.iscoroutine(result):
+        result = await result
+    return result
+
+def load_plugins() -> None:
+    if not PLUGIN_DIR.exists():
+        return
+    for path in PLUGIN_DIR.iterdir():
+        if path.suffix == ".py" and path.name != "__init__.py":
+            importlib.import_module(f"plugins.{path.stem}")
+        elif path.is_dir() and (path / "__init__.py").exists():
+            importlib.import_module(f"plugins.{path.name}")
+
+def reload_registry() -> None:
+    registry.clear()
+    load_plugins()
+
+load_plugins()
