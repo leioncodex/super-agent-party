@@ -3,6 +3,7 @@ import json
 import asyncio
 import logging
 import shutil
+import random
 from typing import Dict, Any, AsyncIterator, Optional
 
 from mcp import ClientSession
@@ -68,12 +69,20 @@ class McpClient:
         self._lock = asyncio.Lock()
         self._monitor_task: Optional[asyncio.Task] = None
         self._shutdown = False
-        self._on_failure_callback: Optional[callable] = None  # 新增：失败回调
+        self._on_failure_callback: Optional[callable] = None  # 失败回调
+        self._on_reconnect_callback: Optional[callable] = None  # 新增：重连回调
 
-    async def initialize(self, server_name: str, server_config: dict, on_failure_callback: Optional[callable] = None) -> None:
+    async def initialize(
+        self,
+        server_name: str,
+        server_config: dict,
+        on_failure_callback: Optional[callable] = None,
+        on_reconnect: Optional[callable] = None,
+    ) -> None:
         """非阻塞初始化：拉起连接监控协程"""
         self._config = server_config
-        self._on_failure_callback = on_failure_callback  # 设置回调
+        self._on_failure_callback = on_failure_callback  # 设置失败回调
+        self._on_reconnect_callback = on_reconnect  # 设置重连回调
         if self._monitor_task is None or self._monitor_task.done():
             self._monitor_task = asyncio.create_task(self._connection_monitor())
 
@@ -88,11 +97,19 @@ class McpClient:
 
     async def _connection_monitor(self) -> None:
         """持续重连逻辑：仅在一个协程里管理 AsyncExitStack"""
+        attempt = 0
+        base_delay = 1
+        max_delay = 60
         while not self._shutdown:
+            logging.debug("Attempting connection to MCP server (attempt %d)", attempt + 1)
             try:
                 async with ConnectionManager().connect(self._config) as conn:
                     async with self._lock:
                         self._conn = conn
+                    if attempt > 0 and self._on_reconnect_callback:
+                        logging.info("Reconnected to MCP server after %d attempt(s)", attempt)
+                        await self._on_reconnect_callback()
+                    attempt = 0  # 重置重试计数
                     # 心跳检测
                     while not self._shutdown:
                         try:
@@ -101,14 +118,21 @@ class McpClient:
                             break  # 断线，跳出 inner loop
                         await asyncio.sleep(30)
             except Exception as e:
-                logging.exception("Connection failed, will retry: %s", e)
+                logging.info("Connection attempt %d failed: %s", attempt + 1, e)
+                logging.debug("Connection error", exc_info=True)
                 if self._on_failure_callback:
-                    await self._on_failure_callback(str(e))  # 调用回调
+                    await self._on_failure_callback(str(e))  # 调用失败回调
+                attempt += 1
             finally:
                 async with self._lock:
                     self._conn = None
             if not self._shutdown:
-                await asyncio.sleep(5)
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                delay += random.uniform(0, base_delay)
+                logging.debug(
+                    "Waiting %.2f seconds before next reconnection attempt", delay
+                )
+                await asyncio.sleep(delay)
 
     # ---------- 外部 API ----------
     async def get_openai_functions(self):
