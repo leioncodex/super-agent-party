@@ -34,3 +34,30 @@ pub trait Tool {
 - **web-fetch** – fetch the body of a URL.
 
 Agents can enable or disable each tool in the agent configuration dialog.
+
+## ComfyUI
+
+Super-Agent-Party can call ComfyUI workflows through HTTP endpoints when
+`comfyuiServers` are configured and workflow files are uploaded.
+
+### Endpoints
+
+- `POST /comfyui/image`
+- `POST /comfyui/video`
+- `POST /comfyui/audio`
+
+Each endpoint accepts form fields `text`, `image`, and optional
+`extra_inputs` (JSON) and returns:
+
+```json
+{
+  "files": ["http://localhost:3456/uploaded_files/example.png"],
+  "meta": {"workflow": "comfyui_image"}
+}
+```
+
+Example:
+
+```bash
+curl -X POST http://localhost:3456/comfyui/image -F text="a cat"
+```
