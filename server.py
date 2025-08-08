@@ -40,6 +40,9 @@ from fastapi import status
 from fastapi.responses import JSONResponse, StreamingResponse
 import uuid
 import time
+import importlib
+from datetime import datetime
+from typing import Any, List, Dict,Optional
 from typing import Any, List, Dict, Optional
 import shortuuid
 from py.mcp.client import McpClient
@@ -81,6 +84,24 @@ ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', '3
 
 from py.get_setting import load_settings,save_settings,base_path,configure_host_port,UPLOAD_FILES_DIR,AGENT_DIR,MEMORY_CACHE_DIR,KB_DIR,DEFAULT_VRM_DIR,USER_DATA_DIR
 from py.llm_tool import get_image_base64,get_image_media_type
+
+with open(os.path.join(base_path, "package.json"), "r", encoding="utf-8") as f:
+    VERSION = json.load(f).get("version", "unknown")
+START_TIME = datetime.utcnow().isoformat()
+
+
+def check_dependency(module_name: str) -> str:
+    try:
+        importlib.import_module(module_name)
+        return "ok"
+    except Exception as e:
+        return f"error: {e}"
+
+
+MAIN_DEPENDENCIES = ["edge_tts", "openai"]
+
+configure_host_port(args.host, args.port)
+
 from py.comfyui_tool import run_workflow
 
 @asynccontextmanager
@@ -4041,7 +4062,13 @@ async def initialize_a2a(request: Request):
 # 在现有路由之后添加health路由
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    deps = {dep: check_dependency(dep) for dep in MAIN_DEPENDENCIES}
+    return {
+        "status": "ok",
+        "version": VERSION,
+        "start_time": START_TIME,
+        "dependencies": deps,
+    }
 
 
 @app.post("/load_file")
