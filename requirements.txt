@@ -28,6 +28,7 @@ nest_asyncio
 shortuuid
 docstring_parser
 python-a2a[all]>=0.5.6
+jsonschema
 ollama
 appdirs
 aiosqlite
@@ -48,5 +49,3 @@ pyinstaller
 e2b-code-interpreter
 pywin32; sys_platform == 'win32'
 wxauto; sys_platform == 'win32'
-wikipedia-api
-arxiv

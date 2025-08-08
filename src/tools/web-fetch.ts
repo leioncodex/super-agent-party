@@ -6,6 +6,13 @@ export const webFetch: Tool = {
   description: 'Fetch content from a URL',
   schema: { type: 'string', description: 'URL to fetch' },
   handler: async (url: string) => {
+
+  schema: {
+    type: 'object',
+    properties: { url: { type: 'string' } },
+    required: ['url']
+  },
+  handler: async ({ url }: { url: string }) => {
     const res = await fetch(url);
     return await res.text();
   }
