@@ -57,16 +57,8 @@ if os.name == 'nt':
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-HOST = "127.0.0.1"
-PORT = 3456
-default_host = os.getenv("HOST", "127.0.0.1")
-default_port = int(os.getenv("PORT", "3456"))
-parser = argparse.ArgumentParser(description="Run the ASGI application server.")
-parser.add_argument("--host", default=default_host, help="Host for the ASGI server, default is HOST env or 127.0.0.1")
-parser.add_argument("--port", type=int, default=default_port, help="Port for the ASGI server, default is PORT env or 3456")
-args = parser.parse_args()
-HOST = args.host
-PORT = args.port
+HOST = os.getenv("HOST", "127.0.0.1")
+PORT = int(os.getenv("PORT", "3456"))
 
 os.environ["no_proxy"] = "localhost,127.0.0.1"
 ALLOWED_EXTENSIONS = [
@@ -89,10 +81,6 @@ ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', '3
 
 from py.get_setting import load_settings,save_settings,base_path,configure_host_port,UPLOAD_FILES_DIR,AGENT_DIR,MEMORY_CACHE_DIR,KB_DIR,DEFAULT_VRM_DIR,USER_DATA_DIR
 from py.llm_tool import get_image_base64,get_image_media_type
-
-
-
-configure_host_port(HOST, PORT)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -5283,9 +5271,11 @@ app.mount("/", StaticFiles(directory=os.path.join(base_path, "static"), html=Tru
 if __name__ == "__main__":
     import uvicorn
 
+    default_host = os.getenv("HOST", HOST)
+    default_port = int(os.getenv("PORT", PORT))
     parser = argparse.ArgumentParser(description="Run the ASGI application server.")
-    parser.add_argument("--host", default="127.0.0.1", help="Host for the ASGI server, default is 127.0.0.1")
-    parser.add_argument("--port", type=int, default=3456, help="Port for the ASGI server, default is 3456")
+    parser.add_argument("--host", default=default_host, help="Host for the ASGI server, default is HOST env or 127.0.0.1")
+    parser.add_argument("--port", type=int, default=default_port, help="Port for the ASGI server, default is PORT env or 3456")
     args = parser.parse_args()
 
     uvicorn.run(
