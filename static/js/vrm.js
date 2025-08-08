@@ -9,7 +9,8 @@ let currentMixer = null;
 let idleAction = null;
 let breathAction = null;
 let blinkAction = null;
-let currentSpeechActions = new Map(); // 存储口型动画actions
+let speechAnimationManager = null; // 新的语音动画管理器
+
 // renderer
 // 检测运行环境
 const isElectron = typeof require !== 'undefined' || navigator.userAgent.includes('Electron');
@@ -128,7 +129,6 @@ const light = new THREE.DirectionalLight( 0xffffff, Math.PI );
 light.position.set( 1.0, 1.0, 1.0 ).normalize();
 scene.add( light );
 
-
 // lookat target
 const lookAtTarget = new THREE.Object3D();
 camera.add( lookAtTarget );
@@ -212,298 +212,6 @@ function setNaturalPose(vrm) {
         }
     });
 }
-let VRMname = await getVRMname();
-showModelSwitchingIndicator(VRMname);
-loader.load(
-
-    // URL of the VRM you want to load
-    vrmPath,
-
-    // called when the resource is loaded
-    ( gltf ) => {
-
-        const vrm = gltf.userData.vrm;
-        currentMixer = new THREE.AnimationMixer(vrm.scene); // 创建动画混合器
-        isVRM1 = vrm.meta.metaVersion === '1';
-        VRMUtils.rotateVRM0(vrm); // 旋转 VRM 使其面向正前方
-        // calling these functions greatly improves the performance
-        VRMUtils.removeUnnecessaryVertices( gltf.scene );
-        VRMUtils.combineSkeletons( gltf.scene );
-        VRMUtils.combineMorphs( vrm );
-
-        // 启用 Spring Bone 物理模拟
-        if (vrm.springBoneManager) {
-            console.log('Spring Bone Manager found:', vrm.springBoneManager);
-            // Spring Bone 会在 vrm.update() 中自动更新
-        }
-
-
-        // Disable frustum culling
-        vrm.scene.traverse( ( obj ) => {
-
-            obj.frustumCulled = false;
-
-        } );
-
-        vrm.lookAt.target = camera;
-        currentVrm = vrm;
-        console.log( vrm );
-        scene.add( vrm.scene );
-
-        // 设置自然姿势
-        setNaturalPose(vrm);
-
-        // 创建并播放所有基础动画
-        const idleClip = createIdleClip(vrm);
-        idleAction = currentMixer.clipAction(idleClip);
-        idleAction.setLoop(THREE.LoopRepeat);
-        idleAction.play();
-
-        const breathClip = createBreathClip(vrm);
-        breathAction = currentMixer.clipAction(breathClip);
-        breathAction.setLoop(THREE.LoopRepeat);
-        breathAction.play();
-
-        const blinkClip = createBlinkClip(vrm);
-        blinkAction = currentMixer.clipAction(blinkClip);
-        blinkAction.setLoop(THREE.LoopRepeat);
-        blinkAction.play();
-        hideModelSwitchingIndicator();
-    },
-
-    (progress) => {
-        console.log('Loading model...', 100.0 * (progress.loaded / progress.total), '%');
-        // 可以在这里更新加载进度
-        updateModelLoadingProgress(progress.loaded / progress.total);
-    },
-
-    (error) => {
-        console.error('Error loading model:', error);
-        hideModelSwitchingIndicator();
-        
-        // 如果加载失败，尝试回到之前的模型
-        if (allModels.length > 1) {
-            console.log('Attempting to load fallback model...');
-            // 尝试加载第一个模型作为备用
-            if (currentModelIndex !== 0) {
-                switchToModel(0);
-            }
-        }
-    }
-
-);
-
-// 在全局变量区域添加字幕相关变量
-let subtitleElement = null;
-let currentSubtitleChunkIndex = -1;
-let subtitleTimeout = null;
-let isSubtitleEnabled = true; // 字幕默认开启
-let isDraggingSubtitle = false;
-let subtitleOffsetX = 0;
-let subtitleOffsetY = 0;
-
-
-// 修改初始化字幕元素
-function initSubtitleElement() {
-    subtitleElement = document.createElement('div');
-    subtitleElement.id = 'subtitle-container';
-    subtitleElement.style.cssText = `
-        position: fixed;
-        bottom: 30%;
-        left: 50%;
-        width: auto;
-        max-width: 80%;
-        transform: translateX(-50%);
-        padding: 12px 24px;
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        border-radius: 8px;
-        font-family: 'Arial', sans-serif;
-        font-size: 1.2em;
-        text-align: center;
-        backdrop-filter: blur(10px);
-        opacity: 0;
-        transition: opacity 0.3s ease, transform 0.3s ease;
-        z-index: 9998;
-        white-space: pre-wrap;
-        line-height: 1.5;
-        cursor: move;
-        user-select: none;
-        min-width: 100px;
-        max-width: 80%;
-        width: max-content;
-    `;
-
-    // 添加拖拽事件监听
-    subtitleElement.addEventListener('mousedown', startDragSubtitle);
-    document.addEventListener('mousemove', dragSubtitle);
-    document.addEventListener('mouseup', endDragSubtitle);
-
-    document.body.appendChild(subtitleElement);
-}
-
-// 改进拖拽功能
-function startDragSubtitle(e) {
-    if (!isSubtitleEnabled) return;
-    
-    isDraggingSubtitle = true;
-    
-    // 获取字幕元素的初始位置
-    const rect = subtitleElement.getBoundingClientRect();
-    
-    // 计算鼠标相对于字幕中心点的偏移量
-    subtitleOffsetX = e.clientX - (rect.left + rect.width / 2);
-    subtitleOffsetY = e.clientY - rect.top;
-    
-    // 禁用过渡效果
-    subtitleElement.style.transition = 'none';
-}
-
-function dragSubtitle(e) {
-    if (isDraggingSubtitle) {
-        // 计算字幕中心点的目标位置
-        const centerX = e.clientX - subtitleOffsetX;
-        const centerY = e.clientY - subtitleOffsetY;
-        
-        // 限制在窗口范围内，保持水平居中
-        const halfWidth = subtitleElement.offsetWidth / 2;
-        const clampedX = Math.max(halfWidth, Math.min(centerX, window.innerWidth - halfWidth));
-        
-        // 设置位置时保持水平居中
-        subtitleElement.style.left = `${clampedX}px`;
-        subtitleElement.style.transform = 'translateX(-50%)'; // 水平居中
-        
-        // 垂直位置保持不变
-        const maxY = window.innerHeight - subtitleElement.offsetHeight;
-        const clampedY = Math.max(0, Math.min(centerY, maxY));
-        
-        subtitleElement.style.top = `${clampedY}px`;
-        subtitleElement.style.bottom = 'auto'; // 取消底部定位
-    }
-}
-
-function endDragSubtitle() {
-    if (isDraggingSubtitle) {
-        isDraggingSubtitle = false;
-        subtitleElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-    }
-}
-
-// 修改字幕显示/隐藏功能
-function toggleSubtitle(enable) {
-    isSubtitleEnabled = enable;
-    if (subtitleElement) {
-        subtitleElement.style.display = enable ? 'block' : 'none';
-    }
-}
-
-// 在控制面板中添加字幕开关按钮
-if (isElectron) {
-    setTimeout(async () => {
-        const controlPanel = document.getElementById('control-panel');
-        if (controlPanel) {
-            // 字幕开关按钮
-            const subtitleButton = document.createElement('div');
-            subtitleButton.id = 'subtitle-handle';
-            subtitleButton.innerHTML = '<i class="fas fa-closed-captioning"></i>';
-            subtitleButton.style.cssText = `
-                width: 36px;
-                height: 36px;
-                background: rgba(255,255,255,0.95);
-                border: 2px solid rgba(0,0,0,0.1);
-                border-radius: 50%;
-                color: #333;
-                cursor: pointer;
-                -webkit-app-region: no-drag;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 14px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                transition: all 0.2s ease;
-                user-select: none;
-                pointer-events: auto;
-                backdrop-filter: blur(10px);
-                color: ${isSubtitleEnabled ? '#28a745' : '#dc3545'};
-            `;
-
-            // 添加悬停效果
-            subtitleButton.addEventListener('mouseenter', () => {
-                subtitleButton.style.background = 'rgba(255,255,255,1)';
-                subtitleButton.style.transform = 'scale(1.1)';
-                subtitleButton.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
-            });
-
-            subtitleButton.addEventListener('mouseleave', () => {
-                subtitleButton.style.background = 'rgba(255,255,255,0.95)';
-                subtitleButton.style.transform = 'scale(1)';
-                subtitleButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            });
-
-            // 点击事件
-            subtitleButton.addEventListener('click', async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                isSubtitleEnabled = !isSubtitleEnabled;
-                toggleSubtitle(isSubtitleEnabled);
-                subtitleButton.style.color = isSubtitleEnabled ? '#28a745' : '#dc3545';
-                subtitleButton.title = isSubtitleEnabled ? await t('SubtitleEnabled') : await t('SubtitleDisabled');
-            });
-
-            // 初始状态
-            subtitleButton.title = isSubtitleEnabled ? await t('SubtitleEnabled') : await t('SubtitleDisabled');
-
-            // 添加到控制面板
-            const prevModelButton = controlPanel.querySelector('#prev-model-handle');
-            if (prevModelButton) {
-                controlPanel.insertBefore(subtitleButton, prevModelButton);
-            } else {
-                controlPanel.appendChild(subtitleButton);
-            }
-        }
-    }, 1400);
-}
-
-function updateSubtitle(text, chunkIndex) {
-    if (!isSubtitleEnabled) return;
-    
-    if (!subtitleElement) initSubtitleElement();
-    
-    currentSubtitleChunkIndex = chunkIndex;
-    
-    subtitleElement.style.opacity = '0';
-    setTimeout(() => {
-        subtitleElement.textContent = text;
-        
-        // 自动调整宽度
-        const maxWidth = window.innerWidth * 0.8;
-        subtitleElement.style.width = 'max-content';
-        subtitleElement.style.minWidth = '100px';
-        
-        const rect = subtitleElement.getBoundingClientRect();
-        if (rect.width > maxWidth) {
-            subtitleElement.style.width = `${maxWidth}px`;
-        }
-        
-        subtitleElement.style.opacity = '1';
-    }, 300);
-    
-    if (subtitleTimeout) clearTimeout(subtitleTimeout);
-}
-
-// 清除字幕
-function clearSubtitle() {
-    if (subtitleElement) {
-        subtitleElement.style.opacity = '0';
-        currentSubtitleChunkIndex = -1;
-    }
-}
-
-
-// animate
-const clock = new THREE.Clock();
-clock.start();
-
 
 // 闲置动作的时间偏移量，让各个动作不同步
 const idleOffsets = {
@@ -513,13 +221,6 @@ const idleOffsets = {
     head: Math.random() * Math.PI * 2,
     spine: Math.random() * Math.PI * 2
 };
-
-// 生成随机的下次眨眼时间和模式
-function getRandomBlinkData() {
-    const interval = Math.random() * 4 + 1.5; // 1.5-5.5秒之间的随机间隔
-    const pattern = Math.random() < 0.8 ? 0 : 1; // 80%单次眨眼，20%双次眨眼
-    return { interval, pattern };
-}
 
 // 生成闲置动画 clip - 改进版
 function createIdleClip(vrm) {
@@ -755,28 +456,56 @@ function createBlinkClip(vrm) {
     return new THREE.AnimationClip('blink', duration, tracks);
 }
 
-function createSpeechClip(vrm, audioData, expressions = []) {
+// 修改 createSpeechClip 函数 - 创建一个足够长的clip
+function createSpeechClip(vrm, expressions = []) {
     if (!vrm.expressionManager) return null;
     
     const tracks = [];
-    const duration = audioData.duration || 2; // 音频时长
+    const maxDuration = 30; // 创建一个30秒的长clip，足够应对大部分情况
     const fps = 30;
-    const frameCount = duration * fps;
+    const frameCount = maxDuration * fps;
     
     const times = [];
     for (let i = 0; i <= frameCount; i++) {
         times.push(i / fps);
     }
     
-    // 口型动画（基于音频强度的模拟）
+    // 口型动画 - 使用智能模拟
     const mouthValues = [];
-    times.forEach(time => {
-        // 这里需要根据实际音频数据来计算，暂时用模拟数据
-        const intensity = Math.sin(time * 10) * 0.5 + 0.5; // 模拟音频强度
-        const mouthOpen = intensity > 0.1 ? Math.min(intensity * 0.8, 0.5) : 0;
+    const mouthIhValues = [];
+    
+    times.forEach((time, index) => {
+        // 使用多个频率叠加，模拟真实语音的复杂性
+        const baseFreq = 12 + Math.sin(time * 0.5) * 4;
+        const intensity1 = Math.sin(time * baseFreq) * 0.5 + 0.5;
+        const intensity2 = Math.sin(time * baseFreq * 1.3 + 0.5) * 0.3 + 0.3;
+        const intensity3 = Math.sin(time * baseFreq * 0.7 + 1.2) * 0.2 + 0.2;
+        
+        const combinedIntensity = (intensity1 + intensity2 + intensity3) / 3;
+        const randomFactor = 0.8 + Math.random() * 0.4;
+        const finalIntensity = combinedIntensity * randomFactor;
+        
+        let mouthOpen = 0;
+        let mouthIh = 0;
+        
+        if (finalIntensity > 0.15) {
+            mouthOpen = Math.min(Math.max(finalIntensity * 0.8, 0.1), 0.5);
+            const variation = Math.sin(time * 12 + index * 0.1) * 0.1;
+            mouthIh = Math.min(Math.max(0, finalIntensity * 0.3 + variation), 0.3);
+        } else {
+            // 渐进关闭
+            const prevMouthOpen = index > 0 ? mouthValues[index - 1] || 0 : 0;
+            const prevMouthIh = index > 0 ? mouthIhValues[index - 1] || 0 : 0;
+            
+            mouthOpen = Math.max(0, prevMouthOpen * 0.9);
+            mouthIh = Math.max(0, prevMouthIh * 0.85);
+        }
+        
         mouthValues.push(mouthOpen);
+        mouthIhValues.push(mouthIh);
     });
     
+    // 创建口型轨道
     const mouthTrack = new THREE.NumberKeyframeTrack(
         vrm.expressionManager.getExpressionTrackName('aa'),
         times,
@@ -784,29 +513,65 @@ function createSpeechClip(vrm, audioData, expressions = []) {
     );
     tracks.push(mouthTrack);
     
+    const mouthIhTrack = new THREE.NumberKeyframeTrack(
+        vrm.expressionManager.getExpressionTrackName('ih'),
+        times,
+        mouthIhValues
+    );
+    tracks.push(mouthIhTrack);
+    
     // 处理表情
     if (expressions.length > 0) {
         const expression = expressions[0].replace(/<|>/g, '');
         const expressionValues = [];
+        let max_mouthOpen = 0.5;
         
-        times.forEach(time => {
+        times.forEach((time, index) => {
             let value = 0;
-            if (expression === 'surprised') {
-                // 前2秒显示惊讶表情
-                value = time < 2 ? 1.0 : 0.0;
-            } else if (['blink', 'blinkLeft', 'blinkRight'].includes(expression)) {
-                // 眨眼动画
-                if (time < 1) {
-                    value = time; // 第一秒闭眼
-                } else if (time < 2) {
-                    value = 2 - time; // 第二秒睁眼
-                }
-            } else {
-                // 其他表情持续显示
+            
+            if (['happy', 'angry', 'sad', 'neutral', 'relaxed'].includes(expression)) {
                 value = 1.0;
+                if (expression === 'happy') {
+                    max_mouthOpen = 0.1;
+                }
+            } else if (expression === 'surprised') {
+                value = time < 2 ? 1.0 : 0.0;
+                max_mouthOpen = 0.1;
+            } else if (['blink', 'blinkLeft', 'blinkRight'].includes(expression)) {
+                const totalFrames = fps;
+                const halfFrames = totalFrames / 2;
+                
+                if (index < halfFrames) {
+                    value = index / halfFrames;
+                } else if (index < totalFrames) {
+                    value = Math.max(1 - ((index - halfFrames) / halfFrames), 0);
+                } else {
+                    value = 0;
+                }
             }
+            
             expressionValues.push(value);
         });
+        
+        // 根据表情调整口型幅度
+        if (max_mouthOpen < 0.5) {
+            for (let i = 0; i < mouthValues.length; i++) {
+                mouthValues[i] = Math.min(mouthValues[i], max_mouthOpen);
+                mouthIhValues[i] = Math.min(mouthIhValues[i], max_mouthOpen);
+            }
+            
+            // 重新创建口型轨道
+            tracks[0] = new THREE.NumberKeyframeTrack(
+                vrm.expressionManager.getExpressionTrackName('aa'),
+                times,
+                mouthValues
+            );
+            tracks[1] = new THREE.NumberKeyframeTrack(
+                vrm.expressionManager.getExpressionTrackName('ih'),
+                times,
+                mouthIhValues
+            );
+        }
         
         const expressionTrack = new THREE.NumberKeyframeTrack(
             vrm.expressionManager.getExpressionTrackName(expression),
@@ -816,8 +581,323 @@ function createSpeechClip(vrm, audioData, expressions = []) {
         tracks.push(expressionTrack);
     }
     
-    return new THREE.AnimationClip('speech', duration, tracks);
+    return new THREE.AnimationClip('speech', maxDuration, tracks);
 }
+
+// 新的语音动画管理器
+class SpeechAnimationManager {
+    constructor(vrm, mixer) {
+        this.vrm = vrm;
+        this.mixer = mixer;
+        this.activeActions = new Map();
+        this.speechClip = null;
+        
+        // 预创建语音clip
+        this.createBaseSpeechClip();
+    }
+    
+    createBaseSpeechClip() {
+        this.speechClip = createSpeechClip(this.vrm, []);
+    }
+    
+    startSpeech(chunkId, expressions = []) {
+        console.log(`Starting speech for chunk ${chunkId}`);
+        
+        // 停止之前的动画
+        if (this.activeActions.has(chunkId)) {
+            this.stopSpeech(chunkId);
+        }
+        
+        // 创建带表情的clip
+        const clip = createSpeechClip(this.vrm, expressions);
+        if (!clip) return;
+        
+        const action = this.mixer.clipAction(clip);
+        action.setLoop(THREE.LoopOnce);
+        action.clampWhenFinished = true;
+        action.setEffectiveWeight(1.0);
+        
+        // 重要：不设置固定时长，让它自然播放
+        action.play();
+        
+        // 存储action和开始时间
+        this.activeActions.set(chunkId, {
+            action: action,
+            clip: clip,
+            startTime: Date.now(),
+            expressions: expressions
+        });
+        
+        console.log(`Speech animation started for chunk ${chunkId}`);
+    }
+    
+    stopSpeech(chunkId) {
+        const actionData = this.activeActions.get(chunkId);
+        if (!actionData) return;
+        
+        console.log(`Stopping speech for chunk ${chunkId}`);
+        
+        // 淡出并停止
+        actionData.action.fadeOut(0.2);
+        
+        setTimeout(() => {
+            actionData.action.stop();
+            this.activeActions.delete(chunkId);
+            
+            // 如果没有其他语音在播放，重置表情
+            if (this.activeActions.size === 0) {
+                this.resetExpressions();
+            }
+        }, 200);
+    }
+    
+    stopAllSpeech() {
+        console.log('Stopping all speech animations');
+        
+        for (const chunkId of this.activeActions.keys()) {
+            this.stopSpeech(chunkId);
+        }
+    }
+    
+    resetExpressions() {
+        if (this.vrm && this.vrm.expressionManager) {
+            this.vrm.expressionManager.resetValues();
+            console.log('All speech expressions reset');
+        }
+    }
+    
+    // 检查是否有活跃的语音动画
+    hasActiveSpeech() {
+        return this.activeActions.size > 0;
+    }
+}
+
+let VRMname = await getVRMname();
+showModelSwitchingIndicator(VRMname);
+loader.load(
+
+    // URL of the VRM you want to load
+    vrmPath,
+
+    // called when the resource is loaded
+    ( gltf ) => {
+
+        const vrm = gltf.userData.vrm;
+        currentMixer = new THREE.AnimationMixer(vrm.scene); // 创建动画混合器
+        isVRM1 = vrm.meta.metaVersion === '1';
+        VRMUtils.rotateVRM0(vrm); // 旋转 VRM 使其面向正前方
+        // calling these functions greatly improves the performance
+        VRMUtils.removeUnnecessaryVertices( gltf.scene );
+        VRMUtils.combineSkeletons( gltf.scene );
+        VRMUtils.combineMorphs( vrm );
+
+        // 启用 Spring Bone 物理模拟
+        if (vrm.springBoneManager) {
+            console.log('Spring Bone Manager found:', vrm.springBoneManager);
+            // Spring Bone 会在 vrm.update() 中自动更新
+        }
+
+
+        // Disable frustum culling
+        vrm.scene.traverse( ( obj ) => {
+
+            obj.frustumCulled = false;
+
+        } );
+
+        vrm.lookAt.target = camera;
+        currentVrm = vrm;
+        console.log( vrm );
+        scene.add( vrm.scene );
+
+        // 设置自然姿势
+        setNaturalPose(vrm);
+
+        // 创建并播放所有基础动画
+        const idleClip = createIdleClip(vrm);
+        idleAction = currentMixer.clipAction(idleClip);
+        idleAction.setLoop(THREE.LoopRepeat);
+        idleAction.play();
+
+        const breathClip = createBreathClip(vrm);
+        breathAction = currentMixer.clipAction(breathClip);
+        breathAction.setLoop(THREE.LoopRepeat);
+        breathAction.play();
+
+        const blinkClip = createBlinkClip(vrm);
+        blinkAction = currentMixer.clipAction(blinkClip);
+        blinkAction.setLoop(THREE.LoopRepeat);
+        blinkAction.play();
+
+        // 创建语音动画管理器
+        speechAnimationManager = new SpeechAnimationManager(vrm, currentMixer);
+
+        hideModelSwitchingIndicator();
+    },
+
+    (progress) => {
+        console.log('Loading model...', 100.0 * (progress.loaded / progress.total), '%');
+        // 可以在这里更新加载进度
+        updateModelLoadingProgress(progress.loaded / progress.total);
+    },
+
+    (error) => {
+        console.error('Error loading model:', error);
+        hideModelSwitchingIndicator();
+        
+        // 如果加载失败，尝试回到之前的模型
+        if (allModels.length > 1) {
+            console.log('Attempting to load fallback model...');
+            // 尝试加载第一个模型作为备用
+            if (currentModelIndex !== 0) {
+                switchToModel(0);
+            }
+        }
+    }
+
+);
+
+// 在全局变量区域添加字幕相关变量
+let subtitleElement = null;
+let currentSubtitleChunkIndex = -1;
+let subtitleTimeout = null;
+let isSubtitleEnabled = true; // 字幕默认开启
+let isDraggingSubtitle = false;
+let subtitleOffsetX = 0;
+let subtitleOffsetY = 0;
+
+// 修改初始化字幕元素
+function initSubtitleElement() {
+    subtitleElement = document.createElement('div');
+    subtitleElement.id = 'subtitle-container';
+    subtitleElement.style.cssText = `
+        position: fixed;
+        bottom: 30%;
+        left: 50%;
+        width: auto;
+        max-width: 80%;
+        transform: translateX(-50%);
+        padding: 12px 24px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        border-radius: 8px;
+        font-family: 'Arial', sans-serif;
+        font-size: 1.2em;
+        text-align: center;
+        backdrop-filter: blur(10px);
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        z-index: 9998;
+        white-space: pre-wrap;
+        line-height: 1.5;
+        cursor: move;
+        user-select: none;
+        min-width: 100px;
+        max-width: 80%;
+        width: max-content;
+    `;
+
+    // 添加拖拽事件监听
+    subtitleElement.addEventListener('mousedown', startDragSubtitle);
+    document.addEventListener('mousemove', dragSubtitle);
+    document.addEventListener('mouseup', endDragSubtitle);
+
+    document.body.appendChild(subtitleElement);
+}
+
+// 改进拖拽功能
+function startDragSubtitle(e) {
+    if (!isSubtitleEnabled) return;
+    
+    isDraggingSubtitle = true;
+    
+    // 获取字幕元素的初始位置
+    const rect = subtitleElement.getBoundingClientRect();
+    
+    // 计算鼠标相对于字幕中心点的偏移量
+    subtitleOffsetX = e.clientX - (rect.left + rect.width / 2);
+    subtitleOffsetY = e.clientY - rect.top;
+    
+    // 禁用过渡效果
+    subtitleElement.style.transition = 'none';
+}
+
+function dragSubtitle(e) {
+    if (isDraggingSubtitle) {
+        // 计算字幕中心点的目标位置
+        const centerX = e.clientX - subtitleOffsetX;
+        const centerY = e.clientY - subtitleOffsetY;
+        
+        // 限制在窗口范围内，保持水平居中
+        const halfWidth = subtitleElement.offsetWidth / 2;
+        const clampedX = Math.max(halfWidth, Math.min(centerX, window.innerWidth - halfWidth));
+        
+        // 设置位置时保持水平居中
+        subtitleElement.style.left = `${clampedX}px`;
+        subtitleElement.style.transform = 'translateX(-50%)'; // 水平居中
+        
+        // 垂直位置保持不变
+        const maxY = window.innerHeight - subtitleElement.offsetHeight;
+        const clampedY = Math.max(0, Math.min(centerY, maxY));
+        
+        subtitleElement.style.top = `${clampedY}px`;
+        subtitleElement.style.bottom = 'auto'; // 取消底部定位
+    }
+}
+
+function endDragSubtitle() {
+    if (isDraggingSubtitle) {
+        isDraggingSubtitle = false;
+        subtitleElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    }
+}
+
+// 修改字幕显示/隐藏功能
+function toggleSubtitle(enable) {
+    isSubtitleEnabled = enable;
+    if (subtitleElement) {
+        subtitleElement.style.display = enable ? 'block' : 'none';
+    }
+}
+
+function updateSubtitle(text, chunkIndex) {
+    if (!isSubtitleEnabled) return;
+    
+    if (!subtitleElement) initSubtitleElement();
+    
+    currentSubtitleChunkIndex = chunkIndex;
+    
+    subtitleElement.style.opacity = '0';
+    setTimeout(() => {
+        subtitleElement.textContent = text;
+        
+        // 自动调整宽度
+        const maxWidth = window.innerWidth * 0.8;
+        subtitleElement.style.width = 'max-content';
+        subtitleElement.style.minWidth = '100px';
+        
+        const rect = subtitleElement.getBoundingClientRect();
+        if (rect.width > maxWidth) {
+            subtitleElement.style.width = `${maxWidth}px`;
+        }
+        
+        subtitleElement.style.opacity = '1';
+    }, 300);
+    
+    if (subtitleTimeout) clearTimeout(subtitleTimeout);
+}
+
+// 清除字幕
+function clearSubtitle() {
+    if (subtitleElement) {
+        subtitleElement.style.opacity = '0';
+        currentSubtitleChunkIndex = -1;
+    }
+}
+
+// animate
+const clock = new THREE.Clock();
+clock.start();
 
 // 在animate函数中替换原来的眨眼动画代码
 function animate() {
@@ -835,6 +915,7 @@ function animate() {
     }
     
     renderer.renderAsync(scene, camera);
+    
     // 处理窗口大小变化时字幕位置
     if (subtitleElement && !isDraggingSubtitle) {
         const rect = subtitleElement.getBoundingClientRect();
@@ -849,9 +930,72 @@ function animate() {
     }
 }
 
-// 初始化第一次眨眼时间
-const initialBlinkData = getRandomBlinkData();
-let nextBlinkTime = initialBlinkData.interval;
+// 在控制面板中添加字幕开关按钮
+if (isElectron) {
+    setTimeout(async () => {
+        const controlPanel = document.getElementById('control-panel');
+        if (controlPanel) {
+            // 字幕开关按钮
+            const subtitleButton = document.createElement('div');
+            subtitleButton.id = 'subtitle-handle';
+            subtitleButton.innerHTML = '<i class="fas fa-closed-captioning"></i>';
+            subtitleButton.style.cssText = `
+                width: 36px;
+                height: 36px;
+                background: rgba(255,255,255,0.95);
+                border: 2px solid rgba(0,0,0,0.1);
+                border-radius: 50%;
+                color: #333;
+                cursor: pointer;
+                -webkit-app-region: no-drag;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                transition: all 0.2s ease;
+                user-select: none;
+                pointer-events: auto;
+                backdrop-filter: blur(10px);
+                color: ${isSubtitleEnabled ? '#28a745' : '#dc3545'};
+            `;
+
+            // 添加悬停效果
+            subtitleButton.addEventListener('mouseenter', () => {
+                subtitleButton.style.background = 'rgba(255,255,255,1)';
+                subtitleButton.style.transform = 'scale(1.1)';
+                subtitleButton.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+            });
+
+            subtitleButton.addEventListener('mouseleave', () => {
+                subtitleButton.style.background = 'rgba(255,255,255,0.95)';
+                subtitleButton.style.transform = 'scale(1)';
+                subtitleButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            });
+
+            // 点击事件
+            subtitleButton.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                isSubtitleEnabled = !isSubtitleEnabled;
+                toggleSubtitle(isSubtitleEnabled);
+                subtitleButton.style.color = isSubtitleEnabled ? '#28a745' : '#dc3545';
+                subtitleButton.title = isSubtitleEnabled ? await t('SubtitleEnabled') : await t('SubtitleDisabled');
+            });
+
+            // 初始状态
+            subtitleButton.title = isSubtitleEnabled ? await t('SubtitleEnabled') : await t('SubtitleDisabled');
+
+            // 添加到控制面板
+            const prevModelButton = controlPanel.querySelector('#prev-model-handle');
+            if (prevModelButton) {
+                controlPanel.insertBefore(subtitleButton, prevModelButton);
+            } else {
+                controlPanel.appendChild(subtitleButton);
+            }
+        }
+    }, 1400);
+}
 
 if (isElectron) {
     // 等待一小段时间确保页面完全加载
@@ -1130,11 +1274,6 @@ if (isElectron) {
 let ttsWebSocket = null;
 let wsConnected = false;
 let currentAudioContext = null;
-let currentAnalyser = null;
-let currentAudioSource = null;
-let isCurrentlySpeaking = false;
-let lipSyncAnimationId = null;
-
 
 // 初始化 WebSocket 连接
 function initTTSWebSocket() {
@@ -1164,9 +1303,6 @@ function initTTSWebSocket() {
         console.log('VRM TTS WebSocket disconnected');
         wsConnected = false;
         
-        // 停止当前的说话动画
-        stopLipSync();
-        
         // 自动重连
         setTimeout(() => {
             if (!wsConnected) {
@@ -1180,6 +1316,7 @@ function initTTSWebSocket() {
     };
 }
 initTTSWebSocket();
+
 // 发送消息到主界面
 function sendToMain(type, data) {
     if (ttsWebSocket && wsConnected) {
@@ -1190,9 +1327,6 @@ function sendToMain(type, data) {
         }));
     }
 }
-// 全局变量区域添加
-let chunkAnimations = new Map(); // 存储每个chunk的动画状态
-let currentChunkIndex = -1;
 
 // 修改 handleTTSMessage 函数
 function handleTTSMessage(message) {
@@ -1201,17 +1335,14 @@ function handleTTSMessage(message) {
     switch (type) {
         case 'ttsStarted':
             console.log('TTS started, preparing for speech animation');
-            // 重置所有状态
-            chunkAnimations.clear();
-            currentChunkIndex = -1;
-            stopLipSync();
-            clearSubtitle(); // 清除之前的字幕
-            prepareSpeechAnimation(data);
+            if (speechAnimationManager) {
+                speechAnimationManager.stopAllSpeech();
+            }
+            clearSubtitle();
             break;
             
         case 'startSpeaking':
             console.log('Starting speech animation for chunk:', data.chunkIndex);
-            currentChunkIndex = data.chunkIndex;
             if (data.text) {
                 updateSubtitle(data.text, data.chunkIndex);
             }
@@ -1220,8 +1351,9 @@ function handleTTSMessage(message) {
             
         case 'chunkEnded':
             console.log('Chunk ended:', data.chunkIndex);
-            // 停止特定chunk的动画
-            stopChunkAnimation(data.chunkIndex);
+            if (speechAnimationManager) {
+                speechAnimationManager.stopSpeech(data.chunkIndex);
+            }
             // 如果当前显示的是这个chunk的字幕，则清除
             if (currentSubtitleChunkIndex === data.chunkIndex) {
                 clearSubtitle();
@@ -1230,12 +1362,16 @@ function handleTTSMessage(message) {
             
         case 'stopSpeaking':
             console.log('Stopping speech animation');
-            stopAllAnimations();
+            if (speechAnimationManager) {
+                speechAnimationManager.stopAllSpeech();
+            }
             break;
             
         case 'allChunksCompleted':
             console.log('All TTS chunks completed');
-            stopAllAnimations();
+            if (speechAnimationManager) {
+                speechAnimationManager.stopAllSpeech();
+            }
             clearSubtitle();
             sendToMain('animationComplete', { status: 'completed' });
             break;
@@ -1246,49 +1382,14 @@ function handleTTSMessage(message) {
 async function startLipSyncForChunk(data) {
     const chunkId = data.chunkIndex;
     
-    if (!currentVrm || !currentVrm.expressionManager || !currentMixer) {
-        console.error('VRM, expression manager, or mixer not available');
+    if (!speechAnimationManager) {
+        console.error('Speech animation manager not available');
         return;
     }
     
     try {
-        // 停止之前的语音动画（如果有）
-        if (currentSpeechActions.has(chunkId)) {
-            const oldAction = currentSpeechActions.get(chunkId);
-            oldAction.stop();
-            currentSpeechActions.delete(chunkId);
-        }
-        
-        // 创建语音动画剪辑
-        const speechClip = createSpeechClip(currentVrm, {
-            duration: data.duration || 2
-        }, data.expressions);
-        
-        if (speechClip) {
-            const speechAction = currentMixer.clipAction(speechClip);
-            speechAction.setLoop(THREE.LoopOnce);
-            speechAction.clampWhenFinished = true;
-            
-            // 设置权重和淡入
-            speechAction.setEffectiveWeight(1.0);
-            speechAction.fadeIn(0.1);
-            speechAction.play();
-            
-            currentSpeechActions.set(chunkId, speechAction);
-            
-            // 监听动画结束
-            const mixer = currentMixer;
-            const onFinished = () => {
-                speechAction.fadeOut(0.2);
-                setTimeout(() => {
-                    if (currentSpeechActions.has(chunkId)) {
-                        currentSpeechActions.delete(chunkId);
-                    }
-                }, 200);
-                mixer.removeEventListener('finished', onFinished);
-            };
-            mixer.addEventListener('finished', onFinished);
-        }
+        // 使用新的管理器开始语音动画
+        speechAnimationManager.startSpeech(chunkId, data.expressions || []);
         
         // 字幕处理
         if (data.text) {
@@ -1298,262 +1399,6 @@ async function startLipSyncForChunk(data) {
     } catch (error) {
         console.error(`Error starting lip sync for chunk ${chunkId}:`, error);
     }
-}
-
-// 单个chunk的动画循环
-function startChunkAnimation(chunkId, chunkState) {
-    if (!chunkState || !chunkState.isPlaying || !chunkState.analyser) {
-        console.log(`Cannot start animation for chunk ${chunkId}`);
-        return;
-    }
-    
-    const dataArray = new Uint8Array(chunkState.analyser.frequencyBinCount);
-    let frameCount = 0;
-    
-    function animateChunk() {
-        // 检查chunk状态
-        const currentState = chunkAnimations.get(chunkId);
-        if (!currentState || !currentState.isPlaying) {
-            console.log(`Stopping animation for chunk ${chunkId} - state changed`);
-            return;
-        }
-        
-        frameCount++;
-        
-        // 获取音频数据
-        chunkState.analyser.getByteFrequencyData(dataArray);
-        
-        // 计算强度
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
-        }
-        const average = sum / dataArray.length;
-        const maxValue = Math.max(...dataArray);
-        
-        // 调试信息
-        if (frameCount % 30 === 0) {
-            console.log(`Chunk ${chunkId} audio analysis:`, {
-                average,
-                maxValue,
-                intensity: Math.min(average / 50, 1.0)
-            });
-        }
-        
-        // 应用口型动画
-        if (currentVrm && currentVrm.expressionManager) {
-            let max_mouthOpen = 0.5; // 设置最大张嘴程度
-            if(chunkState.expression){
-                // 不同表情以不同的方式展现，happy angry sad neutral surprised relaxed blink blinkLeft blinkRight
-
-                if(chunkState.expression == 'happy' ||chunkState.expression == 'angry' ||chunkState.expression == 'sad' ||chunkState.expression == 'neutral' ||chunkState.expression == 'relaxed'){
-                    currentVrm.expressionManager.setValue(chunkState.expression,1.0);
-                    if (chunkState.expression == 'happy') {
-                        max_mouthOpen = 0.1;
-                    }
-                }
-                if( chunkState.expression == 'surprised' ){
-                    if (frameCount < 30*2) {
-                        currentVrm.expressionManager.setValue(chunkState.expression,1.0);
-                        max_mouthOpen = 0.1;
-                    }
-                    else{
-                        currentVrm.expressionManager.setValue(chunkState.expression,0.0);
-                    }
-                }
-                if (chunkState.expression === 'blink' || chunkState.expression === 'blinkLeft' || chunkState.expression === 'blinkRight') {
-                    // 第一秒线性闭眼，第二秒线性睁眼
-                    const totalFrames = 30; // 假设每秒30帧，总共2秒
-                    const halfFrames = totalFrames / 2;
-                    let blink_value = 0;
-                    if (frameCount < halfFrames) {
-                        // 第一秒闭眼
-                        blink_value = frameCount / halfFrames;
-                    } else {
-                        // 第二秒睁眼
-                        blink_value = Math.max(1 - ((frameCount - halfFrames) / halfFrames), 0);
-                    }
-
-                    currentVrm.expressionManager.setValue(chunkState.expression, blink_value);
-                }
-            }
-
-            const intensity = Math.min(average / 4, 1.0); // 进一步降低阈值
-            if (intensity > 0.02 || maxValue > 5) { // 更敏感的触发条件
-                const mouthOpen = Math.min(Math.max(intensity*1.8, 0.1), max_mouthOpen); // 确保最小和最大张嘴程度
-                currentVrm.expressionManager.setValue('aa', mouthOpen);
-                
-                // 添加一些变化
-                const variation = Math.sin(frameCount * 0.1) * 0.1;
-                currentVrm.expressionManager.setValue('ih',  Math.min(Math.max(0, intensity * 0.3 + variation), max_mouthOpen));
-                
-                if (frameCount % 30 === 0) {
-                    console.log(`Chunk ${chunkId} setting mouth:`, { intensity, mouthOpen });
-                }
-            } else {
-                // 渐进式关闭嘴巴，而不是立即重置
-                const currentAA = currentVrm.expressionManager.getValue('aa') || 0;
-                const currentIH = currentVrm.expressionManager.getValue('ih') || 0;
-                
-                currentVrm.expressionManager.setValue('aa', Math.max(0, currentAA - 0.05));
-                currentVrm.expressionManager.setValue('ih', Math.max(0, currentIH - 0.03));
-            }
-        }
-        
-        // 继续动画
-        currentState.animationId = requestAnimationFrame(animateChunk);
-    }
-    
-    console.log(`Starting animation loop for chunk ${chunkId}`);
-    chunkState.animationId = requestAnimationFrame(animateChunk);
-}
-
-// 停止特定chunk的动画
-function stopChunkAnimation(chunkId) {
-    const chunkState = chunkAnimations.get(chunkId);
-    if (!chunkState) return;
-    
-    console.log(`Stopping animation for chunk ${chunkId}`);
-    
-    // 停止动画循环
-    chunkState.isPlaying = false;
-    if (chunkState.animationId) {
-        cancelAnimationFrame(chunkState.animationId);
-    }
-    
-    // 停止音频
-    if (chunkState.audio) {
-        chunkState.audio.pause();
-        chunkState.audio = null;
-    }
-    
-    // 断开音频连接
-    if (chunkState.audioSource) {
-        chunkState.audioSource.disconnect();
-        chunkState.audioSource = null;
-    }
-    
-    // 从映射中移除
-    chunkAnimations.delete(chunkId);
-    
-    // 如果没有其他chunk在播放，重置表情
-    if (chunkAnimations.size === 0 && currentVrm && currentVrm.expressionManager) {
-        setTimeout(() => {
-            if (chunkAnimations.size === 0) { // 再次确认没有新的chunk开始
-                currentVrm.expressionManager.resetValues();
-                console.log('All mouth expressions reset');
-            }
-        }, 200);
-    }
-}
-
-// 停止所有动画
-function stopAllAnimations() {
-    console.log('Stopping all animations');
-    
-    // 停止所有chunk动画
-    for (const chunkId of chunkAnimations.keys()) {
-        stopChunkAnimation(chunkId);
-    }
-    
-    // 重置全局状态
-    isCurrentlySpeaking = false;
-    currentChunkIndex = -1;
-    
-    // 重置表情
-    if (currentVrm && currentVrm.expressionManager) {
-        currentVrm.expressionManager.resetValues();
-    }
-}
-
-// 更新旧的stopLipSync函数以兼容
-function stopLipSync() {
-    stopAllAnimations();
-}
-
-// 准备说话动画
-function prepareSpeechAnimation(data) {
-    // 可以在这里做一些准备工作，比如调整表情等
-    if (currentVrm && currentVrm.expressionManager) {
-        // 重置表情
-        currentVrm.expressionManager.setValue('aa', 0);
-        currentVrm.expressionManager.setValue('ih', 0);
-        currentVrm.expressionManager.setValue('ou', 0);
-        currentVrm.expressionManager.setValue('ee', 0);
-        currentVrm.expressionManager.setValue('oh', 0);
-        currentVrm.expressionManager.resetValue('neutral', 1);
-    }
-}
-
-// 口型动画循环
-function startMouthAnimation() {
-    console.log('startMouthAnimation called');
-    
-    if (!isCurrentlySpeaking || !currentVrm || !currentAnalyser) {
-        console.log('Animation conditions not met:', {
-            isCurrentlySpeaking,
-            hasVrm: !!currentVrm,
-            hasAnalyser: !!currentAnalyser
-        });
-        return;
-    }
-    
-    const dataArray = new Uint8Array(currentAnalyser.frequencyBinCount);
-    let frameCount = 0;
-    
-    function animateMouth() {
-        if (!isCurrentlySpeaking) {
-            console.log('Stopping animation - not speaking');
-            return;
-        }
-        
-        frameCount++;
-        
-        // 获取音频频率数据
-        currentAnalyser.getByteFrequencyData(dataArray);
-        
-        // 计算音频强度
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
-        }
-        const average = sum / dataArray.length;
-        
-        // 每30帧打印一次调试信息
-        if (frameCount % 30 === 0) {
-            console.log('Audio analysis:', {
-                average,
-                maxValue: Math.max(...dataArray),
-                dataArrayLength: dataArray.length,
-                hasExpressionManager: !!currentVrm.expressionManager
-            });
-        }
-        
-        // 简化的口型控制 - 先测试基本功能
-        const intensity = Math.min(average / 50, 1.0); // 降低阈值，更容易触发
-        
-        if (currentVrm.expressionManager) {
-            if (intensity > 0.05) { // 降低触发阈值
-                // 简单的 aa 口型测试
-                const mouthOpen = intensity * 0.8;
-                currentVrm.expressionManager.setValue('aa', mouthOpen);
-                
-                if (frameCount % 30 === 0) {
-                    console.log('Setting mouth animation:', { intensity, mouthOpen });
-                }
-            } else {
-                // 静音时重置口型
-                currentVrm.expressionManager.setValue('aa', 0);
-            }
-        } else {
-            console.error('No expression manager found');
-        }
-        
-        lipSyncAnimationId = requestAnimationFrame(animateMouth);
-    }
-    
-    console.log('Starting mouth animation loop');
-    animateMouth();
 }
 
 // 在 Electron 环境中添加 WebSocket 控制按钮
@@ -1600,7 +1445,7 @@ if (isElectron) {
                     initTTSWebSocket();
                 }
             });
-            // 添加悬停效果 - 刷新按钮
+            // 添加悬停效果
             wsStatusButton.addEventListener('mouseenter', () => {
                 wsStatusButton.style.background = 'rgba(255,255,255,1)';
                 wsStatusButton.style.transform = 'scale(1.1)';
@@ -1639,6 +1484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initTTSWebSocket();
     }, 2000);
 });
+
 if (isElectron) {
   // 禁用 Chromium 的自动播放限制
   const disableAutoplayPolicy = () => {
@@ -1717,6 +1563,9 @@ async function switchToModel(index) {
             currentVrm = undefined;
         }
         
+        // 重置语音动画管理器
+        speechAnimationManager = null;
+        
         // 加载新模型
         const modelPath = selectedModel.path;
         
@@ -1765,6 +1614,10 @@ async function switchToModel(index) {
                 blinkAction = currentMixer.clipAction(blinkClip);
                 blinkAction.setLoop(THREE.LoopRepeat);
                 blinkAction.play();
+
+                // 创建语音动画管理器
+                speechAnimationManager = new SpeechAnimationManager(vrm, currentMixer);
+                
                 // 隐藏加载提示
                 hideModelSwitchingIndicator();
                 
