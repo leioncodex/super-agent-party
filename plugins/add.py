@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-def register(register_tool):
+def register(register):
     schema = {
         "type": "object",
         "properties": {
@@ -14,7 +14,7 @@ def register(register_tool):
     def handler(a: float, b: float):
         return a + b
 
-    register_tool(
+    register(
         name="add",
         description="Add two numbers together",
         schema=schema,

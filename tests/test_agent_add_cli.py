@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 import importlib.util
 
-from py.tool_registry import get_tool, clear_registry
+from py.tool_registry import get_tool, call_tool, clear_registry
 
 root = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("agent", root / "agent.py")
@@ -20,9 +20,9 @@ def test_agent_add_clones_and_activates(tmp_path):
     plugin_repo.mkdir()
     (plugin_repo / "__init__.py").write_text(
         "def setup(register):\n"
-        "    schema = {\"type\": \"object\", \"required\": [\"y\"]}\n"
-        "    def handler(p):\n"
-        "        return p['y'] * 3\n"
+        "    schema = {\"type\": \"object\", \"properties\":{\"y\":{\"type\":\"number\"}}, \"required\": [\"y\"]}\n"
+        "    def handler(y):\n"
+        "        return y * 3\n"
         "    register('triple', 'triple numbers', schema, handler)\n"
     )
     subprocess.run(["git", "init"], cwd=plugin_repo, check=True, stdout=subprocess.PIPE)
@@ -34,7 +34,7 @@ def test_agent_add_clones_and_activates(tmp_path):
     agent.add(str(plugin_repo), plugins_dir=str(tmp_path / "plugins"))
     tool = get_tool("triple")
     assert tool is not None
-    assert tool["handler"]({"y": 2}) == 6
+    assert call_tool("triple", {"y": 2}) == 6
     assert (tmp_path / "plugins" / plugin_repo.name).exists()
 
 
