@@ -189,6 +189,7 @@ build.bat
 test*
 !tests/
 !tests/test_comfyui.py
+!tests/**
 wxauto*
 # Orchestrator logs
 src/logs/*.json
