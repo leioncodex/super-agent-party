@@ -32,6 +32,15 @@
 
         <body>
                 <canvas id="vrm-canvas"></canvas>
+                <script>
+                        const canvas = document.getElementById('vrm-canvas');
+                        function resizeCanvas() {
+                                canvas.width = window.innerWidth;
+                                canvas.height = window.innerHeight;
+                        }
+                        window.addEventListener('resize', resizeCanvas);
+                        resizeCanvas();
+                </script>
                 <script type="importmap">
                         {
                                 "imports": {
