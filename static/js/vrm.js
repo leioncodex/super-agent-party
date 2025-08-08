@@ -5,7 +5,11 @@ import { VRMLoaderPlugin, MToonMaterialLoaderPlugin, VRMUtils, VRMLookAt } from 
 import { MToonNodeMaterial } from '@pixiv/three-vrm/nodes';
 
 let isVRM1 = true;
-
+let currentMixer = null;
+let idleAction = null;
+let breathAction = null;
+let blinkAction = null;
+let currentSpeechActions = new Map(); // 存储口型动画actions
 // renderer
 // 检测运行环境
 const isElectron = typeof require !== 'undefined' || navigator.userAgent.includes('Electron');
@@ -219,6 +223,7 @@ loader.load(
     ( gltf ) => {
 
         const vrm = gltf.userData.vrm;
+        currentMixer = new THREE.AnimationMixer(vrm.scene); // 创建动画混合器
         isVRM1 = vrm.meta.metaVersion === '1';
         VRMUtils.rotateVRM0(vrm); // 旋转 VRM 使其面向正前方
         // calling these functions greatly improves the performance
@@ -247,6 +252,22 @@ loader.load(
 
         // 设置自然姿势
         setNaturalPose(vrm);
+
+        // 创建并播放所有基础动画
+        const idleClip = createIdleClip(vrm);
+        idleAction = currentMixer.clipAction(idleClip);
+        idleAction.setLoop(THREE.LoopRepeat);
+        idleAction.play();
+
+        const breathClip = createBreathClip(vrm);
+        breathAction = currentMixer.clipAction(breathClip);
+        breathAction.setLoop(THREE.LoopRepeat);
+        breathAction.play();
+
+        const blinkClip = createBlinkClip(vrm);
+        blinkAction = currentMixer.clipAction(blinkClip);
+        blinkAction.setLoop(THREE.LoopRepeat);
+        blinkAction.play();
         hideModelSwitchingIndicator();
     },
 
@@ -507,157 +528,317 @@ function getRandomBlinkData() {
     return { interval, pattern };
 }
 
-// 闲置动作函数
-function applyIdleAnimation(vrm, time) {
-    if (!vrm.humanoid) return;
-    let v = 1;
-    if (!isVRM1){
-        v = -1;
-    }
-    // 身体轻微摆动 - 慢速，小幅度
-    const bodySwayX = Math.sin(time * 0.3 + idleOffsets.body) * 0.02;
-    const bodySwayZ = Math.cos(time * 0.25 + idleOffsets.body) * 0.015;
+// 生成闲置动画 clip - 改进版
+function createIdleClip(vrm) {
+    const tracks = [];
+    const fps = 30;
+    const duration = 600;
+    const frameCount = duration * fps;
     
-    // 脊椎轻微摆动
-    const spine = vrm.humanoid.getNormalizedBoneNode('spine');
-    if (spine) {
-        spine.rotation.x = bodySwayX;
-        spine.rotation.z = bodySwayZ;
+    // 生成时间数组
+    const times = [];
+    for (let i = 0; i <= frameCount; i++) {
+        times.push(i / fps);
     }
+    
+    // VRM版本检测
+    const v = (vrm.meta.metaVersion === '1') ? 1 : -1;
+    
+    // 需要动画的骨骼列表
+    const animatedBones = [
+        'spine', 'chest', 'neck', 'head',
+        'leftUpperArm', 'leftLowerArm', 'leftHand', 'leftShoulder',
+        'rightUpperArm', 'rightLowerArm', 'rightHand', 'rightShoulder'
+    ];
+    
+    animatedBones.forEach(boneName => {
+        const bone = vrm.humanoid.getNormalizedBoneNode(boneName);
+        if (!bone) return;
+        
+        const values = [];
+        
+        // 为每个时间点计算旋转值
+        times.forEach(time => {
+            let euler = new THREE.Euler(0, 0, 0);
+            
+            // 使用周期性函数，确保在 t=0 和 t=duration 时值相同
+            // 将所有频率调整为 duration 的倍数，确保完美循环
+            const cycleTime = (time / duration) * 80 * Math.PI; // 0 到 2π
+            
+            switch (boneName) {
+                case 'spine':
+                    // 使用更平滑的周期函数
+                    euler.set(
+                        Math.sin(cycleTime * 0.6 + idleOffsets.body) * 0.02,     
+                        0,                                                    
+                        Math.cos(cycleTime * 0.5 + idleOffsets.body) * 0.015    
+                    );
+                    break;
+                    
+                case 'chest':
+                    euler.set(
+                        Math.sin(cycleTime * 0.6 + idleOffsets.body) * 0.01,     
+                        0,                                                    
+                        Math.cos(cycleTime * 0.5 + idleOffsets.body) * 0.0075   
+                    );
+                    break;
+                    
+                case 'neck':
+                    euler.set(
+                        Math.cos(cycleTime * 1.2 + idleOffsets.head) * 0.01,     
+                        Math.sin(cycleTime * 1.4 + idleOffsets.head) * 0.02,     
+                        0                                                     
+                    );
+                    break;
+                    
+                case 'head':
+                    euler.set(
+                        Math.sin(cycleTime * 1.0 + idleOffsets.head) * 0.02,     
+                        Math.sin(cycleTime * 1.4 + idleOffsets.head) * 0.03,     
+                        Math.cos(cycleTime * 0.8 + idleOffsets.head) * 0.01      
+                    );
+                    break;
+                    
+                case 'leftUpperArm':
+                    euler.set(
+                        Math.cos(cycleTime * 0.7 + idleOffsets.leftArm) * 0.03, 
+                        Math.sin(cycleTime * 0.6 + idleOffsets.leftArm) * 0.02,  
+                        -0.43 * Math.PI * v + Math.sin(cycleTime * 1.5 + idleOffsets.leftArm) * 0.03 - 0.01 
+                    );
+                    break;
+                    
+                case 'leftLowerArm':
+                    euler.set(
+                        0,                                                   
+                        0,                                                   
+                        -Math.sin(cycleTime * 1.5 + idleOffsets.leftArm) * 0.02 
+                    );
+                    break;
+                    
+                case 'leftHand':
+                    euler.set(
+                        0.05,                                                
+                        0,                                                   
+                        0.1 * v + Math.sin(cycleTime * 1.2 + idleOffsets.leftArm) * 0.015 
+                    );
+                    break;
+                    
+                case 'leftShoulder':
+                    euler.set(
+                        0,                                                   
+                        0,                                                   
+                        Math.sin(cycleTime * 0.7 + idleOffsets.leftArm) * 0.02 
+                    );
+                    break;
+                    
+                case 'rightUpperArm':
+                    euler.set(
+                        Math.cos(cycleTime * 0.8 + idleOffsets.rightArm) * 0.03,  
+                        Math.sin(cycleTime * 0.64 + idleOffsets.rightArm) * 0.02, 
+                        0.43 * Math.PI * v + Math.sin(cycleTime * 1.5 + idleOffsets.rightArm) * 0.03 
+                    );
+                    break;
+                    
+                case 'rightLowerArm':
+                    euler.set(
+                        0,                                                    
+                        0,                                                    
+                        -Math.sin(cycleTime * 1.5 + idleOffsets.rightArm) * 0.02 
+                    );
+                    break;
+                    
+                case 'rightHand':
+                    euler.set(
+                        0.05,                                                 
+                        0,                                                    
+                        -0.1 * v - Math.sin(cycleTime * 1.2 + idleOffsets.rightArm) * 0.015 
+                    );
+                    break;
+                    
+                case 'rightShoulder':
+                    euler.set(
+                        0,                                                    
+                        0,                                                    
+                        Math.sin(cycleTime * 0.8 + idleOffsets.rightArm) * 0.02  
+                    );
+                    break;
+                    
+                default:
+                    euler.set(0, 0, 0);
+                    break;
+            }
+            
+            // 将欧拉角转换为四元数并添加到值数组
+            const quaternion = new THREE.Quaternion();
+            quaternion.setFromEuler(euler);
+            values.push(...quaternion.toArray());
+        });
+        
+        // 创建四元数关键帧轨道
+        const track = new THREE.QuaternionKeyframeTrack(
+            bone.name + '.quaternion',
+            times,
+            values
+        );
+        
+        tracks.push(track);
+    });
+    
+    // 创建并返回动画剪辑
+    return new THREE.AnimationClip('idle', duration, tracks);
+}
 
-    // 胸部轻微摆动
-    const chest = vrm.humanoid.getNormalizedBoneNode('chest');
-    if (chest) {
-        chest.rotation.x = bodySwayX * 0.5;
-        chest.rotation.z = bodySwayZ * 0.5;
+function createBreathClip(vrm) {
+    const tracks = [];
+    const duration = 4; // 4秒一个呼吸周期
+    const fps = 30;
+    const frameCount = duration * fps;
+    
+    const times = [];
+    for (let i = 0; i <= frameCount; i++) {
+        times.push(i / fps);
     }
+    
+    // 呼吸缩放动画
+    const scaleValues = [];
+    times.forEach(time => {
+        const breathScale = 1 + Math.sin(time * Math.PI / 2) * 0.003; // 更自然的呼吸节奏
+        scaleValues.push(breathScale, breathScale, breathScale);
+    });
+    
+    const scaleTrack = new THREE.VectorKeyframeTrack(
+        vrm.scene.name + '.scale',
+        times,
+        scaleValues
+    );
+    
+    tracks.push(scaleTrack);
+    return new THREE.AnimationClip('breath', duration, tracks);
+}
 
-    // 左臂自然摆动
-    const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
-    const leftLowerArm = vrm.humanoid.getNormalizedBoneNode('leftLowerArm');
-    if (leftUpperArm) {
-        // 保持基本姿势，添加轻微摆动
-        leftUpperArm.rotation.z = -0.43 * Math.PI * v + Math.sin(time * 0.75 + idleOffsets.leftArm) * 0.03 - 0.01;
-        leftUpperArm.rotation.x = Math.cos(time * 0.35 + idleOffsets.leftArm) * 0.03;
-        leftUpperArm.rotation.y = Math.sin(time * 0.3 + idleOffsets.leftArm) * 0.02;
+function createBlinkClip(vrm) {
+    if (!vrm.expressionManager) return null;
+    
+    const tracks = [];
+    const duration = 6; // 6秒周期，包含随机间隔
+    const fps = 30;
+    const frameCount = duration * fps;
+    
+    const times = [];
+    for (let i = 0; i <= frameCount; i++) {
+        times.push(i / fps);
     }
-    if (leftLowerArm) {
-        leftLowerArm.rotation.z = - Math.sin(time * 0.75 + idleOffsets.leftArm) * 0.02;
-    }
+    
+    // 创建眨眼模式：在随机时间点眨眼
+    const blinkValues = [];
+    times.forEach(time => {
+        let blinkValue = 0;
+        
+        // 在第1.5秒单次眨眼
+        if (time >= 1.4 && time <= 1.6) {
+            const progress = (time - 1.4) / 0.2;
+            blinkValue = Math.sin(progress * Math.PI);
+        }
+        // 在第4秒双次眨眼
+        else if (time >= 3.8 && time <= 4.4) {
+            const localTime = time - 3.8;
+            if (localTime < 0.15) {
+                blinkValue = Math.sin((localTime / 0.15) * Math.PI);
+            } else if (localTime > 0.25 && localTime < 0.4) {
+                blinkValue = Math.sin(((localTime - 0.25) / 0.15) * Math.PI);
+            }
+        }
+        
+        blinkValues.push(blinkValue);
+    });
+    
+    const blinkTrack = new THREE.NumberKeyframeTrack(
+        vrm.expressionManager.getExpressionTrackName('blink'),
+        times,
+        blinkValues
+    );
+    
+    tracks.push(blinkTrack);
+    return new THREE.AnimationClip('blink', duration, tracks);
+}
 
-    // 右臂自然摆动
-    const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-    const rightLowerArm = vrm.humanoid.getNormalizedBoneNode('rightLowerArm');
-    if (rightUpperArm) {
-        // 保持基本姿势，添加轻微摆动
-        rightUpperArm.rotation.z = 0.43 * Math.PI * v + Math.sin(time * 0.75 + idleOffsets.rightArm) * 0.03;
-        rightUpperArm.rotation.x = Math.cos(time * 0.4 + idleOffsets.rightArm) * 0.03;
-        rightUpperArm.rotation.y = Math.sin(time * 0.32 + idleOffsets.rightArm) * 0.02;
+function createSpeechClip(vrm, audioData, expressions = []) {
+    if (!vrm.expressionManager) return null;
+    
+    const tracks = [];
+    const duration = audioData.duration || 2; // 音频时长
+    const fps = 30;
+    const frameCount = duration * fps;
+    
+    const times = [];
+    for (let i = 0; i <= frameCount; i++) {
+        times.push(i / fps);
     }
-    if (rightLowerArm) {
-        rightLowerArm.rotation.z = - Math.sin(time * 0.75 + idleOffsets.rightArm) * 0.02;
+    
+    // 口型动画（基于音频强度的模拟）
+    const mouthValues = [];
+    times.forEach(time => {
+        // 这里需要根据实际音频数据来计算，暂时用模拟数据
+        const intensity = Math.sin(time * 10) * 0.5 + 0.5; // 模拟音频强度
+        const mouthOpen = intensity > 0.1 ? Math.min(intensity * 0.8, 0.5) : 0;
+        mouthValues.push(mouthOpen);
+    });
+    
+    const mouthTrack = new THREE.NumberKeyframeTrack(
+        vrm.expressionManager.getExpressionTrackName('aa'),
+        times,
+        mouthValues
+    );
+    tracks.push(mouthTrack);
+    
+    // 处理表情
+    if (expressions.length > 0) {
+        const expression = expressions[0].replace(/<|>/g, '');
+        const expressionValues = [];
+        
+        times.forEach(time => {
+            let value = 0;
+            if (expression === 'surprised') {
+                // 前2秒显示惊讶表情
+                value = time < 2 ? 1.0 : 0.0;
+            } else if (['blink', 'blinkLeft', 'blinkRight'].includes(expression)) {
+                // 眨眼动画
+                if (time < 1) {
+                    value = time; // 第一秒闭眼
+                } else if (time < 2) {
+                    value = 2 - time; // 第二秒睁眼
+                }
+            } else {
+                // 其他表情持续显示
+                value = 1.0;
+            }
+            expressionValues.push(value);
+        });
+        
+        const expressionTrack = new THREE.NumberKeyframeTrack(
+            vrm.expressionManager.getExpressionTrackName(expression),
+            times,
+            expressionValues
+        );
+        tracks.push(expressionTrack);
     }
-
-    const leftHand = vrm.humanoid.getNormalizedBoneNode('leftHand');
-    if (leftHand) {
-        leftHand.rotation.z = 0.1 * v + Math.sin(time * 0.6 + idleOffsets.leftArm) * 0.015; // 手腕自然弯曲
-        leftHand.rotation.x = 0.05;
-    }
-    const rightHand = vrm.humanoid.getNormalizedBoneNode('rightHand');
-    if (rightHand) {
-        rightHand.rotation.z = -0.1 * v - Math.sin(time * 0.6 + idleOffsets.rightArm) * 0.015; // 手腕自然弯曲
-        rightHand.rotation.x = 0.05;
-    }
-
-    // 头部轻微摆动 - 比原来更细腻
-    const headBone = vrm.humanoid.getNormalizedBoneNode('head');
-    if (headBone) {
-        headBone.rotation.y = Math.sin(time * 0.7 + idleOffsets.head) * 0.03;
-        headBone.rotation.x = Math.sin(time * 0.5 + idleOffsets.head) * 0.02;
-        headBone.rotation.z = Math.cos(time * 0.4 + idleOffsets.head) * 0.01;
-    }
-
-    // 肩膀轻微摆动
-    const leftShoulder = vrm.humanoid.getNormalizedBoneNode('leftShoulder');
-    const rightShoulder = vrm.humanoid.getNormalizedBoneNode('rightShoulder');
-    if (leftShoulder) {
-        leftShoulder.rotation.z = Math.sin(time * 0.35 + idleOffsets.leftArm) * 0.02;
-    }
-    if (rightShoulder) {
-        rightShoulder.rotation.z = Math.sin(time * 0.4 + idleOffsets.rightArm) * 0.02;
-    }
-
-    // 颈部轻微摆动
-    const neck = vrm.humanoid.getNormalizedBoneNode('neck');
-    if (neck) {
-        neck.rotation.y = Math.sin(time * 0.7 + idleOffsets.head) * 0.02;
-        neck.rotation.x = Math.cos(time * 0.6 + idleOffsets.head) * 0.01;
-    }
+    
+    return new THREE.AnimationClip('speech', duration, tracks);
 }
 
 // 在animate函数中替换原来的眨眼动画代码
 function animate() {
     requestAnimationFrame(animate);
     
-    const time = clock.getElapsedTime();
     const deltaTime = clock.getDelta();
     
     if (currentVrm) {
-        // 简单的呼吸动画 - 更自然的呼吸节奏
-        const breathScale = 1 + Math.sin(time * 1.5) * 0.003;
-        currentVrm.scene.scale.setScalar(breathScale);
-        
-        // 应用闲置动作
-        applyIdleAnimation(currentVrm, time);
-        
-        // 高级随机眨眼动画
-        if (currentVrm.expressionManager) {
-            if (!isBlinking && time >= nextBlinkTime) {
-                // 开始眨眼
-                isBlinking = true;
-                blinkStartTime = time;
-                const blinkData = getRandomBlinkData();
-                nextBlinkTime = time + blinkData.interval;
-                blinkPattern = blinkData.pattern;
-            }
-            
-            if (isBlinking) {
-                const blinkElapsed = time - blinkStartTime;
-                const duration = blinkPattern === 0 ? singleBlinkDuration : doubleBlinkDuration;
-                
-                if (blinkElapsed < duration) {
-                    let blinkValue = 0;
-                    
-                    if (blinkPattern === 0) {
-                        // 单次眨眼
-                        const progress = blinkElapsed / duration;
-                        blinkValue = Math.sin(progress * Math.PI);
-                    } else {
-                        // 双次眨眼
-                        const progress = blinkElapsed / duration;
-                        if (progress < 0.4) {
-                            // 第一次眨眼
-                            blinkValue = Math.sin((progress / 0.4) * Math.PI);
-                        } else if (progress < 0.6) {
-                            // 间隔
-                            blinkValue = 0;
-                        } else {
-                            // 第二次眨眼
-                            blinkValue = Math.sin(((progress - 0.6) / 0.4) * Math.PI);
-                        }
-                    }
-                    
-                    currentVrm.expressionManager.setValue('blink', blinkValue);
-                } else {
-                    // 眨眼结束
-                    isBlinking = false;
-                    currentVrm.expressionManager.setValue('blink', 0.0);
-                }
-            }
-        }
-        
-        // 更新VRM，包括lookAt动画
+        // 只需要更新 VRM 和 Mixer
         currentVrm.update(deltaTime);
+    }
+    
+    if (currentMixer) {
+        currentMixer.update(deltaTime);
     }
     
     renderer.renderAsync(scene, camera);
@@ -1068,124 +1249,61 @@ function handleTTSMessage(message) {
     }
 }
 
-// 新的chunk动画管理函数
+// 修改 startLipSyncForChunk 函数
 async function startLipSyncForChunk(data) {
     const chunkId = data.chunkIndex;
     
-    // 如果这个chunk已经在播放，先停止它
-    if (chunkAnimations.has(chunkId)) {
-        stopChunkAnimation(chunkId);
-    }
-    
-    console.log(`Starting lip sync for chunk ${chunkId}`);
-    
-    if (!currentVrm || !currentVrm.expressionManager) {
-        console.error('VRM or expression manager not available');
+    if (!currentVrm || !currentVrm.expressionManager || !currentMixer) {
+        console.error('VRM, expression manager, or mixer not available');
         return;
     }
     
     try {
-        // 创建这个chunk的动画状态
-        const chunkState = {
-            isPlaying: true,
-            animationId: null,
-            audio: null,
-            audioSource: null,
-            analyser: null,
-            expression: null,
-        };
-        
-        chunkAnimations.set(chunkId, chunkState);
-        
-        // 创建音频上下文（如果需要）
-        if (!currentAudioContext) {
-            currentAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // 停止之前的语音动画（如果有）
+        if (currentSpeechActions.has(chunkId)) {
+            const oldAction = currentSpeechActions.get(chunkId);
+            oldAction.stop();
+            currentSpeechActions.delete(chunkId);
         }
         
-        if (currentAudioContext.state === 'suspended') {
-            await currentAudioContext.resume();
-        }
-        // 使用面部表情
-        let exp = data.expressions || [];
-        if(exp.length > 0){ 
-            let cur_exp = exp[0];
-            // 移除cur_exp中的<>符号
-            cur_exp = cur_exp.replace(/<|>/g, '');
-            console.log(`Setting expression to ${cur_exp}`);
-            currentVrm.expressionManager.resetValues();
-            chunkState.expression = cur_exp;
-        }
-        console.log(data.expressions);
-        // 使用 Base64 数据创建音频
-        const audio = new Audio();
-        audio.crossOrigin = 'anonymous';
-        audio.src = data.audioDataUrl; // 使用 Base64 数据 URL
-        audio.volume = 0.01;
-        chunkState.audio = audio;
-        console.log(`Loading audio for chunk ${chunkId}:`, data.audioUrl);
+        // 创建语音动画剪辑
+        const speechClip = createSpeechClip(currentVrm, {
+            duration: data.duration || 2
+        }, data.expressions);
         
-        // 等待音频加载
-        await new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error(`Audio loading timeout for chunk ${chunkId}`));
-            }, 5000);
+        if (speechClip) {
+            const speechAction = currentMixer.clipAction(speechClip);
+            speechAction.setLoop(THREE.LoopOnce);
+            speechAction.clampWhenFinished = true;
             
-            audio.addEventListener('canplaythrough', () => {
-                clearTimeout(timeout);
-                console.log(`Audio loaded for chunk ${chunkId}, duration:`, audio.duration);
-                resolve();
-            });
+            // 设置权重和淡入
+            speechAction.setEffectiveWeight(1.0);
+            speechAction.fadeIn(0.1);
+            speechAction.play();
             
-            audio.addEventListener('error', (e) => {
-                clearTimeout(timeout);
-                console.error(`Audio loading error for chunk ${chunkId}:`, e);
-                reject(e);
-            });
+            currentSpeechActions.set(chunkId, speechAction);
             
-            audio.load();
-        });
-        
-        // 检查chunk是否还应该播放（可能在加载期间被取消了）
-        if (!chunkAnimations.has(chunkId) || !chunkAnimations.get(chunkId).isPlaying) {
-            console.log(`Chunk ${chunkId} was cancelled during loading`);
-            return;
+            // 监听动画结束
+            const mixer = currentMixer;
+            const onFinished = () => {
+                speechAction.fadeOut(0.2);
+                setTimeout(() => {
+                    if (currentSpeechActions.has(chunkId)) {
+                        currentSpeechActions.delete(chunkId);
+                    }
+                }, 200);
+                mixer.removeEventListener('finished', onFinished);
+            };
+            mixer.addEventListener('finished', onFinished);
         }
         
-        // 创建分析器
-        const analyser = currentAudioContext.createAnalyser();
-        analyser.fftSize = 512;
-        analyser.smoothingTimeConstant = 0.3;
-        analyser.minDecibels = -90;
-        analyser.maxDecibels = -10;
-        chunkState.analyser = analyser;
-        
-        // 连接音频源
-        const audioSource = currentAudioContext.createMediaElementSource(audio);
-        audioSource.connect(analyser);
-        chunkState.audioSource = audioSource;
-        
-        console.log(`Starting playback for chunk ${chunkId}`);
-        
-        // 开始播放
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-            await playPromise;
+        // 字幕处理
+        if (data.text) {
+            updateSubtitle(data.text, data.chunkIndex);
         }
-        
-        // 开始动画
-        startChunkAnimation(chunkId, chunkState);
-        
-        // 监听音频结束
-        audio.addEventListener('ended', () => {
-            console.log(`Audio ended for chunk ${chunkId}`);
-            setTimeout(() => {
-                stopChunkAnimation(chunkId);
-            }, 100);
-        });
         
     } catch (error) {
         console.error(`Error starting lip sync for chunk ${chunkId}:`, error);
-        stopChunkAnimation(chunkId);
     }
 }
 
@@ -1613,6 +1731,7 @@ async function switchToModel(index) {
             modelPath,
             (gltf) => {
                 const vrm = gltf.userData.vrm;
+                currentMixer = new THREE.AnimationMixer(vrm.scene); // 创建动画混合器
                 isVRM1 = vrm.meta.metaVersion === '1';
                 VRMUtils.rotateVRM0(vrm); // 旋转 VRM 使其面向正前方
                 // 优化性能
@@ -1637,7 +1756,22 @@ async function switchToModel(index) {
                 
                 // 设置自然姿势
                 setNaturalPose(vrm);
-                
+
+                // 创建并播放所有基础动画
+                const idleClip = createIdleClip(vrm);
+                idleAction = currentMixer.clipAction(idleClip);
+                idleAction.setLoop(THREE.LoopRepeat);
+                idleAction.play();
+
+                const breathClip = createBreathClip(vrm);
+                breathAction = currentMixer.clipAction(breathClip);
+                breathAction.setLoop(THREE.LoopRepeat);
+                breathAction.play();
+
+                const blinkClip = createBlinkClip(vrm);
+                blinkAction = currentMixer.clipAction(blinkClip);
+                blinkAction.setLoop(THREE.LoopRepeat);
+                blinkAction.play();
                 // 隐藏加载提示
                 hideModelSwitchingIndicator();
                 
