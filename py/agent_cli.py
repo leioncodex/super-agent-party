@@ -3,7 +3,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from .plugin_registry import load_plugins
+from .tool_registry import load_plugins
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 PLUGINS_DIR = BASE_DIR / "plugins"

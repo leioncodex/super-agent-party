@@ -39,4 +39,4 @@ const { reloadRegistry } = require('./src/tools/registry');
 reloadRegistry();
 
 // reload python registry
-spawnSync('python', ['-c', 'from py.agent_tool import reload_registry; reload_registry()'], { stdio: 'inherit' });
+spawnSync('python', ['-c', 'from py.tool_registry import reload_plugins; reload_plugins()'], { stdio: 'inherit' });

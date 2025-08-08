@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-def register(register_tool):
+def register(register):
     schema = {
         "type": "object",
         "properties": {
@@ -13,7 +13,7 @@ def register(register_tool):
     def handler(message: str):
         return message
 
-    register_tool(
+    register(
         name="echo",
         description="Return the provided message",
         schema=schema,
