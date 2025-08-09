@@ -1,8 +1,7 @@
-import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { VRMLoaderPlugin, MToonMaterialLoaderPlugin, VRMUtils, VRMLookAt } from '@pixiv/three-vrm';
-import { MToonNodeMaterial } from '@pixiv/three-vrm/nodes';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { createVRMAnimationClip, VRMAnimationLoaderPlugin } from '@pixiv/three-vrm-animation';
 let isVRM1 = true;
 let currentMixer = null;
@@ -21,14 +20,7 @@ const isElectron = typeof require !== 'undefined' || navigator.userAgent.include
 document.body.classList.add(isElectron ? 'electron' : 'web');
 
 // 优化渲染器设置
-const renderer = new THREE.WebGPURenderer({
-    alpha: true,
-    premultipliedAlpha: true,
-    antialias: true,  // 添加抗锯齿
-    powerPreference: "high-performance",  // 使用高性能GPU
-    forceWebGL: false  // 确保使用WebGPU
-});
-
+const renderer = new THREE.WebGLRenderer();
 // 添加性能优化设置
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制像素比例
@@ -145,16 +137,9 @@ const loader = new GLTFLoader();
 loader.crossOrigin = 'anonymous';
 
 loader.register( ( parser ) => {
-    // 创建 WebGPU 兼容的 MToonMaterialLoaderPlugin
-    const mtoonMaterialPlugin = new MToonMaterialLoaderPlugin( parser, {
-        materialType: MToonNodeMaterial,
-    } );
 
-    return new VRMLoaderPlugin( parser, {
-        mtoonMaterialPlugin,
-        // 确保启用所有功能
-        autoUpdateHumanBones: true,
-    } );
+    return new VRMLoaderPlugin( parser );
+
 } );
 
 loader.register( ( parser ) => {
@@ -235,8 +220,11 @@ let idleAnimationAction = null;
 let isLoadingAnimations = false;
 let idleAnimationManager = null; // 新的闲置动画管理器
 let defaultPoseAction = null; // 默认姿势动作
+let useVRMAIdleAnimations = false;
+let isIdleAnimationModeChanging = false; // 防止重复切换
 
-// 闲置动画管理器类 - 完全独立版本
+
+// 闲置动画管理器类 - 完整版本
 class IdleAnimationManager {
     constructor(vrm, mixer) {
         this.vrm = vrm;
@@ -248,30 +236,44 @@ class IdleAnimationManager {
         this.animationQueue = [];
         this.currentIndex = 0;
         this.transitionDuration = 1.0;
-        this.pauseBetweenAnimations = 1.0;
-        this.idleWeight = 1.0; // 固定权重，不会改变
+        this.pauseBetweenAnimations = 2.0; // 动画间隔时间
+        this.idleWeight = 1.0; // 固定权重
+        this.isActive = false; // 是否激活状态
+        this.currentMode = 'none'; // 当前模式：'vrma', 'procedural', 'none'
         
         // 创建默认姿势动作
         this.createDefaultPoseAction();
         // 创建程序化闲置动画
         this.createProceduralIdleAction();
+        
+        console.log('IdleAnimationManager initialized');
     }
     
     // 创建默认姿势动作
     createDefaultPoseAction() {
-        const defaultPoseClip = this.createDefaultPoseClip();
-        this.defaultPoseAction = this.mixer.clipAction(defaultPoseClip);
-        this.defaultPoseAction.setLoop(THREE.LoopOnce);
-        this.defaultPoseAction.clampWhenFinished = true;
-        this.defaultPoseAction.setEffectiveWeight(0);
+        try {
+            const defaultPoseClip = this.createDefaultPoseClip();
+            this.defaultPoseAction = this.mixer.clipAction(defaultPoseClip);
+            this.defaultPoseAction.setLoop(THREE.LoopOnce);
+            this.defaultPoseAction.clampWhenFinished = true;
+            this.defaultPoseAction.setEffectiveWeight(0);
+            console.log('Default pose action created');
+        } catch (error) {
+            console.error('Error creating default pose action:', error);
+        }
     }
     
     // 创建程序化闲置动画
     createProceduralIdleAction() {
-        const idleClip = createIdleClip(this.vrm);
-        this.proceduralIdleAction = this.mixer.clipAction(idleClip);
-        this.proceduralIdleAction.setLoop(THREE.LoopRepeat);
-        this.proceduralIdleAction.setEffectiveWeight(0);
+        try {
+            const idleClip = createIdleClip(this.vrm);
+            this.proceduralIdleAction = this.mixer.clipAction(idleClip);
+            this.proceduralIdleAction.setLoop(THREE.LoopRepeat);
+            this.proceduralIdleAction.setEffectiveWeight(0);
+            console.log('Procedural idle action created');
+        } catch (error) {
+            console.error('Error creating procedural idle action:', error);
+        }
     }
     
     // 创建默认姿势的clip
@@ -348,8 +350,6 @@ class IdleAnimationManager {
                 euler.set(0.05, 0, -0.1 * v);
                 break;
             case 'leftShoulder':
-                euler.set(0, 0, 0);
-                break;
             case 'rightShoulder':
                 euler.set(0, 0, 0);
                 break;
@@ -406,59 +406,51 @@ class IdleAnimationManager {
     
     // 设置动画队列
     setAnimationQueue(animations) {
-        this.animationQueue = animations;
+        this.animationQueue = [...animations]; // 创建副本
         this.currentIndex = 0;
         console.log(`Idle animation queue set with ${animations.length} animations`);
     }
     
-    // 开始闲置动画循环
+    // 开始闲置动画循环（VRMA模式）
     startIdleLoop() {
         if (this.animationQueue.length === 0) {
-            console.warn('No idle animations available, using procedural animation');
-            this.startProceduralIdleOnly();
+            console.warn('No idle animations available, switching to procedural mode');
+            this.switchToProceduralMode();
             return;
         }
         
-        console.log('Starting idle animation loop');
-        this.playNextAnimation();
+        console.log('Starting VRMA idle animation loop');
+        this.currentMode = 'vrma';
+        this.isActive = true;
+        this.playNextVRMAAnimation();
     }
     
-    // 仅启动程序化闲置动画（备用方案）
-    startProceduralIdleOnly() {
-        if (this.proceduralIdleAction) {
-            this.proceduralIdleAction.setEffectiveWeight(this.idleWeight);
-            this.proceduralIdleAction.play();
-            console.log('Started procedural idle animation only');
-        }
-    }
-    
-    // 播放下一个动画
-    playNextAnimation() {
-        if (this.animationQueue.length === 0) {
-            this.startProceduralIdleOnly();
+    // 播放下一个VRMA动画
+    playNextVRMAAnimation() {
+        if (!this.isActive || this.currentMode !== 'vrma' || this.animationQueue.length === 0) {
             return;
         }
         
         // 如果正在过渡中，等待过渡完成
         if (this.isTransitioning) {
-            setTimeout(() => this.playNextAnimation(), 100);
+            setTimeout(() => this.playNextVRMAAnimation(), 100);
             return;
         }
         
         const animation = this.animationQueue[this.currentIndex];
-        console.log(`Playing idle animation: ${animation.name} (${this.currentIndex + 1}/${this.animationQueue.length})`);
+        console.log(`Playing VRMA animation: ${animation.name} (${this.currentIndex + 1}/${this.animationQueue.length})`);
         
-        this.playIdleAnimation(animation);
+        this.playVRMAAnimation(animation);
         
         // 更新索引（循环）
         this.currentIndex = (this.currentIndex + 1) % this.animationQueue.length;
     }
     
-    // 播放指定的闲置动画
-    playIdleAnimation(animationData) {
+    // 播放指定的VRMA动画
+    playVRMAAnimation(animationData) {
         if (!animationData || !animationData.animation) {
-            console.error('Invalid animation data');
-            this.scheduleNextAnimation();
+            console.error('Invalid VRMA animation data');
+            this.scheduleNextVRMAAnimation();
             return;
         }
         
@@ -466,21 +458,19 @@ class IdleAnimationManager {
             // 创建VRM动画剪辑
             const clip = createVRMAnimationClip(animationData.animation, this.vrm);
             if (!clip) {
-                console.error('Failed to create animation clip');
-                this.scheduleNextAnimation();
+                console.error('Failed to create VRMA animation clip');
+                this.scheduleNextVRMAAnimation();
                 return;
             }
             
             // 停止当前闲置动画（如果有）
-            if (this.currentIdleAction) {
-                this.currentIdleAction.fadeOut(this.transitionDuration * 0.5);
-            }
+            this.fadeOutCurrentActions();
             
             // 创建新的动作
             this.currentIdleAction = this.mixer.clipAction(clip);
             this.currentIdleAction.setLoop(THREE.LoopOnce);
             this.currentIdleAction.clampWhenFinished = true;
-            this.currentIdleAction.setEffectiveWeight(this.idleWeight); // 固定权重
+            this.currentIdleAction.setEffectiveWeight(this.idleWeight);
             
             // 淡入播放
             this.currentIdleAction.reset();
@@ -490,8 +480,8 @@ class IdleAnimationManager {
             // 监听动画结束事件
             const onFinished = (event) => {
                 if (event.action === this.currentIdleAction) {
-                    console.log(`Idle animation ${animationData.name} finished`);
-                    this.onAnimationFinished();
+                    console.log(`VRMA animation ${animationData.name} finished`);
+                    this.onVRMAAnimationFinished();
                     this.mixer.removeEventListener('finished', onFinished);
                 }
             };
@@ -499,14 +489,18 @@ class IdleAnimationManager {
             this.mixer.addEventListener('finished', onFinished);
             
         } catch (error) {
-            console.error(`Error playing idle animation ${animationData.name}:`, error);
-            this.scheduleNextAnimation();
+            console.error(`Error playing VRMA animation ${animationData.name}:`, error);
+            this.scheduleNextVRMAAnimation();
         }
     }
     
-    // 动画结束后的处理
-    onAnimationFinished() {
-        console.log('Idle animation finished, transitioning to default pose');
+    // VRMA动画结束后的处理
+    onVRMAAnimationFinished() {
+        if (this.currentMode !== 'vrma' || !this.isActive) {
+            return;
+        }
+        
+        console.log('VRMA animation finished, transitioning to default pose');
         
         this.isTransitioning = true;
         
@@ -516,89 +510,279 @@ class IdleAnimationManager {
         }
         
         // 播放默认姿势过渡
-        this.defaultPoseAction.reset();
-        this.defaultPoseAction.setEffectiveWeight(this.idleWeight * 0.5); // 固定权重
-        this.defaultPoseAction.fadeIn(this.transitionDuration);
-        this.defaultPoseAction.play();
+        if (this.defaultPoseAction) {
+            this.defaultPoseAction.reset();
+            this.defaultPoseAction.setEffectiveWeight(this.idleWeight * 0.5);
+            this.defaultPoseAction.fadeIn(this.transitionDuration);
+            this.defaultPoseAction.play();
+        }
         
         // 在默认姿势播放一段时间后，开始下一个动画
         setTimeout(() => {
-            this.defaultPoseAction.fadeOut(this.transitionDuration * 0.5);
+            if (this.currentMode !== 'vrma' || !this.isActive) {
+                this.isTransitioning = false;
+                return;
+            }
+            
+            if (this.defaultPoseAction) {
+                this.defaultPoseAction.fadeOut(this.transitionDuration * 0.5);
+            }
             this.isTransitioning = false;
             
             // 延迟后播放下一个动画
             setTimeout(() => {
-                this.playNextAnimation();
+                if (this.currentMode === 'vrma' && this.isActive) {
+                    this.playNextVRMAAnimation();
+                }
             }, this.pauseBetweenAnimations * 1000);
             
         }, this.pauseBetweenAnimations * 1000);
     }
     
-    // 移除权重调整方法 - 闲置动画完全独立运行
-    // adjustWeight() 方法已删除
+    // 安排下一个VRMA动画（错误恢复用）
+    scheduleNextVRMAAnimation() {
+        if (this.currentMode === 'vrma' && this.isActive) {
+            setTimeout(() => {
+                this.playNextVRMAAnimation();
+            }, this.pauseBetweenAnimations * 1000);
+        }
+    }
     
-    // 停止所有闲置动画（仅在必要时使用，如模型切换）
-    stopAllIdle() {
-        console.log('Stopping all idle animations');
+    // 切换到VRMA动画模式
+    switchToVRMAMode() {
+        console.log('Switching to VRMA idle animations');
+        this.stopAllAnimations();
+        
+        if (this.animationQueue.length > 0) {
+            this.startIdleLoop();
+        } else {
+            console.warn('No VRMA animations available, falling back to procedural');
+            this.switchToProceduralMode();
+        }
+    }
+    
+    // 切换到程序化动画模式
+    switchToProceduralMode() {
+        console.log('Switching to procedural idle animation');
+        this.stopAllAnimations();
+        
+        this.currentMode = 'procedural';
+        this.isActive = true;
+        
+        if (this.proceduralIdleAction) {
+            this.proceduralIdleAction.reset();
+            this.proceduralIdleAction.setEffectiveWeight(this.idleWeight);
+            this.proceduralIdleAction.fadeIn(this.transitionDuration);
+            this.proceduralIdleAction.play();
+            console.log('Procedural idle animation started');
+        }
+    }
+    
+    // 淡出当前所有动作
+    fadeOutCurrentActions() {
+        const fadeTime = this.transitionDuration * 0.5;
         
         if (this.currentIdleAction) {
-            this.currentIdleAction.fadeOut(0.5);
-            this.currentIdleAction.stop();
-            this.currentIdleAction = null;
+            this.currentIdleAction.fadeOut(fadeTime);
+        }
+        
+        if (this.proceduralIdleAction && this.proceduralIdleAction.isRunning()) {
+            this.proceduralIdleAction.fadeOut(fadeTime);
+        }
+        
+        if (this.defaultPoseAction && this.defaultPoseAction.isRunning()) {
+            this.defaultPoseAction.fadeOut(fadeTime);
+        }
+    }
+    
+    // 停止所有动画
+    stopAllAnimations() {
+        console.log('Stopping all idle animations');
+        
+        this.isActive = false;
+        this.isTransitioning = false;
+        
+        const stopTime = 0.5;
+        
+        if (this.currentIdleAction) {
+            this.currentIdleAction.fadeOut(stopTime);
+            setTimeout(() => {
+                if (this.currentIdleAction) {
+                    this.currentIdleAction.stop();
+                    this.currentIdleAction = null;
+                }
+            }, stopTime * 1000);
         }
         
         if (this.proceduralIdleAction) {
-            this.proceduralIdleAction.fadeOut(0.5);
-            this.proceduralIdleAction.stop();
+            this.proceduralIdleAction.fadeOut(stopTime);
+            setTimeout(() => {
+                if (this.proceduralIdleAction) {
+                    this.proceduralIdleAction.stop();
+                }
+            }, stopTime * 1000);
         }
         
         if (this.defaultPoseAction) {
-            this.defaultPoseAction.fadeOut(0.5);
-            this.defaultPoseAction.stop();
+            this.defaultPoseAction.fadeOut(stopTime);
+            setTimeout(() => {
+                if (this.defaultPoseAction) {
+                    this.defaultPoseAction.stop();
+                }
+            }, stopTime * 1000);
         }
         
-        this.isTransitioning = false;
+        this.currentMode = 'none';
         console.log('All idle animations stopped');
     }
     
-    // 安排下一个动画（错误恢复用）
-    scheduleNextAnimation() {
-        setTimeout(() => {
-            this.playNextAnimation();
-        }, this.pauseBetweenAnimations * 1000);
+    // 获取当前模式
+    getCurrentMode() {
+        return this.currentMode;
+    }
+    
+    // 检查是否处于活跃状态
+    isActiveState() {
+        return this.isActive;
     }
     
     // 获取当前状态信息（调试用）
     getStatus() {
         return {
+            isActive: this.isActive,
+            currentMode: this.currentMode,
             isTransitioning: this.isTransitioning,
             hasCurrentIdleAction: !!this.currentIdleAction,
             hasProceduralIdleAction: !!this.proceduralIdleAction,
             animationQueueLength: this.animationQueue.length,
             currentIndex: this.currentIndex,
-            idleWeight: this.idleWeight // 显示固定权重
+            idleWeight: this.idleWeight
         };
     }
     
     // 强制重置到默认状态
     forceReset() {
         console.log('Force resetting idle animation manager');
-        this.stopAllIdle();
+        this.stopAllAnimations();
         
         // 重置状态
         this.isTransitioning = false;
         this.currentIndex = 0;
+        this.isActive = false;
+        this.currentMode = 'none';
         
         // 重新创建动作
         this.createDefaultPoseAction();
         this.createProceduralIdleAction();
         
         // 应用默认姿势
-        this.defaultPoseAction.reset();
-        this.defaultPoseAction.setEffectiveWeight(this.idleWeight);
-        this.defaultPoseAction.play();
+        if (this.defaultPoseAction) {
+            this.defaultPoseAction.reset();
+            this.defaultPoseAction.setEffectiveWeight(this.idleWeight);
+            this.defaultPoseAction.play();
+        }
         
         console.log('Idle animation manager reset complete');
+    }
+    
+    // 暂停所有动画（保持状态）
+    pause() {
+        console.log('Pausing idle animations');
+        this.isActive = false;
+        
+        if (this.currentIdleAction && this.currentIdleAction.isRunning()) {
+            this.currentIdleAction.paused = true;
+        }
+        
+        if (this.proceduralIdleAction && this.proceduralIdleAction.isRunning()) {
+            this.proceduralIdleAction.paused = true;
+        }
+    }
+    
+    // 恢复动画
+    resume() {
+        console.log('Resuming idle animations');
+        this.isActive = true;
+        
+        if (this.currentIdleAction && this.currentIdleAction.paused) {
+            this.currentIdleAction.paused = false;
+        }
+        
+        if (this.proceduralIdleAction && this.proceduralIdleAction.paused) {
+            this.proceduralIdleAction.paused = false;
+        }
+    }
+    
+    // 销毁管理器（清理资源）
+    dispose() {
+        console.log('Disposing idle animation manager');
+        this.stopAllAnimations();
+        
+        // 清理引用
+        this.vrm = null;
+        this.mixer = null;
+        this.currentIdleAction = null;
+        this.defaultPoseAction = null;
+        this.proceduralIdleAction = null;
+        this.animationQueue = [];
+        
+        console.log('Idle animation manager disposed');
+    }
+}
+
+// 切换闲置动画模式
+async function toggleIdleAnimationMode() {
+    if (isIdleAnimationModeChanging || !idleAnimationManager) {
+        return;
+    }
+    
+    isIdleAnimationModeChanging = true;
+    useVRMAIdleAnimations = !useVRMAIdleAnimations;
+    
+    console.log(`Switching idle animation mode to: ${useVRMAIdleAnimations ? 'VRMA' : 'Procedural'}`);
+    
+    try {
+        if (useVRMAIdleAnimations) {
+            // 切换到VRMA动画
+            if (idleAnimations.length === 0) {
+                console.log('Loading VRMA animations...');
+                await loadIdleAnimations();
+            }
+            
+            if (idleAnimationManager) {
+                idleAnimationManager.setAnimationQueue(idleAnimations);
+                idleAnimationManager.switchToVRMAMode();
+            }
+        } else {
+            // 切换到程序化动画
+            if (idleAnimationManager) {
+                idleAnimationManager.switchToProceduralMode();
+            }
+        }
+        
+        // 更新按钮状态
+        updateIdleAnimationButton();
+        
+    } catch (error) {
+        console.error('Error switching idle animation mode:', error);
+        // 发生错误时回滚状态
+        useVRMAIdleAnimations = !useVRMAIdleAnimations;
+    } finally {
+        isIdleAnimationModeChanging = false;
+    }
+}
+
+// 更新闲置动画按钮状态
+async function updateIdleAnimationButton() {
+    const button = document.getElementById('idle-animation-handle');
+    if (button) {
+        button.style.color = useVRMAIdleAnimations ?  '#ff6b35': '#28a745';
+        button.innerHTML = useVRMAIdleAnimations ? 
+            '<i class="fas fa-stop"></i>' : 
+            '<i class="fas fa-play"></i>';
+        button.title = useVRMAIdleAnimations ? 
+            await t('UsingVRMAAnimations') || 'Using VRMA Animations' : 
+            await t('UsingProceduralAnimations') || 'Using Procedural Animations';
     }
 }
 
@@ -686,22 +870,31 @@ async function loadIdleAnimations() {
     }
 }
 
-// 开始闲置动画循环 - 改进版
 async function startIdleAnimationLoop() {
-    if (idleAnimations.length === 0) {
-        await loadIdleAnimations();
+    if (!idleAnimationManager) {
+        console.error('Idle animation manager not available');
+        return;
     }
     
-    if (idleAnimations.length > 0) {
-        // 使用新的闲置动画管理器
-        if (idleAnimationManager) {
+    console.log(`Starting idle animation with mode: ${useVRMAIdleAnimations ? 'VRMA' : 'Procedural'}`);
+    
+    if (useVRMAIdleAnimations) {
+        // 使用VRMA动画
+        if (idleAnimations.length === 0) {
+            console.log('Loading VRMA animations...');
+            await loadIdleAnimations();
+        }
+        
+        if (idleAnimations.length > 0) {
             idleAnimationManager.setAnimationQueue(idleAnimations);
-            idleAnimationManager.startIdleLoop();
+            idleAnimationManager.switchToVRMAMode();
+        } else {
+            console.warn('No VRMA animations available, falling back to procedural');
+            idleAnimationManager.switchToProceduralMode();
         }
     } else {
-        console.warn('No idle animations available, using procedural animation');
-        // 回退到原始的程序化闲置动画
-        useProceduralIdleAnimation();
+        // 使用程序化动画
+        idleAnimationManager.switchToProceduralMode();
     }
 }
 
@@ -715,7 +908,7 @@ function useProceduralIdleAnimation() {
     idleAction.play();
 }
 
-// 生成闲置动画 clip - 改进版
+// 生成闲置动画 clip - 修复版本
 function createIdleClip(vrm) {
     const tracks = [];
     const fps = 30;
@@ -749,12 +942,10 @@ function createIdleClip(vrm) {
             let euler = new THREE.Euler(0, 0, 0);
             
             // 使用周期性函数，确保在 t=0 和 t=duration 时值相同
-            // 将所有频率调整为 duration 的倍数，确保完美循环
-            const cycleTime = (time / duration) * 80 * Math.PI; // 0 到 2π
+            const cycleTime = (time / duration) * 8 * Math.PI; // 0 到 2π
             
             switch (boneName) {
                 case 'spine':
-                    // 使用更平滑的周期函数
                     euler.set(
                         Math.sin(cycleTime * 0.6 + idleOffsets.body) * 0.02,     
                         0,                                                    
@@ -790,7 +981,7 @@ function createIdleClip(vrm) {
                     euler.set(
                         Math.cos(cycleTime * 0.7 + idleOffsets.leftArm) * 0.03, 
                         Math.sin(cycleTime * 0.6 + idleOffsets.leftArm) * 0.02,  
-                        -0.43 * Math.PI * v + Math.sin(cycleTime * 1.5 + idleOffsets.leftArm) * 0.03 - 0.01 
+                        -0.4 * Math.PI * v + Math.sin(cycleTime * 1.5 + idleOffsets.leftArm) * 0.03
                     );
                     break;
                     
@@ -822,7 +1013,7 @@ function createIdleClip(vrm) {
                     euler.set(
                         Math.cos(cycleTime * 0.8 + idleOffsets.rightArm) * 0.03,  
                         Math.sin(cycleTime * 0.64 + idleOffsets.rightArm) * 0.02, 
-                        0.43 * Math.PI * v + Math.sin(cycleTime * 1.5 + idleOffsets.rightArm) * 0.03 
+                        0.4 * Math.PI * v + Math.sin(cycleTime * 1.5 + idleOffsets.rightArm) * 0.03 
                     );
                     break;
                     
@@ -830,7 +1021,7 @@ function createIdleClip(vrm) {
                     euler.set(
                         0,                                                    
                         0,                                                    
-                        -Math.sin(cycleTime * 1.5 + idleOffsets.rightArm) * 0.02 
+                        Math.sin(cycleTime * 1.5 + idleOffsets.rightArm) * 0.02 
                     );
                     break;
                     
@@ -838,12 +1029,13 @@ function createIdleClip(vrm) {
                     euler.set(
                         0.05,                                                 
                         0,                                                    
-                        -0.1 * v - Math.sin(cycleTime * 1.2 + idleOffsets.rightArm) * 0.015 
+                        -0.1 * v + Math.sin(cycleTime * 1.2 + idleOffsets.rightArm) * 0.015 
                     );
                     break;
                     
                 case 'rightShoulder':
                     euler.set(
+                        0,                                                    
                         0,                                                    
                         Math.sin(cycleTime * 0.8 + idleOffsets.rightArm) * 0.02  
                     );
@@ -873,6 +1065,7 @@ function createIdleClip(vrm) {
     // 创建并返回动画剪辑
     return new THREE.AnimationClip('idle', duration, tracks);
 }
+
 
 function createBreathClip(vrm) {
     const tracks = [];
@@ -1409,7 +1602,7 @@ function animate() {
         currentMixer.update(deltaTime);
     }
     
-    renderer.renderAsync(scene, camera);
+    renderer.render(scene, camera);
     
     // 处理窗口大小变化时字幕位置
     if (subtitleElement && !isDraggingSubtitle) {
@@ -1491,6 +1684,82 @@ if (isElectron) {
             }
         }
     }, 1400);
+}
+
+if (isElectron) {
+    setTimeout(async () => {
+        const controlPanel = document.getElementById('control-panel');
+        if (controlPanel) {
+            // 闲置动画模式切换按钮
+            const idleAnimationButton = document.createElement('div');
+            idleAnimationButton.id = 'idle-animation-handle';
+            idleAnimationButton.innerHTML = useVRMAIdleAnimations ? 
+                '<i class="fas fa-stop"></i>' : 
+                '<i class="fas fa-play"></i>';
+            idleAnimationButton.style.cssText = `
+                width: 36px;
+                height: 36px;
+                background: rgba(255,255,255,0.95);
+                border: 2px solid rgba(0,0,0,0.1);
+                border-radius: 50%;
+                color: ${useVRMAIdleAnimations ? '#ff6b35' : '#28a745'};
+                cursor: pointer;
+                -webkit-app-region: no-drag;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                transition: all 0.2s ease;
+                user-select: none;
+                pointer-events: auto;
+                backdrop-filter: blur(10px);
+            `;
+
+            // 添加悬停效果
+            idleAnimationButton.addEventListener('mouseenter', () => {
+                idleAnimationButton.style.background = 'rgba(255,255,255,1)';
+                idleAnimationButton.style.transform = 'scale(1.1)';
+                idleAnimationButton.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+            });
+
+            idleAnimationButton.addEventListener('mouseleave', () => {
+                idleAnimationButton.style.background = 'rgba(255,255,255,0.95)';
+                idleAnimationButton.style.transform = 'scale(1)';
+                idleAnimationButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            });
+
+            // 点击事件
+            idleAnimationButton.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // 防止重复点击
+                if (isIdleAnimationModeChanging) return;
+                
+                await toggleIdleAnimationMode();
+            });
+
+            // 初始状态
+            idleAnimationButton.title = useVRMAIdleAnimations ? 
+                await t('UsingVRMAAnimations') || 'Using VRMA Animations' : 
+                await t('UsingProceduralAnimations') || 'Using Procedural Animations';
+
+            // 添加到控制面板（在字幕按钮之后）
+            const subtitleButton = controlPanel.querySelector('#subtitle-handle');
+            if (subtitleButton) {
+                controlPanel.insertBefore(idleAnimationButton, subtitleButton.nextSibling);
+            } else {
+                // 如果没有字幕按钮，添加到模型切换按钮前面
+                const prevModelButton = controlPanel.querySelector('#prev-model-handle');
+                if (prevModelButton) {
+                    controlPanel.insertBefore(idleAnimationButton, prevModelButton);
+                } else {
+                    controlPanel.appendChild(idleAnimationButton);
+                }
+            }
+        }
+    }, 1500); // 稍微延后一点，确保其他按钮都已创建
 }
 
 if (isElectron) {

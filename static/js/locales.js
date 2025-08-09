@@ -640,6 +640,8 @@ const translations = {
         'SubtitleDisabled': '字幕已关闭',
         'bufferWord': '缓冲词',
         'bufferWordPlaceholder': '请输入缓冲词，可以让语音合成显得更快，例如：嗯，好的',
+        'UsingVRMAAnimations': '使用VRM模型动画',
+        'UsingProceduralAnimations': '使用程序化动画',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1279,5 +1281,7 @@ const translations = {
         'SubtitleDisabled': 'Subtitle Disabled',
         'bufferWord': 'Buffer Word',
         'bufferWordPlaceholder': 'Please enter a buffer word to make Text To Speech appear faster, for example: Um, OK',
+        'UsingVRMAAnimations': 'Using VRMA Animations',
+        'UsingProceduralAnimations': 'Using Procedural Animations',
     }
   };
