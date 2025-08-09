@@ -67,11 +67,19 @@ async function getVRMpath() {
     const modelId = vrmConfig.selectedModelId;
     const defaultModel = vrmConfig.defaultModels.find(model => model.id === modelId) || vrmConfig.userModels.find(model => model.id === modelId);
     if (defaultModel) {
-        return defaultModel.path;
+        // 替换defaultModel.path中的protocol和host
+        let defaultModelURL = new URL(defaultModel.path);
+        defaultModelURL.protocol = window.location.protocol;
+        defaultModelURL.host = window.location.host;
+        return defaultModelURL.toString();
     } else {
         const userModel = vrmConfig.userModels.find(model => model.id === modelId);
         if (userModel) {
-            return userModel.path;
+            // 替换userModel.path中的protocol和host
+            let userModelURL = new URL(userModel.path);
+            userModelURL.protocol = window.location.protocol;
+            userModelURL.host = window.location.host;
+            return userModelURL.toString();
         }
         else {
             return `${window.location.protocol}//${window.location.host}/vrm/Alice.vrm`;
@@ -98,7 +106,6 @@ async function getVRMname() {
 
 const vrmPath = await getVRMpath();
 console.log(vrmPath);
-
 // 启用阴影（如果需要）
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
