@@ -224,7 +224,7 @@ let useVRMAIdleAnimations = false;
 let isIdleAnimationModeChanging = false; // 防止重复切换
 
 
-// 闲置动画管理器类 - 完整版本
+// 完整的闲置动画管理器类
 class IdleAnimationManager {
     constructor(vrm, mixer) {
         this.vrm = vrm;
@@ -236,10 +236,10 @@ class IdleAnimationManager {
         this.animationQueue = [];
         this.currentIndex = 0;
         this.transitionDuration = 1.0;
-        this.pauseBetweenAnimations = 2.0; // 动画间隔时间
-        this.idleWeight = 1.0; // 固定权重
-        this.isActive = false; // 是否激活状态
-        this.currentMode = 'none'; // 当前模式：'vrma', 'procedural', 'none'
+        this.pauseBetweenAnimations = 2.0;
+        this.idleWeight = 0.8; // 降低权重，避免过度动画
+        this.isActive = false;
+        this.currentMode = 'none';
         
         // 创建默认姿势动作
         this.createDefaultPoseAction();
@@ -266,11 +266,18 @@ class IdleAnimationManager {
     // 创建程序化闲置动画
     createProceduralIdleAction() {
         try {
+            console.log('Creating procedural idle action...');
             const idleClip = createIdleClip(this.vrm);
+            if (!idleClip) {
+                console.error('Failed to create idle clip');
+                return;
+            }
+            
             this.proceduralIdleAction = this.mixer.clipAction(idleClip);
             this.proceduralIdleAction.setLoop(THREE.LoopRepeat);
-            this.proceduralIdleAction.setEffectiveWeight(0);
-            console.log('Procedural idle action created');
+            this.proceduralIdleAction.setEffectiveWeight(0); // 初始权重为0
+            
+            console.log('Procedural idle action created successfully');
         } catch (error) {
             console.error('Error creating procedural idle action:', error);
         }
@@ -551,7 +558,9 @@ class IdleAnimationManager {
     // 切换到VRMA动画模式
     switchToVRMAMode() {
         console.log('Switching to VRMA idle animations');
-        this.stopAllAnimations();
+        
+        // 只停止程序化动画
+        this.stopProceduralAnimations();
         
         if (this.animationQueue.length > 0) {
             this.startIdleLoop();
@@ -564,17 +573,77 @@ class IdleAnimationManager {
     // 切换到程序化动画模式
     switchToProceduralMode() {
         console.log('Switching to procedural idle animation');
-        this.stopAllAnimations();
+        
+        // 只停止非程序化的动画，不停止程序化动画
+        this.stopVRMAAnimations();
         
         this.currentMode = 'procedural';
         this.isActive = true;
         
         if (this.proceduralIdleAction) {
-            this.proceduralIdleAction.reset();
-            this.proceduralIdleAction.setEffectiveWeight(this.idleWeight);
-            this.proceduralIdleAction.fadeIn(this.transitionDuration);
-            this.proceduralIdleAction.play();
-            console.log('Procedural idle animation started');
+            console.log('Starting procedural idle animation...');
+            
+            // 如果程序化动画已经在运行，就不要重新启动
+            if (this.proceduralIdleAction.isRunning()) {
+                console.log('Procedural animation already running, adjusting weight...');
+                this.proceduralIdleAction.setEffectiveWeight(this.idleWeight);
+            } else {
+                // 重置并启动动画
+                this.proceduralIdleAction.reset();
+                this.proceduralIdleAction.setEffectiveWeight(this.idleWeight);
+                this.proceduralIdleAction.play();
+            }
+            
+            console.log('Procedural idle animation started with weight:', this.idleWeight);
+            console.log('Animation is running:', this.proceduralIdleAction.isRunning());
+            console.log('Animation time:', this.proceduralIdleAction.time);
+        } else {
+            console.error('Procedural idle action not available, recreating...');
+            this.createProceduralIdleAction();
+            if (this.proceduralIdleAction) {
+                this.proceduralIdleAction.setEffectiveWeight(this.idleWeight);
+                this.proceduralIdleAction.play();
+            }
+        }
+    }
+    
+    // 只停止VRMA动画的方法
+    stopVRMAAnimations() {
+        console.log('Stopping VRMA animations only');
+        
+        const fadeTime = 0.5;
+        
+        // 停止当前VRMA动画
+        if (this.currentIdleAction && this.currentIdleAction.isRunning()) {
+            this.currentIdleAction.fadeOut(fadeTime);
+            setTimeout(() => {
+                if (this.currentIdleAction) {
+                    this.currentIdleAction.stop();
+                    this.currentIdleAction = null;
+                }
+            }, fadeTime * 1000);
+        }
+        
+        // 停止默认姿势动画
+        if (this.defaultPoseAction && this.defaultPoseAction.isRunning()) {
+            this.defaultPoseAction.fadeOut(fadeTime);
+        }
+    }
+    
+    // 只停止程序化动画的方法
+    stopProceduralAnimations() {
+        console.log('Stopping procedural animations only');
+        
+        const fadeTime = 0.5;
+        
+        // 停止程序化动画
+        if (this.proceduralIdleAction && this.proceduralIdleAction.isRunning()) {
+            this.proceduralIdleAction.fadeOut(fadeTime);
+            setTimeout(() => {
+                if (this.proceduralIdleAction) {
+                    this.proceduralIdleAction.stop();
+                }
+            }, fadeTime * 1000);
         }
     }
     
@@ -595,45 +664,110 @@ class IdleAnimationManager {
         }
     }
     
-    // 停止所有动画
+    // 停止所有动画 - 只在真正需要时使用
     stopAllAnimations() {
         console.log('Stopping all idle animations');
         
         this.isActive = false;
         this.isTransitioning = false;
         
-        const stopTime = 0.5;
+        const fadeTime = 0.5;
         
-        if (this.currentIdleAction) {
-            this.currentIdleAction.fadeOut(stopTime);
+        // 停止当前VRMA动画
+        if (this.currentIdleAction && this.currentIdleAction.isRunning()) {
+            this.currentIdleAction.fadeOut(fadeTime);
             setTimeout(() => {
                 if (this.currentIdleAction) {
                     this.currentIdleAction.stop();
                     this.currentIdleAction = null;
                 }
-            }, stopTime * 1000);
+            }, fadeTime * 1000);
         }
         
-        if (this.proceduralIdleAction) {
-            this.proceduralIdleAction.fadeOut(stopTime);
+        // 停止程序化动画
+        if (this.proceduralIdleAction && this.proceduralIdleAction.isRunning()) {
+            this.proceduralIdleAction.fadeOut(fadeTime);
             setTimeout(() => {
                 if (this.proceduralIdleAction) {
                     this.proceduralIdleAction.stop();
                 }
-            }, stopTime * 1000);
+            }, fadeTime * 1000);
         }
         
-        if (this.defaultPoseAction) {
-            this.defaultPoseAction.fadeOut(stopTime);
+        // 停止默认姿势动画
+        if (this.defaultPoseAction && this.defaultPoseAction.isRunning()) {
+            this.defaultPoseAction.fadeOut(fadeTime);
             setTimeout(() => {
                 if (this.defaultPoseAction) {
                     this.defaultPoseAction.stop();
                 }
-            }, stopTime * 1000);
+            }, fadeTime * 1000);
         }
         
         this.currentMode = 'none';
         console.log('All idle animations stopped');
+    }
+    
+    // 强制启动程序化动画的方法
+    forceStartProceduralAnimation() {
+        console.log('Force starting procedural animation...');
+        
+        if (!this.proceduralIdleAction) {
+            console.log('Recreating procedural idle action...');
+            this.createProceduralIdleAction();
+        }
+        
+        if (this.proceduralIdleAction) {
+            // 确保动画完全重置
+            if (this.proceduralIdleAction.isRunning()) {
+                this.proceduralIdleAction.stop();
+            }
+            
+            this.proceduralIdleAction.reset();
+            this.proceduralIdleAction.setEffectiveWeight(this.idleWeight);
+            this.proceduralIdleAction.play();
+            
+            this.currentMode = 'procedural';
+            this.isActive = true;
+            
+            console.log('Procedural animation force started');
+            console.log('Animation running:', this.proceduralIdleAction.isRunning());
+            console.log('Animation weight:', this.proceduralIdleAction.getEffectiveWeight());
+            console.log('Animation time:', this.proceduralIdleAction.time);
+            console.log('Animation duration:', this.proceduralIdleAction.getClip().duration);
+        } else {
+            console.error('Failed to create procedural idle action');
+        }
+    }
+    
+    // 添加调试方法来检查动画状态
+    debugAnimationStatus() {
+        console.log('=== Animation Status Debug ===');
+        console.log('Current mode:', this.currentMode);
+        console.log('Is active:', this.isActive);
+        
+        if (this.proceduralIdleAction) {
+            console.log('Procedural animation exists:', true);
+            console.log('Procedural animation running:', this.proceduralIdleAction.isRunning());
+            console.log('Procedural animation weight:', this.proceduralIdleAction.getEffectiveWeight());
+            console.log('Procedural animation time:', this.proceduralIdleAction.time);
+            console.log('Procedural animation duration:', this.proceduralIdleAction.getClip().duration);
+            console.log('Procedural animation paused:', this.proceduralIdleAction.paused);
+            console.log('Procedural animation enabled:', this.proceduralIdleAction.enabled);
+        } else {
+            console.log('Procedural animation exists:', false);
+        }
+        
+        if (this.currentIdleAction) {
+            console.log('VRMA animation exists:', true);
+            console.log('VRMA animation running:', this.currentIdleAction.isRunning());
+            console.log('VRMA animation weight:', this.currentIdleAction.getEffectiveWeight());
+        } else {
+            console.log('VRMA animation exists:', false);
+        }
+        
+        console.log('Mixer time scale:', this.mixer.timeScale);
+        console.log('===============================');
     }
     
     // 获取当前模式
@@ -942,7 +1076,7 @@ function createIdleClip(vrm) {
             let euler = new THREE.Euler(0, 0, 0);
             
             // 使用周期性函数，确保在 t=0 和 t=duration 时值相同
-            const cycleTime = (time / duration) * 8 * Math.PI; // 0 到 2π
+            const cycleTime = (time / duration) * 300 * Math.PI; // 0 到 2π
             
             switch (boneName) {
                 case 'spine':
