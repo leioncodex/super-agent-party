@@ -224,7 +224,7 @@ let useVRMAIdleAnimations = false;
 let isIdleAnimationModeChanging = false; // 防止重复切换
 
 
-// 完整的闲置动画管理器类
+// 完整的闲置动画管理器类 - 修复版本
 class IdleAnimationManager {
     constructor(vrm, mixer) {
         this.vrm = vrm;
@@ -235,9 +235,9 @@ class IdleAnimationManager {
         this.isTransitioning = false;
         this.animationQueue = [];
         this.currentIndex = 0;
-        this.transitionDuration = 1.0;
-        this.pauseBetweenAnimations = 2.0;
-        this.idleWeight = 0.8; // 降低权重，避免过度动画
+        this.transitionDuration = 0.8; // 稍微延长过渡时间
+        this.pauseBetweenAnimations = 1.5; // 减少暂停时间
+        this.idleWeight = 1.0; // 增加权重确保完全控制
         this.isActive = false;
         this.currentMode = 'none';
         
@@ -249,7 +249,7 @@ class IdleAnimationManager {
         console.log('IdleAnimationManager initialized');
     }
     
-    // 创建默认姿势动作
+    // 创建默认姿势动作 - 改进版本
     createDefaultPoseAction() {
         try {
             const defaultPoseClip = this.createDefaultPoseClip();
@@ -283,7 +283,7 @@ class IdleAnimationManager {
         }
     }
     
-    // 创建默认姿势的clip
+    // 改进的默认姿势clip创建
     createDefaultPoseClip() {
         const tracks = [];
         const duration = 1.0;
@@ -295,13 +295,13 @@ class IdleAnimationManager {
             times.push(i / fps);
         }
         
-        // 需要重置的骨骼 - 只包含不影响口型和表情的骨骼
+        // 扩展需要重置的骨骼列表，包含更多骨骼
         const bonesToReset = [
-            'spine', 'chest', 'upperChest', 'neck',
-            'leftUpperArm', 'leftLowerArm', 'leftHand', 'leftShoulder',
-            'rightUpperArm', 'rightLowerArm', 'rightHand', 'rightShoulder',
-            'leftUpperLeg', 'leftLowerLeg', 'leftFoot',
-            'rightUpperLeg', 'rightLowerLeg', 'rightFoot',
+            'hips', 'spine', 'chest', 'upperChest', 'neck', 'head',
+            'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
+            'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand',
+            'leftUpperLeg', 'leftLowerLeg', 'leftFoot', 'leftToes',
+            'rightUpperLeg', 'rightLowerLeg', 'rightFoot', 'rightToes',
             // 手指骨骼
             'leftThumbProximal', 'leftThumbIntermediate', 'leftThumbDistal',
             'leftIndexProximal', 'leftIndexIntermediate', 'leftIndexDistal',
@@ -322,8 +322,26 @@ class IdleAnimationManager {
             const naturalRotation = this.getNaturalRotation(boneName);
             const values = [];
             
-            times.forEach(() => {
-                values.push(...naturalRotation.toArray());
+            // 创建从当前状态到自然姿势的平滑过渡
+            times.forEach((time, index) => {
+                let targetRotation = naturalRotation.clone();
+                
+                // 如果是第一帧，使用当前骨骼的旋转作为起点
+                if (index === 0) {
+                    // 保持当前旋转
+                    values.push(...bone.quaternion.toArray());
+                } else {
+                    // 平滑过渡到目标旋转
+                    const progress = time / duration;
+                    const easedProgress = this.easeInOutCubic(progress);
+                    
+                    const currentQuat = new THREE.Quaternion().fromArray(
+                        values.slice((index - 1) * 4, index * 4)
+                    );
+                    
+                    const interpolatedQuat = currentQuat.clone().slerp(targetRotation, easedProgress);
+                    values.push(...interpolatedQuat.toArray());
+                }
             });
             
             const track = new THREE.QuaternionKeyframeTrack(
@@ -338,17 +356,48 @@ class IdleAnimationManager {
         return new THREE.AnimationClip('defaultPose', duration, tracks);
     }
     
-    // 获取自然姿势的旋转值
+    // 缓动函数
+    easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+    
+    // 获取自然姿势的旋转值 - 改进版本
     getNaturalRotation(boneName) {
         const euler = new THREE.Euler(0, 0, 0);
         const v = isVRM1 ? 1 : -1;
         
         switch (boneName) {
+            case 'hips':
+                euler.set(0, 0, 0); // 髋部保持中性
+                break;
+            case 'spine':
+                euler.set(0, 0, 0); // 脊柱保持直立
+                break;
+            case 'chest':
+                euler.set(0, 0, 0); // 胸部保持中性
+                break;
+            case 'upperChest':
+                euler.set(0, 0, 0); // 上胸部保持中性
+                break;
+            case 'neck':
+                euler.set(0, 0, 0); // 脖子保持中性
+                break;
+            case 'head':
+                euler.set(0, 0, 0); // 头部保持中性
+                break;
+            case 'leftShoulder':
+            case 'rightShoulder':
+                euler.set(0, 0, 0); // 肩膀保持中性
+                break;
             case 'leftUpperArm':
                 euler.set(0, 0, -0.4 * Math.PI * v);
                 break;
             case 'rightUpperArm':
                 euler.set(0, 0, 0.4 * Math.PI * v);
+                break;
+            case 'leftLowerArm':
+            case 'rightLowerArm':
+                euler.set(0, 0, 0); // 前臂保持自然下垂
                 break;
             case 'leftHand':
                 euler.set(0.05, 0, 0.1 * v);
@@ -356,9 +405,15 @@ class IdleAnimationManager {
             case 'rightHand':
                 euler.set(0.05, 0, -0.1 * v);
                 break;
-            case 'leftShoulder':
-            case 'rightShoulder':
-                euler.set(0, 0, 0);
+            case 'leftUpperLeg':
+            case 'rightUpperLeg':
+            case 'leftLowerLeg':
+            case 'rightLowerLeg':
+            case 'leftFoot':
+            case 'rightFoot':
+            case 'leftToes':
+            case 'rightToes':
+                euler.set(0, 0, 0); // 腿部保持中性
                 break;
             // 手指的自然姿势
             case 'leftThumbProximal':
@@ -453,7 +508,7 @@ class IdleAnimationManager {
         this.currentIndex = (this.currentIndex + 1) % this.animationQueue.length;
     }
     
-    // 播放指定的VRMA动画
+    // 播放指定的VRMA动画 - 改进版本
     playVRMAAnimation(animationData) {
         if (!animationData || !animationData.animation) {
             console.error('Invalid VRMA animation data');
@@ -470,18 +525,16 @@ class IdleAnimationManager {
                 return;
             }
             
-            // 停止当前闲置动画（如果有）
-            this.fadeOutCurrentActions();
+            // 更温和地停止当前动画
+            this.fadeOutCurrentActions(this.transitionDuration * 0.3);
             
             // 创建新的动作
             this.currentIdleAction = this.mixer.clipAction(clip);
             this.currentIdleAction.setLoop(THREE.LoopOnce);
             this.currentIdleAction.clampWhenFinished = true;
-            this.currentIdleAction.setEffectiveWeight(this.idleWeight);
-            
-            // 淡入播放
-            this.currentIdleAction.reset();
+            this.currentIdleAction.setEffectiveWeight(0); // 从0开始
             this.currentIdleAction.fadeIn(this.transitionDuration * 0.5);
+            this.currentIdleAction.setEffectiveWeight(this.idleWeight);
             this.currentIdleAction.play();
             
             // 监听动画结束事件
@@ -501,7 +554,7 @@ class IdleAnimationManager {
         }
     }
     
-    // VRMA动画结束后的处理
+    // VRMA动画结束后的处理 - 改进版本
     onVRMAAnimationFinished() {
         if (this.currentMode !== 'vrma' || !this.isActive) {
             return;
@@ -511,39 +564,62 @@ class IdleAnimationManager {
         
         this.isTransitioning = true;
         
-        // 淡出当前动画，淡入默认姿势
+        // 首先确保默认姿势动作是最新的
+        this.refreshDefaultPoseAction();
+        
+        // 立即开始淡出当前动画并淡入默认姿势
         if (this.currentIdleAction) {
-            this.currentIdleAction.fadeOut(this.transitionDuration);
+            this.currentIdleAction.fadeOut(this.transitionDuration * 0.5);
         }
         
-        // 播放默认姿势过渡
+        // 立即开始默认姿势过渡
         if (this.defaultPoseAction) {
             this.defaultPoseAction.reset();
-            this.defaultPoseAction.setEffectiveWeight(this.idleWeight * 0.5);
-            this.defaultPoseAction.fadeIn(this.transitionDuration);
+            this.defaultPoseAction.setEffectiveWeight(0);
             this.defaultPoseAction.play();
+            this.defaultPoseAction.fadeIn(this.transitionDuration * 0.5);
+            
+            // 确保权重足够高
+            setTimeout(() => {
+                if (this.defaultPoseAction) {
+                    this.defaultPoseAction.setEffectiveWeight(this.idleWeight);
+                }
+            }, this.transitionDuration * 250);
         }
         
-        // 在默认姿势播放一段时间后，开始下一个动画
+        // 等待默认姿势稳定后再进行下一步
         setTimeout(() => {
             if (this.currentMode !== 'vrma' || !this.isActive) {
                 this.isTransitioning = false;
                 return;
             }
             
-            if (this.defaultPoseAction) {
-                this.defaultPoseAction.fadeOut(this.transitionDuration * 0.5);
-            }
-            this.isTransitioning = false;
+            console.log('Default pose established, preparing for next animation');
             
-            // 延迟后播放下一个动画
+            // 保持默认姿势一段时间
             setTimeout(() => {
-                if (this.currentMode === 'vrma' && this.isActive) {
-                    this.playNextVRMAAnimation();
+                if (this.currentMode !== 'vrma' || !this.isActive) {
+                    this.isTransitioning = false;
+                    return;
                 }
+                
+                // 开始淡出默认姿势
+                if (this.defaultPoseAction) {
+                    this.defaultPoseAction.fadeOut(this.transitionDuration * 0.3);
+                }
+                
+                this.isTransitioning = false;
+                
+                // 稍等片刻后播放下一个动画
+                setTimeout(() => {
+                    if (this.currentMode === 'vrma' && this.isActive) {
+                        this.playNextVRMAAnimation();
+                    }
+                }, 300); // 300ms缓冲时间
+                
             }, this.pauseBetweenAnimations * 1000);
             
-        }, this.pauseBetweenAnimations * 1000);
+        }, this.transitionDuration * 600); // 等待过渡完成
     }
     
     // 安排下一个VRMA动画（错误恢复用）
@@ -647,20 +723,20 @@ class IdleAnimationManager {
         }
     }
     
-    // 淡出当前所有动作
-    fadeOutCurrentActions() {
-        const fadeTime = this.transitionDuration * 0.5;
+    // 改进的淡出当前动作方法
+    fadeOutCurrentActions(fadeTime = null) {
+        const actualFadeTime = fadeTime || (this.transitionDuration * 0.5);
         
-        if (this.currentIdleAction) {
-            this.currentIdleAction.fadeOut(fadeTime);
+        if (this.currentIdleAction && this.currentIdleAction.isRunning()) {
+            this.currentIdleAction.fadeOut(actualFadeTime);
         }
         
         if (this.proceduralIdleAction && this.proceduralIdleAction.isRunning()) {
-            this.proceduralIdleAction.fadeOut(fadeTime);
+            this.proceduralIdleAction.fadeOut(actualFadeTime);
         }
         
         if (this.defaultPoseAction && this.defaultPoseAction.isRunning()) {
-            this.defaultPoseAction.fadeOut(fadeTime);
+            this.defaultPoseAction.fadeOut(actualFadeTime);
         }
     }
     
@@ -708,160 +784,22 @@ class IdleAnimationManager {
         console.log('All idle animations stopped');
     }
     
-    // 强制启动程序化动画的方法
-    forceStartProceduralAnimation() {
-        console.log('Force starting procedural animation...');
-        
-        if (!this.proceduralIdleAction) {
-            console.log('Recreating procedural idle action...');
-            this.createProceduralIdleAction();
-        }
-        
-        if (this.proceduralIdleAction) {
-            // 确保动画完全重置
-            if (this.proceduralIdleAction.isRunning()) {
-                this.proceduralIdleAction.stop();
+    // 刷新默认姿势动作
+    refreshDefaultPoseAction() {
+        try {
+            // 重新创建默认姿势动作，基于当前骨骼状态
+            if (this.defaultPoseAction) {
+                this.defaultPoseAction.stop();
+                this.defaultPoseAction = null;
             }
             
-            this.proceduralIdleAction.reset();
-            this.proceduralIdleAction.setEffectiveWeight(this.idleWeight);
-            this.proceduralIdleAction.play();
-            
-            this.currentMode = 'procedural';
-            this.isActive = true;
-            
-            console.log('Procedural animation force started');
-            console.log('Animation running:', this.proceduralIdleAction.isRunning());
-            console.log('Animation weight:', this.proceduralIdleAction.getEffectiveWeight());
-            console.log('Animation time:', this.proceduralIdleAction.time);
-            console.log('Animation duration:', this.proceduralIdleAction.getClip().duration);
-        } else {
-            console.error('Failed to create procedural idle action');
+            this.createDefaultPoseAction();
+            console.log('Default pose action refreshed');
+        } catch (error) {
+            console.error('Error refreshing default pose action:', error);
         }
     }
     
-    // 添加调试方法来检查动画状态
-    debugAnimationStatus() {
-        console.log('=== Animation Status Debug ===');
-        console.log('Current mode:', this.currentMode);
-        console.log('Is active:', this.isActive);
-        
-        if (this.proceduralIdleAction) {
-            console.log('Procedural animation exists:', true);
-            console.log('Procedural animation running:', this.proceduralIdleAction.isRunning());
-            console.log('Procedural animation weight:', this.proceduralIdleAction.getEffectiveWeight());
-            console.log('Procedural animation time:', this.proceduralIdleAction.time);
-            console.log('Procedural animation duration:', this.proceduralIdleAction.getClip().duration);
-            console.log('Procedural animation paused:', this.proceduralIdleAction.paused);
-            console.log('Procedural animation enabled:', this.proceduralIdleAction.enabled);
-        } else {
-            console.log('Procedural animation exists:', false);
-        }
-        
-        if (this.currentIdleAction) {
-            console.log('VRMA animation exists:', true);
-            console.log('VRMA animation running:', this.currentIdleAction.isRunning());
-            console.log('VRMA animation weight:', this.currentIdleAction.getEffectiveWeight());
-        } else {
-            console.log('VRMA animation exists:', false);
-        }
-        
-        console.log('Mixer time scale:', this.mixer.timeScale);
-        console.log('===============================');
-    }
-    
-    // 获取当前模式
-    getCurrentMode() {
-        return this.currentMode;
-    }
-    
-    // 检查是否处于活跃状态
-    isActiveState() {
-        return this.isActive;
-    }
-    
-    // 获取当前状态信息（调试用）
-    getStatus() {
-        return {
-            isActive: this.isActive,
-            currentMode: this.currentMode,
-            isTransitioning: this.isTransitioning,
-            hasCurrentIdleAction: !!this.currentIdleAction,
-            hasProceduralIdleAction: !!this.proceduralIdleAction,
-            animationQueueLength: this.animationQueue.length,
-            currentIndex: this.currentIndex,
-            idleWeight: this.idleWeight
-        };
-    }
-    
-    // 强制重置到默认状态
-    forceReset() {
-        console.log('Force resetting idle animation manager');
-        this.stopAllAnimations();
-        
-        // 重置状态
-        this.isTransitioning = false;
-        this.currentIndex = 0;
-        this.isActive = false;
-        this.currentMode = 'none';
-        
-        // 重新创建动作
-        this.createDefaultPoseAction();
-        this.createProceduralIdleAction();
-        
-        // 应用默认姿势
-        if (this.defaultPoseAction) {
-            this.defaultPoseAction.reset();
-            this.defaultPoseAction.setEffectiveWeight(this.idleWeight);
-            this.defaultPoseAction.play();
-        }
-        
-        console.log('Idle animation manager reset complete');
-    }
-    
-    // 暂停所有动画（保持状态）
-    pause() {
-        console.log('Pausing idle animations');
-        this.isActive = false;
-        
-        if (this.currentIdleAction && this.currentIdleAction.isRunning()) {
-            this.currentIdleAction.paused = true;
-        }
-        
-        if (this.proceduralIdleAction && this.proceduralIdleAction.isRunning()) {
-            this.proceduralIdleAction.paused = true;
-        }
-    }
-    
-    // 恢复动画
-    resume() {
-        console.log('Resuming idle animations');
-        this.isActive = true;
-        
-        if (this.currentIdleAction && this.currentIdleAction.paused) {
-            this.currentIdleAction.paused = false;
-        }
-        
-        if (this.proceduralIdleAction && this.proceduralIdleAction.paused) {
-            this.proceduralIdleAction.paused = false;
-        }
-    }
-    
-    // 销毁管理器（清理资源）
-    dispose() {
-        console.log('Disposing idle animation manager');
-        this.stopAllAnimations();
-        
-        // 清理引用
-        this.vrm = null;
-        this.mixer = null;
-        this.currentIdleAction = null;
-        this.defaultPoseAction = null;
-        this.proceduralIdleAction = null;
-        this.animationQueue = [];
-        
-        console.log('Idle animation manager disposed');
-    }
 }
 
 // 切换闲置动画模式
@@ -1076,7 +1014,7 @@ function createIdleClip(vrm) {
             let euler = new THREE.Euler(0, 0, 0);
             
             // 使用周期性函数，确保在 t=0 和 t=duration 时值相同
-            const cycleTime = (time / duration) * 300 * Math.PI; // 0 到 2π
+            const cycleTime = (time / duration) * 150 * Math.PI; // 0 到 2π
             
             switch (boneName) {
                 case 'spine':
