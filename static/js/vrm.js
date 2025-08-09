@@ -497,8 +497,8 @@ function createSpeechClip(vrm, expressions = []) {
             const prevMouthOpen = index > 0 ? mouthValues[index - 1] || 0 : 0;
             const prevMouthIh = index > 0 ? mouthIhValues[index - 1] || 0 : 0;
             
-            mouthOpen = Math.max(0, prevMouthOpen * 0.9);
-            mouthIh = Math.max(0, prevMouthIh * 0.85);
+            mouthOpen = Math.max(0, prevMouthOpen * 0.9 - 0.1);
+            mouthIh = Math.max(0, prevMouthIh * 0.85 - 0.1);
         }
         
         mouthValues.push(mouthOpen);
@@ -538,11 +538,11 @@ function createSpeechClip(vrm, expressions = []) {
                 value = time < 2 ? 1.0 : 0.0;
                 max_mouthOpen = 0.1;
             } else if (['blink', 'blinkLeft', 'blinkRight'].includes(expression)) {
-                const totalFrames = fps;
+                const totalFrames = fps * 2;
                 const halfFrames = totalFrames / 2;
                 
                 if (index < halfFrames) {
-                    value = index / halfFrames;
+                    value = Math.min(index / halfFrames + 0.3 , 1);
                 } else if (index < totalFrames) {
                     value = Math.max(1 - ((index - halfFrames) / halfFrames), 0);
                 } else {
@@ -638,7 +638,7 @@ class SpeechAnimationManager {
         console.log(`Stopping speech for chunk ${chunkId}`);
         
         // 淡出并停止
-        actionData.action.fadeOut(0.2);
+        actionData.action.fadeOut(0.1);
         
         setTimeout(() => {
             actionData.action.stop();
@@ -648,7 +648,7 @@ class SpeechAnimationManager {
             if (this.activeActions.size === 0) {
                 this.resetExpressions();
             }
-        }, 200);
+        }, 100);
     }
     
     stopAllSpeech() {
