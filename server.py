@@ -4342,6 +4342,19 @@ async def delete_vrm_model(filename: str):
             content={"success": False, "message": f"删除失败: {str(e)}"}
         )
 
+@app.get("/api/animation-files", response_model=list[str])
+async def get_animation_files():
+    animation_dir =  os.path.join(DEFAULT_VRM_DIR, "animations")
+    try:
+        files = []
+        if os.path.exists(animation_dir):
+            for file in os.listdir(animation_dir):
+                if file.endswith('.vrma'):
+                    files.append(file)
+        return files
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error retrieving animation files")
+
 @app.get("/update_storage")
 async def update_storage_endpoint(request: Request):
     settings = await load_settings()
