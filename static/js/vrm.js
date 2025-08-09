@@ -525,16 +525,11 @@ class IdleAnimationManager {
                 return;
             }
             
-            // 更温和地停止当前动画
-            this.fadeOutCurrentActions(this.transitionDuration * 0.3);
-            
             // 创建新的动作
             this.currentIdleAction = this.mixer.clipAction(clip);
             this.currentIdleAction.setLoop(THREE.LoopOnce);
             this.currentIdleAction.clampWhenFinished = true;
-            this.currentIdleAction.setEffectiveWeight(0); // 从0开始
-            this.currentIdleAction.fadeIn(this.transitionDuration * 0.5);
-            this.currentIdleAction.setEffectiveWeight(this.idleWeight);
+            this.currentIdleAction.fadeIn(1.0);
             this.currentIdleAction.play();
             
             // 监听动画结束事件
@@ -564,12 +559,9 @@ class IdleAnimationManager {
         
         this.isTransitioning = true;
         
-        // 首先确保默认姿势动作是最新的
-        this.refreshDefaultPoseAction();
-        
         // 立即开始淡出当前动画并淡入默认姿势
         if (this.currentIdleAction) {
-            this.currentIdleAction.fadeOut(this.transitionDuration * 0.5);
+            this.currentIdleAction.fadeOut(1.0);
         }
         
         // 立即开始默认姿势过渡
