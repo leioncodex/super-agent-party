@@ -1219,6 +1219,17 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 
                                 # 实时处理缓冲区内容
                                 while True:
+                                    reasoning_content = delta.get("reasoning_content", "")
+                                    if reasoning_content:
+                                        full_reasoning += reasoning_content
+                                    else:
+                                        reasoning_content = delta.get("reasoning", "")
+                                        if reasoning_content:
+                                            delta['reasoning_content'] = reasoning_content
+                                            full_reasoning += reasoning_content
+                                    if reasoning_content:
+                                        yield f"data: {json.dumps(chunk_dict)}\n\n"
+                                        break
                                     if not in_reasoning:
                                         # 寻找开放标签
                                         start_pos = buffer.find(open_tag)
@@ -1275,6 +1286,11 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 reasoning_content = delta.get("reasoning_content", "")
                                 if reasoning_content:
                                     full_reasoning += reasoning_content
+                                else:
+                                    reasoning_content = delta.get("reasoning", "")
+                                    if reasoning_content:
+                                        delta['reasoning_content'] = reasoning_content
+                                        full_reasoning += reasoning_content
                             yield f"data: {json.dumps(chunk_dict)}\n\n"
 
                     # 在推理结束后添加完整推理内容到消息
@@ -1341,6 +1357,10 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                         
                         # 优先处理 reasoning_content
                         if delta["reasoning_content"]:
+                            yield f"data: {json.dumps(chunk_dict)}\n\n"
+                            continue
+                        if delta.get("reasoning", ""):
+                            delta["reasoning_content"] = delta["reasoning"]
                             yield f"data: {json.dumps(chunk_dict)}\n\n"
                             continue
 
@@ -1791,6 +1811,17 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                     
                                     # 实时处理缓冲区内容
                                     while True:
+                                        reasoning_content = delta.get("reasoning_content", "")
+                                        if reasoning_content:
+                                            full_reasoning += reasoning_content
+                                        else:
+                                            reasoning_content = delta.get("reasoning", "")
+                                            if reasoning_content:
+                                                delta['reasoning_content'] = reasoning_content
+                                                full_reasoning += reasoning_content
+                                        if reasoning_content:
+                                            yield f"data: {json.dumps(chunk_dict)}\n\n"
+                                            break
                                         if not in_reasoning:
                                             # 寻找开放标签
                                             start_pos = buffer.find(open_tag)
@@ -1847,6 +1878,11 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                     reasoning_content = delta.get("reasoning_content", "")
                                     if reasoning_content:
                                         full_reasoning += reasoning_content
+                                    else:
+                                        reasoning_content = delta.get("reasoning", "")
+                                        if reasoning_content:
+                                            delta['reasoning_content'] = reasoning_content
+                                            full_reasoning += reasoning_content
                                 yield f"data: {json.dumps(chunk_dict)}\n\n"
 
                         # 在推理结束后添加完整推理内容到消息
@@ -1904,7 +1940,10 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 if delta["reasoning_content"]:
                                     yield f"data: {json.dumps(chunk_dict)}\n\n"
                                     continue
-                                
+                                if delta.get("reasoning", ""):
+                                    delta["reasoning_content"] = delta["reasoning"]
+                                    yield f"data: {json.dumps(chunk_dict)}\n\n"
+                                    continue
                                 # 处理内容
                                 current_content = delta["content"]
                                 buffer = current_content
@@ -2547,16 +2586,24 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     stream=False,
                     temperature=settings['reasoner']['temperature']
                 )
-                # 将推理结果中的思考内容提取出来
-                reasoning_content = reasoner_response.model_dump()['choices'][0]['message']['content']
-                # open_tag和close_tag之间的内容
-                start_index = reasoning_content.find(open_tag) + len(open_tag)
-                end_index = reasoning_content.find(close_tag)
-                if start_index != -1 and end_index != -1:
-                    reasoning_content = reasoning_content[start_index:end_index]
+                reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
+                if reasoning_buffer:
+                    request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
                 else:
-                    reasoning_content = ""
-                request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_content
+                    reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning']
+                    if reasoning_buffer:
+                        request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
+                    else:
+                        # 将推理结果中的思考内容提取出来
+                        reasoning_content = reasoner_response.model_dump()['choices'][0]['message']['content']
+                        # open_tag和close_tag之间的内容
+                        start_index = reasoning_content.find(open_tag) + len(open_tag)
+                        end_index = reasoning_content.find(close_tag)
+                        if start_index != -1 and end_index != -1:
+                            reasoning_content = reasoning_content[start_index:end_index]
+                        else:
+                            reasoning_content = ""
+                        request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_content
             else:
                 reasoner_response = await reasoner_client.chat.completions.create(
                     model=settings['reasoner']['model'],
@@ -2565,7 +2612,16 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     max_tokens=1, # 根据实际情况调整
                     temperature=settings['reasoner']['temperature']
                 )
-                request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
+                reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
+                if reasoning_buffer:
+                    request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
+                else:
+                    reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning']
+                    if reasoning_buffer:
+                        request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
+                    else:
+                        reasoning_buffer = ""
+                        request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
         if settings['tools']['deepsearch']['enabled'] or enable_deep_research: 
             request.messages[-1]['content'] += f"\n\n可参考的步骤：{user_prompt}\n\n"
             drs_msg = get_drs_stage(DRS_STAGE)
@@ -2908,6 +2964,10 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
        # 处理响应内容
         response_dict = response.model_dump()
         content = response_dict["choices"][0]['message']['content']
+        if response_dict["choices"][0]['message'].get('reasoning_content',""):
+            pass
+        else:
+            response_dict["choices"][0]['message']['reasoning_content'] = response_dict["choices"][0]['message'].get('reasoning',"")
         if open_tag in content and close_tag in content:
             reasoning_content = re.search(fr'{open_tag}(.*?)\{close_tag}', content, re.DOTALL)
             if reasoning_content:
@@ -2915,8 +2975,6 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                 response_dict["choices"][0]['message']['reasoning_content'] = reasoning_content.group(1).strip()
                 # 移除原内容中的标签部分
                 response_dict["choices"][0]['message']['content'] = re.sub(fr'{open_tag}(.*?)\{close_tag}', '', content, flags=re.DOTALL).strip()
-        if settings['reasoner']['enabled'] or enable_thinking:
-            response_dict["choices"][0]['message']['reasoning_content'] = reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
         if m0:
             messages=[
                 {
