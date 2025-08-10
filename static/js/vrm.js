@@ -2396,6 +2396,15 @@ async function switchToModel(index) {
     try {
         // 显示加载提示（可选）
         showModelSwitchingIndicator(selectedModel.name);
+        // 🔥 添加：停止当前的闲置动画
+        if (idleAnimationManager) {
+            idleAnimationManager.stopAllAnimations();
+        }
+        
+        // 🔥 添加：停止当前的语音动画
+        if (speechAnimationManager) {
+            speechAnimationManager.stopAllSpeech();
+        }
         
         // 移除当前VRM模型
         if (currentVrm) {
@@ -2405,6 +2414,14 @@ async function switchToModel(index) {
         
         // 重置语音动画管理器
         speechAnimationManager = null;
+        // 🔥 添加：重置闲置动画管理器
+        idleAnimationManager = null;
+
+        // 移除当前VRM模型
+        if (currentVrm) {
+            scene.remove(currentVrm.scene);
+            currentVrm = undefined;
+        }
         
         // 加载新模型
         const modelPath = selectedModel.path;
@@ -2452,6 +2469,15 @@ async function switchToModel(index) {
                 // 创建语音动画管理器
                 speechAnimationManager = new SpeechAnimationManager(vrm, currentMixer);
                 
+                // 🔥 关键修复：重新创建闲置动画管理器并重新设置动画队列
+                idleAnimationManager = new IdleAnimationManager(vrm, currentMixer);
+                
+                // 🔥 重要：重新设置VRMA动画队列（如果之前已经加载过）
+                if (useVRMAIdleAnimations && idleAnimations.length > 0) {
+                    idleAnimationManager.setAnimationQueue(idleAnimations);
+                }
+                
+                // 🔥 重新启动闲置动画循环
                 startIdleAnimationLoop();
 
                 // 隐藏加载提示
