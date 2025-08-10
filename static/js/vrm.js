@@ -2386,7 +2386,11 @@ async function switchToModel(index) {
     
     currentModelIndex = newIndex;
     const selectedModel = allModels[currentModelIndex];
-    
+    // 替换userModel.path中的protocol和host
+    let userModelURL = new URL(selectedModel.path);
+    userModelURL.protocol = window.location.protocol;
+    userModelURL.host = window.location.host;
+    selectedModel.path = userModelURL.href;
     console.log(`Switching to model: ${selectedModel.name} (${selectedModel.id}) - Index: ${currentModelIndex}`);
     
     try {
