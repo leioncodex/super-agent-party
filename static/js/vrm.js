@@ -1013,7 +1013,7 @@ function createIdleClip(vrm) {
             let euler = new THREE.Euler(0, 0, 0);
             
             // 使用周期性函数，确保在 t=0 和 t=duration 时值相同
-            const cycleTime = (time / duration) * 150 * Math.PI; // 0 到 2π
+            const cycleTime = (time / duration) * 200 * Math.PI; // 0 到 2π
             
             switch (boneName) {
                 case 'spine':
