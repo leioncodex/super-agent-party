@@ -56,24 +56,25 @@ def load_plugins(directory: str = "plugins") -> None:
     sys.path.insert(0, str(plugins_path.resolve()))
     importlib.invalidate_caches()
     for entry in plugins_path.iterdir():
-        if entry.is_dir() and (entry / "__init__.py").exists():
-            if entry.name in sys.modules:
-                del sys.modules[entry.name]
-            pycache = entry / "__pycache__"
-            if pycache.exists():
-                for f in pycache.iterdir():
-                    f.unlink()
-            module = importlib.import_module(entry.name)
-
-    sys.path.insert(0, str(dir_path.resolve()))
-    for item in dir_path.iterdir():
-        if item.is_dir() and (item / "__init__.py").exists():
-            if item.name in sys.modules:
-                del sys.modules[item.name]
-            importlib.invalidate_caches()
-            module = importlib.import_module(item.name)
-            if hasattr(module, "setup"):
-                module.setup(register_tool)
+        if not entry.is_dir():
+            continue
+        module_dir = entry
+        if not (module_dir / "__init__.py").exists():
+            candidate = entry / entry.name
+            if (candidate / "__init__.py").exists():
+                module_dir = candidate
+            else:
+                continue
+        sys.path.insert(0, str(module_dir.parent.resolve()))
+        if module_dir.name in sys.modules:
+            del sys.modules[module_dir.name]
+        pycache = module_dir / "__pycache__"
+        if pycache.exists():
+            for f in pycache.iterdir():
+                f.unlink()
+        module = importlib.import_module(module_dir.name)
+        if hasattr(module, "setup"):
+            module.setup(register_tool)
 
 
 def reload_plugins(directory: str = "plugins") -> None:
