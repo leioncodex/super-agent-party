@@ -642,6 +642,8 @@ const translations = {
         'bufferWordPlaceholder': '请输入缓冲词，可以让语音合成显得更快，例如：嗯，好的',
         'UsingVRMAAnimations': '使用VRM模型动画',
         'UsingProceduralAnimations': '使用程序化动画',
+        'clickToUse': '1. 桌面端点击按钮启动浏览器模式',
+        'scanToUse': '2. 手机浏览器扫码快速使用浏览器模式',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1283,5 +1285,7 @@ const translations = {
         'bufferWordPlaceholder': 'Please enter a buffer word to make Text To Speech appear faster, for example: Um, OK',
         'UsingVRMAAnimations': 'Using VRMA Animations',
         'UsingProceduralAnimations': 'Using Procedural Animations',
+        'clickToUse': '1. Click the button on the desktop to start browser mode',
+        'scanToUse': '2. Mobile browser phone scan code to quickly use browser mode',
     }
   };

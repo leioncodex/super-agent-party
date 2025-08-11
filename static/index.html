@@ -20,6 +20,7 @@
   <!-- Voice Activation Detection -->
   <script src="js/ort.js"></script>
   <script src="js/bundle.min.js"></script>
+  <script src="js/qrcode.min.js"></script>
   <script>
     console.log(`
      _       ____   _____   _   _   _____ 
@@ -279,7 +280,7 @@ if ('serviceWorker' in navigator) {
                 <div v-else-if="message.role === 'assistant'"  class="markdown-body" v-html="message.briefly ? formatMessage(message.pure_content??msg.content) : formatMessage(message.content)"></div>
                 <!-- 系统消息内容 -->
                 <div v-else class="user-message-content" data-mjx-disabled="true">
-                  <div v-html="t('system_prompt') + message.content"></div>
+                  <div v-html="t('system_prompt') + message.content" @click="openEditDialog(message.role, message.content,index)"></div>
                 </div>
               </div>
               <!-- 添加复制按钮 -->
@@ -6196,6 +6197,19 @@ if ('serviceWorker' in navigator) {
                         </transition>
                       </el-button>
                     </div>
+                    <canvas id="qrcode" style="display: block; margin: 20px auto;"></canvas>
+                    <el-alert
+                      type="info"
+                      :closable="false"
+                      class="mb-2"
+                    >
+                      <template #default>
+                        <div class="alert-content">
+                          {{ t('clickToUse') }}<br>
+                          {{ t('scanToUse') }}
+                        </div>
+                      </template>
+                    </el-alert>
                   </div>
                 </el-form>
               </div>

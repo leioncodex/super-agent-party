@@ -73,6 +73,9 @@ const app = Vue.createApp({
       });
     }
     this.initTTSWebSocket();
+    this.$nextTick(() => {
+      this.generateQRCode(); // 生成二维码
+    });
   },
   beforeUnmount() {
     if (isElectron) {

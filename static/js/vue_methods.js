@@ -2516,6 +2516,22 @@ let vue_methods = {
       }, 500);
     },
 
+    generateQRCode() {
+      // 确保 partyURL 存在且 DOM 已渲染
+      if (!this.partyURL) return;
+
+      const canvas = document.getElementById('qrcode');
+
+      // 生成二维码
+      QRCode.toCanvas(canvas, this.partyURL, function(error) {
+            if (error) {
+                console.error(error);
+            } else {
+                console.log("QR Code successfully generated!");
+            }
+        });
+    },
+
     // 在methods中添加
     async addMCPServer() {
       try {
