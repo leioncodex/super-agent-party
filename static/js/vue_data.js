@@ -89,6 +89,7 @@ let vue_data = {
       max_rounds: 0,    // 默认最大轮数
       selectedProvider: null,
       top_p: 1,
+      reasoning_effort: null,
       extra_params: [], // 额外参数
     },
     reasonerSettings: {
@@ -98,6 +99,7 @@ let vue_data = {
       api_key: '',
       selectedProvider: null,
       temperature: 0.7,  // 默认温度值
+      reasoning_effort: null,
     },
     visionSettings: {
       enabled: false, // 默认不启用

@@ -1389,6 +1389,7 @@ let vue_methods = {
             stream: true,
             fileLinks: this.fileLinks,
             asyncToolsID: this.asyncToolsID,
+            reasoning_effort: this.reasoning_effort,
           }),
           signal: this.abortController.signal
         });

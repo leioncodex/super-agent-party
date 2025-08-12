@@ -11,6 +11,7 @@
     "max_rounds": 0,
     "selectedProvider": null,
     "top_p": 1,
+    "reasoning_effort": null,
     "extra_params":[],
     "systemSettings": {
       "language": "zh-CN",
@@ -69,7 +70,8 @@
       "base_url": "",
       "api_key": "",
       "selectedProvider": null,
-      "temperature": 0.7
+      "temperature": 0.7,
+      "reasoning_effort": null
     },
     "vision": {
       "enabled": false,

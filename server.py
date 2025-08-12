@@ -404,6 +404,7 @@ class ChatRequest(BaseModel):
     enable_deep_research: bool = False
     enable_web_search: bool = False
     asyncToolsID: List[str] = None
+    reasoning_effort: str = None
 
 async def message_without_images(messages: List[Dict]) -> List[Dict]:
     if messages:
@@ -1203,6 +1204,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             model=settings['reasoner']['model'],
                             messages=msg,
                             stream=True,
+                            reasoning_effort=settings['reasoner']['reasoning_effort'],
                             temperature=settings['reasoner']['temperature']
                         )
                         full_reasoning = ""
@@ -1272,6 +1274,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             model=settings['reasoner']['model'],
                             messages=msg,
                             stream=True,
+                            reasoning_effort=settings['reasoner']['reasoning_effort'],
                             max_tokens=1, # 根据实际情况调整
                             temperature=settings['reasoner']['temperature']
                         )
@@ -1314,6 +1317,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                         tools=tools,
                         stream=True,
                         max_tokens=request.max_tokens or settings['max_tokens'],
+                        reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                         top_p=request.top_p or settings['top_p'],
                         extra_body = extra_params, # 其他参数
                     )
@@ -1324,6 +1328,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                         temperature=request.temperature,
                         stream=True,
                         max_tokens=request.max_tokens or settings['max_tokens'],
+                        reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                         top_p=request.top_p or settings['top_p'],
                         extra_body = extra_params, # 其他参数
                     )
@@ -1897,6 +1902,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             tools=tools,
                             stream=True,
                             max_tokens=request.max_tokens or settings['max_tokens'],
+                            reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                             top_p=request.top_p or settings['top_p'],
                             extra_body = extra_params, # 其他参数
                         )
@@ -1907,6 +1913,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             temperature=request.temperature,
                             stream=True,
                             max_tokens=request.max_tokens or settings['max_tokens'],
+                            reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                             top_p=request.top_p or settings['top_p'],
                             extra_body = extra_params, # 其他参数
                         )
@@ -2585,6 +2592,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     model=settings['reasoner']['model'],
                     messages=msg,
                     stream=False,
+                    reasoning_effort=settings['reasoner']['reasoning_effort'],
                     temperature=settings['reasoner']['temperature']
                 )
                 reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
@@ -2611,6 +2619,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     messages=msg,
                     stream=False,
                     max_tokens=1, # 根据实际情况调整
+                    reasoning_effort=settings['reasoner']['reasoning_effort'],
                     temperature=settings['reasoner']['temperature']
                 )
                 reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
@@ -2637,6 +2646,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                 tools=tools,
                 stream=False,
                 max_tokens=request.max_tokens or settings['max_tokens'],
+                reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                 top_p=request.top_p or settings['top_p'],
                 extra_body = extra_params, # 其他参数
             )
@@ -2647,6 +2657,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                 temperature=request.temperature,
                 stream=False,
                 max_tokens=request.max_tokens or settings['max_tokens'],
+                reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                 top_p=request.top_p or settings['top_p'],
                 extra_body = extra_params, # 其他参数
             )
@@ -2825,6 +2836,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                         model=settings['reasoner']['model'],
                         messages=msg,
                         stream=False,
+                        reasoning_effort=settings['reasoner']['reasoning_effort'],
                         temperature=settings['reasoner']['temperature']
                     )
                     # 将推理结果中的思考内容提取出来
@@ -2854,6 +2866,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     temperature=request.temperature,
                     tools=tools,
                     stream=False,
+                    reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                     max_tokens=request.max_tokens or settings['max_tokens'],
                     top_p=request.top_p or settings['top_p'],
                     extra_body = extra_params, # 其他参数
@@ -2864,6 +2877,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     messages=msg,  # 添加图片信息到消息
                     temperature=request.temperature,
                     stream=False,
+                    reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                     max_tokens=request.max_tokens or settings['max_tokens'],
                     top_p=request.top_p or settings['top_p'],
                     extra_body = extra_params, # 其他参数
