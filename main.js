@@ -7,6 +7,10 @@ const { spawn } = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const net = require('net') // 添加 net 模块用于端口检测
+const i18next = require('i18next')
+const en = require('./src/locales/en.json')
+const fr = require('./src/locales/fr.json')
+const es = require('./src/locales/es.json')
 require('ts-node/register')
 const logger = require('./src/logger').default
 
@@ -94,7 +98,17 @@ const ALLOWED_EXTENSIONS = [
   'csv', 'tsv', 'txt', 'md', 'log', 'conf', 'ini', 'env', 'toml'
   ];
 const ALLOWED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
-let currentLanguage = 'zh-CN';
+let currentLanguage = 'en';
+
+i18next.init({
+  resources: {
+    en: { translation: en },
+    fr: { translation: fr },
+    es: { translation: es },
+  },
+  lng: currentLanguage,
+  fallbackLng: 'en',
+});
 
 // 构建菜单项
 let menu;
@@ -537,6 +551,7 @@ app.whenReady().then(async () => {
     await mainWindow.loadURL(`http://${HOST}:${PORT}`)
     ipcMain.on('set-language', (_, lang) => {
       currentLanguage = lang;
+      i18next.changeLanguage(lang);
       updateTrayMenu();
       updatecontextMenu();
     });
@@ -582,11 +597,11 @@ app.whenReady().then(async () => {
       if (menuType === 'image') {
         menuTemplate = [
           {
-            label: locales[currentLanguage].copyImageLink,
+            label: i18next.t('menu.copyImageLink'),
             click: () => clipboard.writeText(data.src)
           },
           {
-            label: locales[currentLanguage].copyImage,
+            label: i18next.t('menu.copyImage'),
             click: async () => {
               try {
                 // 处理网络图片
@@ -611,9 +626,9 @@ app.whenReady().then(async () => {
       } else {
         // 原有基础菜单
         menuTemplate = [
-          { label: locales[currentLanguage].cut, role: 'cut' },
-          { label: locales[currentLanguage].copy, role: 'copy' },
-          { label: locales[currentLanguage].paste, role: 'paste' }
+          { label: i18next.t('menu.cut'), role: 'cut' },
+          { label: i18next.t('menu.copy'), role: 'copy' },
+          { label: i18next.t('menu.paste'), role: 'paste' }
         ];
       }
 
@@ -645,8 +660,8 @@ app.whenReady().then(async () => {
       const result = await dialog.showOpenDialog({
         properties: ['openFile', 'multiSelections'],
         filters: [
-          { name: locales[currentLanguage].supportedFiles, extensions: ALLOWED_EXTENSIONS },
-          { name: locales[currentLanguage].allFiles, extensions: ['*'] }
+          { name: i18next.t('menu.supportedFiles'), extensions: ALLOWED_EXTENSIONS },
+          { name: i18next.t('menu.allFiles'), extensions: ['*'] }
         ]
       })
       return result
@@ -655,8 +670,8 @@ app.whenReady().then(async () => {
       const result = await dialog.showOpenDialog({
         properties: ['openFile'],
         filters: [
-          { name: locales[currentLanguage].supportedimages, extensions: ALLOWED_IMAGE_EXTENSIONS },
-          { name: locales[currentLanguage].allFiles, extensions: ['*'] }
+          { name: i18next.t('menu.supportedImages'), extensions: ALLOWED_IMAGE_EXTENSIONS },
+          { name: i18next.t('menu.allFiles'), extensions: ['*'] }
         ]
       })
       // 返回包含文件名和路径的对象数组
@@ -763,7 +778,7 @@ function createTray() {
 function updateTrayMenu() {
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: locales[currentLanguage].show,
+      label: i18next.t('menu.show'),
       click: () => {
         if (mainWindow) {
           mainWindow.show()
@@ -773,29 +788,29 @@ function updateTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: locales[currentLanguage].exit,
+      label: i18next.t('menu.exit'),
       click: () => {
         app.isQuitting = true
         app.quit()
       }
     }
   ])
-  
+
   tray.setContextMenu(contextMenu);
 }
 
 function updatecontextMenu() {
   menu = Menu.buildFromTemplate([
     {
-      label: locales[currentLanguage].cut,
+      label: i18next.t('menu.cut'),
       role: 'cut'
     },
     {
-      label: locales[currentLanguage].copy,
+      label: i18next.t('menu.copy'),
       role: 'copy'
     },
     {
-      label: locales[currentLanguage].paste,
+      label: i18next.t('menu.paste'),
       role: 'paste'
     }
   ]);
