@@ -2113,6 +2113,21 @@ let vue_methods = {
         await this.autoSaveSettings();
       }
     },
+    async selectTTSProvider(providerId) {
+      const provider = this.modelProviders.find(p => p.id === providerId);
+      if (provider) {
+        this.ttsSettings.model = provider.modelId;
+        this.ttsSettings.base_url = provider.url;
+        this.ttsSettings.api_key = provider.apiKey;
+        this.ttsSettings.vendor = provider.vendor;
+        await this.autoSaveSettings();
+      }
+    },
+    handleTTSProviderVisibleChange(visible) {
+      if (!visible) {
+        this.selectTTSProvider(this.ttsSettings.selectedProvider);
+      }
+    },
     handleAsrProviderVisibleChange(visible) {
       if (!visible) {
         this.selectAsrProvider(this.asrSettings.selectedProvider);

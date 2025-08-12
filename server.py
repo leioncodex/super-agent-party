@@ -3966,6 +3966,61 @@ async def text_to_speech(request: Request):
                     "X-Audio-Index": str(index)
                 }
             )
+        elif tts_engine == 'openai':
+            # 从设置获取OpenAI TTS参数
+            openai_config = {
+                'api_key': tts_settings.get('api_key', ''),
+                'model': tts_settings.get('model', 'tts-1'),
+                'voice': tts_settings.get('openaiVoice', 'alloy'),
+                'speed': tts_settings.get('openaiSpeed', 1.0),
+                'base_url': tts_settings.get('base_url', 'https://api.openai.com/v1')
+            }
+            
+            # 验证API密钥
+            if not openai_config['api_key']:
+                raise HTTPException(status_code=400, detail="OpenAI API密钥未配置")
+            
+            print(f"Using OpenAI TTS with model: {openai_config['model']}, voice: {openai_config['voice']}")
+            
+            # 速度限制在0.25到4.0之间
+            speed = max(0.25, min(4.0, float(openai_config['speed'])))
+            
+            async def generate_audio():
+                try:
+                    # 使用异步OpenAI客户端
+                    client = AsyncOpenAI(
+                        api_key=openai_config['api_key'],
+                        base_url=openai_config['base_url']
+                    )
+                    
+                    # 创建语音请求
+                    response = await client.audio.speech.create(
+                        model=openai_config['model'],
+                        voice=openai_config['voice'],
+                        input=text,
+                        speed=speed
+                    )
+                    
+                    # 获取整个响应内容并分块返回
+                    content = await response.aread()
+                    chunk_size = 4096  # 4KB chunks
+                    for i in range(0, len(content), chunk_size):
+                        yield content[i:i + chunk_size]
+                        await asyncio.sleep(0)  # Allow other tasks to run
+                        
+                except Exception as e:
+                    print(f"OpenAI TTS error: {str(e)}")
+                    raise HTTPException(status_code=500, detail=f"OpenAI TTS错误: {str(e)}")
+            
+            # 返回流式响应
+            return StreamingResponse(
+                generate_audio(),
+                media_type="audio/mpeg",
+                headers={
+                    "Content-Disposition": f"inline; filename=tts_{index}.mp3",
+                    "X-Audio-Index": str(index)
+                }
+            )
         
         raise HTTPException(status_code=400, detail="不支持的TTS引擎")
     

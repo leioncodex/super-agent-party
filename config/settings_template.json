@@ -188,7 +188,14 @@
       "gsvPromptLang": "zh",
       "gsvPromptText": "",
       "gsvRefAudioPath": "",
-      "gsvAudioOptions": []
+      "gsvAudioOptions": [],
+      "selectedProvider": null,
+      "vendor": "OpenAI",
+      "model": "",
+      "base_url": "",
+      "api_key": "",
+      "openaiVoice":"alloy",
+      "openaiSpeed": 1.0
     },
     "liveConfig": {
       "onlyDanmaku": true,

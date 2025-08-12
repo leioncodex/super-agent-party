@@ -410,7 +410,15 @@ let vue_data = {
       gsvPromptText: '',
       gsvRefAudioPath: '',
       gsvAudioOptions: [],
+      selectedProvider: null,
+      vendor: "OpenAI",
+      model: "",
+      base_url: "",
+      api_key: "",
+      openaiVoice:"alloy",
+      openaiSpeed: 1.0
     },
+    openaiVoices:['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse'],
     showVrmModelDialog: false,
     newVrmModel: {
       name: '',

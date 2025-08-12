@@ -648,6 +648,10 @@ const translations = {
         'medium': '中',
         'high': '高',
         'reasoningEffort': '推理强度',
+        'TTSModelProvider': '语音合成模型服务商',
+        'TTSVoice': '音色',
+        'TTSRate': '语速',
+        'addTTSNotice': '添加供应商后，请返回此页面并选择【语音合成模型】以继续。语音识别模型名称中一般包含“tss”等关键词。目前支持的供应商：openai、硅基流动等。注意！音色需要与供应商的模型匹配，否则无法使用，默认音色列表中仅包含了openai的音色，其他供应商的音色需要手动添加',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1295,5 +1299,9 @@ const translations = {
         'medium': 'Medium',
         'high': 'High',
         'reasoningEffort': 'Reasoning Effort',
+        'TTSModelProvider': 'TTS Model Provider',
+        'TTSVoice': 'TTS Voice',
+        'TTSRate': 'TTS Rate',
+        'addTTSNotice': "After adding a vendor, please return to this page and select 【Text To Speech Model】to continue. Keywords such as 'tss' are generally included in the name of the automatic speech recognition model. Currently supported vendors: openai, silicon-based flow, etc. Note! The timbre needs to match the vendor's model, otherwise it cannot be used. Only the timbre of openai is included in the default timbre list. The timbre of other vendors needs to be added manually.",
     }
   };
