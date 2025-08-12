@@ -10,6 +10,7 @@
   "scripts": {
     "start": "cross-env NODE_ENV=production electron .",
     "dev": "cross-env NODE_ENV=development electron .",
+    "test": "playwright test",
     "test": "jest --runInBand",
     "build": "electron-builder -mwl",
     "build:win": "electron-builder -w",
@@ -131,9 +132,13 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "@types/node": "^24.2.0",
     "cross-env": "^7.0.3",
     "electron": "^33.0.1",
     "electron-builder": "^24.9.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
     "typescript": "^5.4.2",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
@@ -157,6 +162,8 @@
     "element-plus": "^2.10.3",
     "form-data": "^4.0.4",
     "markdown-it": "^14.1.0",
+    "pino": "^9.8.0",
+    "pino-daily-rotate-file": "^0.0.1",
     "three": "^0.178.0",
     "vue": "^3.5.17",
     "react": "^18.2.0",

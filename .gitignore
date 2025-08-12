@@ -186,6 +186,10 @@ super-agent-data/
 .DS_Store
 botpy.log*
 build.bat
+wxauto*
+logs/*
+!logs/.gitkeep
+
 # test* pattern removed to allow tracking tests
 !tests/**
 !tests/test*
