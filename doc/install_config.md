@@ -48,11 +48,13 @@ python -m venv .venv
 .venv\Scripts\activate # windows
 # source .venv/bin/activate # macos/linux
 pip install -r requirements.txt
+pip install camel-ai
 npm install
 ```
 - Or use uv and npm to install dependencies:
 ```shell
 uv sync
+uv add camel-ai
 npm install
 ```
 
@@ -74,9 +76,35 @@ npm run dev
 5. Clicking the intelligent body suite interface on the left sidebar, then selecting the following secondary interfaces:
     - Intelligent body interface, which can configure the system prompt words of the intelligent body. The system prompt words determine the behavior of the intelligent body, and you can modify them according to your needs. When you create it, the intelligent body will snapshot all your current configurations, including model services, knowledge bases, internet functions, MCP services, tools, and system prompt words.
     - MCP service interface, which can configure MCP services. Currently, two calling methods are supported: standard input/output and server-sent events (SSE). The standard input/output method requires configuring various parameters of the MCP server. If an error occurs, please note whether the corresponding package manager (such as uv, npm, etc.) is installed locally. The SSE method requires configuring the address of the MCP server.
+      Additional parameters:
+        - `transport` selects the connection mode (`ws`, `sse`, `streamablehttp`, or `stdio`).
+        - `retries` sets automatic reconnection attempts.
     - A2A service interface, which can configure A2A services. After configuring the address of the A2A server, you can use it.
     - LLM tool interface, currently supports other ollama formats or openai formats for custom intelligent body access and uses them as tools.
 6. Clicking the tool suite - tool interface on the left sidebar can configure some small tools, including current time, in-depth research, and pseudo-inference ability. If you want to fix the language used by the intelligent body, you can configure it here.
 7. Clicking the tool suite - internet function interface on the left sidebar can configure internet functions. Currently, three search engines and two web-to-markdown tools are supported: duckduckgo, searxng, tavily, jina, and crawl4ai. Duckduckgo does not require configuration, searxng requires configuring the docker image address, tavily requires configuring the API key, jina does not require configuration, and crawl4ai requires configuring the docker image address.
 8. Clicking the tool suite - knowledge base interface on the left sidebar can configure the knowledge base. Before configuring the knowledge base, you need to complete the configuration of the word embedding model in the model service interface on the left sidebar.
 9. Clicking the calling method interface on the left sidebar allows you to call the intelligent body created by this application in openai format. If the model name is `super-model`, it will call the currently configured intelligent body. If the model name is the intelligent body ID or intelligent body name you created in the intelligent body interface, it will call the intelligent body you created.
+
+### MCP Server
+
+The MCP router now runs as a standalone module derived from Camel AI's toolkits.
+Start the server over stdio with:
+
+```bash
+python py/mcp/server_main.py
+```
+
+You can also launch it via the main entrypoint:
+
+```bash
+python server.py --mcp-stdio
+```
+
+### MCP Client Example
+
+```bash
+# launch client with SSE transport and 3 retries
+python py/mcp/client.py
+```
+
