@@ -214,3 +214,45 @@ async def comfyui_tool_call(tool_name, text_input = None, image_input = None,tex
     running_comfyuiServers.remove(server_address)
 
     return json.dumps({"image_path_list": image_path_list})
+
+
+async def run_workflow(workflow, text=None, image=None, extra_inputs=None):
+    """Execute a ComfyUI workflow and normalize the response.
+
+    Args:
+        workflow: Workflow name, prefixed with ``comfyui_``.
+        text: Optional text prompt.
+        image: Optional image URL.
+        extra_inputs: Optional dictionary for additional inputs. Supports
+            ``text_input_2`` and ``image_input_2`` keys.
+
+    Returns:
+        dict: ``{"files": [...], "meta": {...}}`` where ``files`` are generated
+        file URLs and ``meta`` contains workflow and input information.
+    """
+
+    extra_inputs = extra_inputs or {}
+    tool_name = workflow.replace("comfyui_", "")
+    result = await comfyui_tool_call(
+        tool_name,
+        text_input=text,
+        image_input=image,
+        text_input_2=extra_inputs.get("text_input_2"),
+        image_input_2=extra_inputs.get("image_input_2"),
+    )
+
+    try:
+        parsed = json.loads(result)
+    except Exception:
+        parsed = {}
+
+    files = parsed.get("image_path_list", [])
+    meta = {
+        "workflow": workflow,
+        "inputs": {
+            "text": text,
+            "image": image,
+            **extra_inputs,
+        },
+    }
+    return {"files": files, "meta": meta}

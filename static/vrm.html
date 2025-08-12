@@ -22,16 +22,28 @@
 			body {
 				margin: 0;
 			}
-			canvas {
-				display: block;
-			}
-		</style>
-	</head>
+                        canvas {
+                                display: block;
+                                width: 100vw;
+                                height: 100vh;
+                        }
+                </style>
+        </head>
 
-	<body>
-		<script type="importmap">
-			{
-				"imports": {
+        <body>
+                <canvas id="vrm-canvas"></canvas>
+                <script>
+                        const canvas = document.getElementById('vrm-canvas');
+                        function resizeCanvas() {
+                                canvas.width = window.innerWidth;
+                                canvas.height = window.innerHeight;
+                        }
+                        window.addEventListener('resize', resizeCanvas);
+                        resizeCanvas();
+                </script>
+                <script type="importmap">
+                        {
+                                "imports": {
 					"three": "./node_modules/three/build/three.webgpu.js",
 					"three/webgpu": "./node_modules/three/build/three.webgpu.js",
 					"three/tsl": "./node_modules/three/build/three.tsl.js",
@@ -41,7 +53,7 @@
 					"@pixiv/three-vrm-animation": "./node_modules/@pixiv/three-vrm-animation/lib/three-vrm-animation.module.js"
 				}
 			}
-		</script>
-		<script type="module" src="js/vrm.js"></script>
-	</body>
+                </script>
+                <script type="module" src="js/vrm.js"></script>
+        </body>
 </html>
