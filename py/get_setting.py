@@ -78,6 +78,10 @@ os.makedirs(AGENT_DIR, exist_ok=True)
 KB_DIR = os.path.join(USER_DATA_DIR, 'kb')
 os.makedirs(KB_DIR, exist_ok=True)
 
+# persona configuration directory
+PERSONA_DIR = os.path.join(USER_DATA_DIR, 'personas')
+os.makedirs(PERSONA_DIR, exist_ok=True)
+
 # 修改SETTINGS_FILE路径
 SETTINGS_FILE = os.path.join(USER_DATA_DIR, 'settings.json')
 
@@ -133,3 +137,78 @@ async def save_settings(settings):
     async with aiosqlite.connect(DATABASE_PATH) as db:
         await db.execute('INSERT OR REPLACE INTO settings (id, data) VALUES (1, ?)', (data,))
         await db.commit()
+
+
+def list_personas():
+    """Return all persona configurations."""
+    personas = []
+    for filename in os.listdir(PERSONA_DIR):
+        if filename.endswith('.json'):
+            path = os.path.join(PERSONA_DIR, filename)
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    data['id'] = os.path.splitext(filename)[0]
+                    personas.append(data)
+            except Exception:
+                continue
+    return personas
+
+
+def save_persona(name: str, persona: dict):
+    """Persist a persona configuration to disk."""
+    path = os.path.join(PERSONA_DIR, f"{name}.json")
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(persona, f, ensure_ascii=False, indent=2)
+
+
+async def get_persona_memory(persona_id: str, query: str, limit: int = 5):
+    """Retrieve long term memory for a persona using mem0.Memory."""
+    try:
+        from mem0 import Memory
+    except Exception:
+        return []
+    settings = await load_settings()
+    if not settings.get("memorySettings", {}).get("is_memory"):
+        return []
+    memory_id = settings["memorySettings"].get("selectedMemory")
+    cur_memory = None
+    for m in settings.get("memories", []):
+        if m.get("id") == memory_id:
+            cur_memory = m
+            break
+    if not cur_memory or not cur_memory.get("providerId"):
+        return []
+    config = {
+        "embedder": {
+            "provider": 'openai',
+            "config": {
+                "model": cur_memory['model'],
+                "api_key": cur_memory['api_key'],
+                "openai_base_url": cur_memory['base_url'],
+                "embedding_dims": 1024
+            },
+        },
+        "llm": {
+            "provider": 'openai',
+            "config": {
+                "model": settings['model'],
+                "api_key": settings['api_key'],
+                "openai_base_url": settings['base_url']
+            }
+        },
+        "vector_store": {
+            "provider": "faiss",
+            "config": {
+                "collection_name": "agent-party",
+                "path": os.path.join(MEMORY_CACHE_DIR, memory_id),
+                "distance_strategy": "euclidean",
+                "embedding_model_dims": 1024
+            }
+        },
+    }
+    m0 = Memory.from_config(config)
+    try:
+        return m0.search(query=query, user_id=persona_id, limit=limit)
+    except Exception:
+        return []

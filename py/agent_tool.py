@@ -1,18 +1,39 @@
+"""Compatibility wrapper exposing the unified tool registry."""
+
+from __future__ import annotations
+
 import json
-from py.get_setting import HOST,PORT
-from openai import AsyncOpenAI
-async def get_agent_tool(settings):
+from typing import Any, Dict
+
+from .tool_registry import (
+    register_tool,
+    get_tool,
+    call_tool,
+    load_plugins,
+    reload_plugins,
+    clear_registry,
+)
+
+
+async def get_agent_tool(settings: Dict[str, Any]):
+    """Return an OpenAI-compatible tool description for available agents."""
+
     tool_agent_list = []
-    for agent_id,agent_config in settings['agents'].items():
-        if agent_config['enabled']:
-            tool_agent_list.append({"agent_id": agent_id, "agent_skill": agent_config["system_prompt"]})
-    if len(tool_agent_list) > 0:
-        tool_agent_list = json.dumps(tool_agent_list, ensure_ascii=False, indent=4)
-        agent_tool = {
+    for agent_id, agent_config in settings.get("agents", {}).items():
+        if agent_config.get("enabled"):
+            tool_agent_list.append(
+                {"agent_id": agent_id, "agent_skill": agent_config.get("system_prompt")}
+            )
+    if tool_agent_list:
+        tool_agent_list_json = json.dumps(tool_agent_list, ensure_ascii=False, indent=4)
+        return {
             "type": "function",
             "function": {
                 "name": "agent_tool_call",
-                "description": f"根据Agent给出的agent_skill调用指定Agent工具，返回结果。当前可用的Agent工具ID以及Agent工具的agent_skill有：{tool_agent_list}",
+                "description": (
+                    "根据Agent给出的agent_skill调用指定Agent工具，返回结果。"
+                    f"当前可用的Agent工具ID以及Agent工具的agent_skill有：{tool_agent_list_json}"
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -23,31 +44,22 @@ async def get_agent_tool(settings):
                         "query": {
                             "type": "string",
                             "description": "需要向Agent工具发送的问题",
-                        }
+                        },
                     },
-                    "required": ["agent_id", "query"]
-                }
-            }
+                    "required": ["agent_id", "query"],
+                },
+            },
         }
-    else:
-        agent_tool = None
-    return agent_tool
+    return None
 
-async def agent_tool_call(agent_id, query):
-    try:
-        client = AsyncOpenAI(
-            api_key="super-secret-key",
-            base_url=f"http://{HOST}:{PORT}/v1"
-        )
-        response = await client.chat.completions.create(
-            model=agent_id,
-            messages=[
-                {"role": "user", "content": query}
-            ]
-        )
-        res = response.choices[0].message.content
-        return str(res)
-    except Exception as e:
-        print(f"Error: {e}")
-        return str(e)
+
+__all__ = [
+    "register_tool",
+    "get_tool",
+    "call_tool",
+    "load_plugins",
+    "reload_plugins",
+    "clear_registry",
+    "get_agent_tool",
+]
 

@@ -8,6 +8,27 @@ const fs = require('fs')
 const os = require('os')
 const net = require('net') // 添加 net 模块用于端口检测
 
+require('dotenv').config()
+
+// 获取配置文件路径
+function getConfigPath() {
+  return path.join(app.getPath('userData'), 'config.json');
+}
+
+// 加载环境变量
+function loadEnvVariables() {
+  const configPath = getConfigPath();
+  if (fs.existsSync(configPath)) {
+    const rawData = fs.readFileSync(configPath);
+    const config = JSON.parse(rawData);
+    for (const key in config) {
+      process.env[key] = config[key];
+    }
+  }
+}
+
+loadEnvVariables();
+
 let pythonExec;
 let isQuitting = false;
 
@@ -25,9 +46,9 @@ let loadingWindow
 let tray = null
 let updateAvailable = false
 let backendProcess = null
-const HOST = '127.0.0.1'
-let PORT = 3456 // 改为 let，允许修改
-const DEFAULT_PORT = 3456 // 保存默认端口
+const HOST = process.env.HOST || '127.0.0.1'
+const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 3456
+let PORT = DEFAULT_PORT // 允许修改
 const isDev = process.env.NODE_ENV === 'development'
 const locales = {
   'zh-CN': {
@@ -80,25 +101,6 @@ const logDir = path.join(app.getPath('userData'), 'logs')
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true })
 }
-
-// 获取配置文件路径
-function getConfigPath() {
-  return path.join(app.getPath('userData'), 'config.json');
-}
-
-// 加载环境变量
-function loadEnvVariables() {
-  const configPath = getConfigPath();
-  if (fs.existsSync(configPath)) {
-    const rawData = fs.readFileSync(configPath);
-    const config = JSON.parse(rawData);
-    for (const key in config) {
-      process.env[key] = config[key];
-    }
-  }
-}
-
-loadEnvVariables();
 
 // 新增：检测端口是否可用
 function isPortAvailable(port) {
@@ -197,14 +199,15 @@ async function startBackend() {
     // 查找可用端口
     const availablePort = await findAvailablePort(DEFAULT_PORT)
     PORT = availablePort
-    
+    saveEnvVariable('PORT', PORT.toString())
+
     // 如果端口不是默认端口，记录变更
     if (PORT !== DEFAULT_PORT) {
       console.log(`默认端口 ${DEFAULT_PORT} 被占用，已切换到端口 ${PORT}`)
     }
     
     const spawnOptions = {
-      stdio: ['ignore', 'ignore', 'ignore'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
       env: {
         ...process.env,
@@ -219,17 +222,39 @@ async function startBackend() {
       spawnOptions.detached = false
       spawnOptions.shell = false
       spawnOptions.windowsVerbatimArguments = false
-      spawnOptions.stdio = ['ignore', 'ignore', 'ignore']
     }
 
     const networkVisible = process.env.networkVisible === 'global';
     const BACKEND_HOST = networkVisible ? '0.0.0.0' : HOST
+
+    let execCommand = pythonExec;
+    if (!fs.existsSync(execCommand)) {
+      const fallbackExec = process.env.PYTHON || 'python';
+      dialog.showMessageBoxSync({
+        type: 'warning',
+        title: 'Python environment not found',
+        message:
+          'Local Python environment not found.\n' +
+          'Create one with:\n\npython -m venv .venv && pip install -r requirements.txt\n\n' +
+          `Falling back to: ${fallbackExec}`
+      });
+      execCommand = fallbackExec;
+    }
 
     if (isDev) {
       // 开发模式
       backendProcess = spawn(pythonExec, [
         '-m',
         'backend',
+      backendProcess = spawn(execCommand, [
+
+      let pythonExecutable = pythonExec
+      if (!fs.existsSync(pythonExecutable)) {
+        pythonExecutable = process.platform === 'win32' ? 'python' : 'python3'
+        console.warn(`Python executable not found at ${pythonExec}, falling back to system ${pythonExecutable}`)
+      }
+      backendProcess = spawn(pythonExecutable, [
+        'server.py',
         '--port', PORT.toString(),
         '--host', BACKEND_HOST,
       ], spawnOptions);
@@ -250,29 +275,42 @@ async function startBackend() {
       })
     }
 
-    // 简化日志处理
-    if (isDev) {
-      const logStream = fs.createWriteStream(
-        path.join(logDir, `backend-${Date.now()}.log`),
-        { flags: 'a' }
-      )
-      
-      backendProcess.stdout?.on('data', (data) => {
-        logStream.write(`[INFO] ${data}`)
-      })
-      
-      backendProcess.stderr?.on('data', (data) => {
-        logStream.write(`[ERROR] ${data}`)
-      })
-    }
+    const logStream = fs.createWriteStream(
+      path.join(logDir, 'backend.log'),
+      { flags: 'a' }
+    )
+
+    backendProcess.stdout?.on('data', (data) => {
+      const message = data.toString()
+      logStream.write(`[INFO] ${message}`)
+      console.log(`[backend] ${message}`)
+    })
+
+    backendProcess.stderr?.on('data', (data) => {
+      const message = data.toString()
+      logStream.write(`[ERROR] ${message}`)
+      console.error(`[backend] ${message}`)
+    })
 
     backendProcess.on('error', (err) => {
       console.error('Backend process error:', err)
     })
 
-    backendProcess.on('close', (code) => {
+    const handleBackendExit = (code) => {
       console.log(`Backend process exited with code ${code}`)
-    })
+      if (!isQuitting && code !== 0) {
+        const message = `Backend process exited with code ${code}`
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          dialog.showErrorBox('Backend Error', message)
+          mainWindow.webContents.send('backend-exited', { code })
+        } else {
+          console.error(message)
+        }
+      }
+    }
+
+    backendProcess.on('close', handleBackendExit)
+    backendProcess.on('exit', handleBackendExit)
 
     return PORT // 返回实际使用的端口
   } catch (error) {
@@ -293,9 +331,15 @@ async function waitForBackend() {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/health`)
       if (response.ok) {
+        const data = await response.json()
         // 后端服务准备就绪，通知骨架屏页面
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('backend-ready', { port: PORT })
+          mainWindow.webContents.send('backend-ready', {
+            port: PORT,
+            version: data.version,
+            startTime: data.start_time,
+            dependencies: data.dependencies
+          })
         }
         return
       }
