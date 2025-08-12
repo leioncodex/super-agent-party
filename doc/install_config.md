@@ -32,6 +32,13 @@ git clone https://github.com/heshengtao/super-agent-party.git
 cd super-agent-party
 ```
 
+If the `.venv` folder does not exist, the application will display instructions to create it and fall back to `process.env.PYTHON` or `python`.
+Create the environment manually with:
+
+```shell
+python -m venv .venv && pip install -r requirements.txt
+```
+
 2. Install dependencies (choose one of the following options):
 - Windows: Click the `install.bat` script
 - macOS/Linux: Click the `install.sh` script
