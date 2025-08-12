@@ -644,6 +644,10 @@ const translations = {
         'UsingProceduralAnimations': '使用程序化动画',
         'clickToUse': '1. 桌面端点击按钮启动浏览器模式',
         'scanToUse': '2. 手机浏览器扫码快速使用浏览器模式，扫码前，需要在系统设置中将网络设置为所有设备可见',
+        'low': '低',
+        'medium': '中',
+        'high': '高',
+        'reasoningEffort': '推理强度',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1287,5 +1291,9 @@ const translations = {
         'UsingProceduralAnimations': 'Using Procedural Animations',
         'clickToUse': '1. Click the button on the desktop to start browser mode',
         'scanToUse': '2. Scan the code in the mobile browser to quickly use the browser mode. Before scanning the code, you need to set the network to be visible to all devices in the system settings',
+        'low': 'Low',
+        'medium': 'Medium',
+        'high': 'High',
+        'reasoningEffort': 'Reasoning Effort',
     }
   };

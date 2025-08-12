@@ -1246,6 +1246,21 @@ if ('serviceWorker' in navigator) {
                           @input="autoSaveSettings"
                         />
                       </el-form-item>
+                      <el-form-item :label="t('reasoningEffort')" class="form-item-align">
+                        <el-select
+                          v-model="settings.reasoning_effort"
+                          :placeholder="t('reasoningEffort')"
+                          @change="autoSaveSettings"
+                          class="reasoning-effort-select"
+                        >
+                          <el-option
+                            v-for="effort in reasoningEfforts"
+                            :key="effort.value"
+                            :label="t(effort.label)"
+                            :value="effort.value"
+                          ></el-option>
+                        </el-select>
+                      </el-form-item>
                       <div class="param-header">
                         <span>{{ t('extraParams') }}</span>
                         <el-button 
@@ -1418,6 +1433,21 @@ if ('serviceWorker' in navigator) {
                           :step="0.1"
                           @input="autoSaveSettings"
                         />
+                      </el-form-item>
+                      <el-form-item :label="t('reasoningEffort')" class="form-item-align">
+                        <el-select
+                          v-model="reasonerSettings.reasoning_effort"
+                          :placeholder="t('reasoningEffort')"
+                          @change="autoSaveSettings"
+                          class="reasoning-effort-select"
+                        >
+                          <el-option
+                            v-for="effort in reasoningEfforts"
+                            :key="effort.value"
+                            :label="t(effort.label)"
+                            :value="effort.value"
+                          ></el-option>
+                        </el-select>
                       </el-form-item>
                     </div>
                   </div>

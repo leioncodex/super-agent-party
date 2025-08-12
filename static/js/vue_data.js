@@ -101,6 +101,12 @@ let vue_data = {
       temperature: 0.7,  // 默认温度值
       reasoning_effort: null,
     },
+    reasoningEfforts:[
+      { value: null, label: 'auto' },
+      { value: 'low', label: 'low' },
+      { value: 'medium', label: 'medium' },
+      { value: 'high', label: 'high' },
+    ],
     visionSettings: {
       enabled: false, // 默认不启用
       model: '',
