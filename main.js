@@ -243,6 +243,9 @@ async function startBackend() {
 
     if (isDev) {
       // 开发模式
+      backendProcess = spawn(pythonExec, [
+        '-m',
+        'backend',
       backendProcess = spawn(execCommand, [
 
       let pythonExecutable = pythonExec

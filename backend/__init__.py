@@ -1,8 +1,3 @@
-from backend import app
-
-if __name__ == "__main__":
-    from backend.__main__ import main
-    main()
 # -- coding: utf-8 --
 import base64
 import glob
@@ -12,19 +7,17 @@ import sys
 import tempfile
 import threading
 import wave
-try:
-    import websockets
-except ImportError:  # pragma: no cover - optional dependency
-    websockets = None
+import aiohttp
+import httpx
+from scipy.io import wavfile
+import numpy as np
+import websockets
 # 在程序最开始设置
 if hasattr(sys, '_MEIPASS'):
     # 打包后的程序
     os.environ['PYTHONPATH'] = sys._MEIPASS
     os.environ['PATH'] = sys._MEIPASS + os.pathsep + os.environ.get('PATH', '')
-try:
-    import edge_tts
-except ImportError:  # pragma: no cover - optional dependency
-    edge_tts = None
+import edge_tts
 import asyncio
 import copy
 from functools import partial
@@ -35,6 +28,7 @@ import shutil
 import signal
 from urllib.parse import urlparse
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, Request, WebSocketDisconnect
+from fastapi_mcp import FastApiMCP
 import logging
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,30 +38,32 @@ from fastapi import status
 from fastapi.responses import JSONResponse, StreamingResponse
 import uuid
 import time
-import importlib
-from datetime import datetime
-from typing import Any, List, Dict,Optional
 from typing import Any, List, Dict, Optional
 import shortuuid
-from py.mcp.client import McpClient
+from py.mcp_clients import McpClient
 from contextlib import asynccontextmanager, suppress
+import requests
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-import argparse
-from dotenv import load_dotenv
 from mem0 import Memory
 from py.qq_bot_manager import QQBotManager
 # 如果是windows系统
 if os.name == 'nt':
     from py.wx_bot_manager import WXBotManager
 
-load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-HOST = os.getenv("HOST", "127.0.0.1")
-PORT = int(os.getenv("PORT", "3456"))
 
 os.environ["no_proxy"] = "localhost,127.0.0.1"
+local_timezone = None
+settings = None
+client = None
+reasoner_client = None
+mcp_client_list = {}
+locales = {}
+_TOOL_HOOKS = {}
+cur_random = []
 ALLOWED_EXTENSIONS = [
   # 办公文档
   'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'pdf', 'pages', 
@@ -86,47 +82,31 @@ ALLOWED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']
 
 ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', '3gp', 'm4v']
 
-from py.get_setting import load_settings,save_settings,base_path,configure_host_port,UPLOAD_FILES_DIR,AGENT_DIR,MEMORY_CACHE_DIR,KB_DIR,DEFAULT_VRM_DIR,USER_DATA_DIR
+from py.get_setting import load_settings, save_settings, base_path, UPLOAD_FILES_DIR, AGENT_DIR, MEMORY_CACHE_DIR, KB_DIR, DEFAULT_VRM_DIR, USER_DATA_DIR
 from py.llm_tool import get_image_base64,get_image_media_type
 
-with open(os.path.join(base_path, "package.json"), "r", encoding="utf-8") as f:
-    VERSION = json.load(f).get("version", "unknown")
-START_TIME = datetime.utcnow().isoformat()
-
-
-def check_dependency(module_name: str) -> str:
-    try:
-        importlib.import_module(module_name)
-        return "ok"
-    except Exception as e:
-        return f"error: {e}"
-
-
-MAIN_DEPENDENCIES = ["edge_tts", "openai"]
-
-configure_host_port(HOST, PORT)
-
-from py.comfyui_tool import run_workflow
+from .routes.ws import router as ws_router, broadcast_settings_update
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from py.get_setting import init_db
     await init_db()
-    state = app.state
+    global settings, client, reasoner_client, mcp_client_list, local_timezone, logger, locales
     with open(base_path + "/config/locales.json", "r", encoding="utf-8") as f:
-        state.locales = json.load(f)
+        locales = json.load(f)
     from tzlocal import get_localzone
-    state.local_timezone = get_localzone()
-    state.settings = await load_settings()
-    if state.settings:
-        state.client = AsyncOpenAI(api_key=state.settings['api_key'], base_url=state.settings['base_url'])
-        state.reasoner_client = AsyncOpenAI(api_key=state.settings['reasoner']['api_key'], base_url=state.settings['reasoner']['base_url'])
-        if state.settings["systemSettings"]["proxy"]:
-            os.environ['http_proxy'] = state.settings["systemSettings"]["proxy"].strip()
-            os.environ['https_proxy'] = state.settings["systemSettings"]["proxy"].strip()
+    local_timezone = get_localzone()
+    settings = await load_settings()
+    if settings:
+        client = AsyncOpenAI(api_key=settings['api_key'], base_url=settings['base_url'])
+        reasoner_client = AsyncOpenAI(api_key=settings['reasoner']['api_key'], base_url=settings['reasoner']['base_url'])
+        if settings["systemSettings"]["proxy"]:
+            # 设置代理环境变量
+            os.environ['http_proxy'] = settings["systemSettings"]["proxy"].strip()
+            os.environ['https_proxy'] = settings["systemSettings"]["proxy"].strip()
     else:
-        state.client = AsyncOpenAI()
-        state.reasoner_client = AsyncOpenAI()
+        client = AsyncOpenAI()
+        reasoner_client = AsyncOpenAI()
     mcp_init_tasks = []
 
     async def init_mcp_with_timeout(server_name, server_config):
@@ -135,17 +115,19 @@ async def lifespan(app: FastAPI):
             if server_config.get('disabled'):
                 return server_name, None, "disabled"
 
+            # 同步回调，仅在首次失败时标记
             first_error = None
 
             async def on_failure(msg: str):
                 nonlocal first_error
                 first_error = msg
                 logger.error("on_failure: %s -> %s", server_name, msg)
-                state.settings['mcpServers'][server_name]['disabled'] = True
-                state.settings['mcpServers'][server_name]['processingStatus'] = 'server_error'
-                state.mcp_client_list[server_name] = McpClient()
-                state.mcp_client_list[server_name].disabled = True
+                settings['mcpServers'][server_name]['disabled'] = True
+                settings['mcpServers'][server_name]['processingStatus'] = 'server_error'
+                mcp_client_list[server_name] = McpClient()
+                mcp_client_list[server_name].disabled = True
 
+            # fail_fast=True：首次连接失败即抛
             await asyncio.wait_for(
                 mcp_client.initialize(
                     server_name,
@@ -154,6 +136,8 @@ async def lifespan(app: FastAPI):
                 ),
                 timeout=6
             )
+            # 如果 initialize 抛异常，直接走到下面的 except
+            # 如果成功到达这里，再检查 on_failure 是否已被触发
             if first_error:
                 return server_name, None, first_error
             return server_name, mcp_client, None
@@ -165,11 +149,13 @@ async def lifespan(app: FastAPI):
             logger.exception("%s initialize crashed", server_name)
             return server_name, None, str(e)
 
-    if state.settings:
-        for server_name, server_config in state.settings['mcpServers'].items():
+    if settings:
+        # 创建所有初始化任务
+        for server_name, server_config in settings['mcpServers'].items():
             task = asyncio.create_task(init_mcp_with_timeout(server_name, server_config))
             mcp_init_tasks.append(task)
-
+        # 立即继续执行不等待
+        # 通过回调处理结果
         async def check_results():
             """后台收集任务结果"""
             logger.info("check_results started with %d tasks", len(mcp_init_tasks))
@@ -177,50 +163,21 @@ async def lifespan(app: FastAPI):
                 server_name, mcp_client, error = await task
                 if error:
                     logger.error(f"MCP client {server_name} initialization failed: {error}")
-                    state.settings['mcpServers'][server_name]['disabled'] = True
-                    state.settings['mcpServers'][server_name]['processingStatus'] = 'server_error'
-                    state.mcp_client_list[server_name] = McpClient()
-                    state.mcp_client_list[server_name].disabled = True
+                    settings['mcpServers'][server_name]['disabled'] = True
+                    settings['mcpServers'][server_name]['processingStatus'] = 'server_error'
+                    mcp_client_list[server_name] = McpClient()
+                    mcp_client_list[server_name].disabled = True
                 else:
                     logger.info(f"MCP client {server_name} initialized successfully")
-                    state.mcp_client_list[server_name] = mcp_client
-            await save_settings(state.settings)
-            await broadcast_settings_update(state.settings)
-
+                    mcp_client_list[server_name] = mcp_client
+            await save_settings(settings)  # 所有任务完成后统一保存
+            await broadcast_settings_update(settings)  # 所有任务完成后统一广播
+        # 在后台运行结果收集
         asyncio.create_task(check_results())
     yield
 
-# WebSocket端点增加连接管理
-# 新增广播函数
-async def broadcast_settings_update(settings):
-    """向所有WebSocket连接推送配置更新"""
-    for connection in app.state.active_connections:  # 维护在应用状态中
-        try:
-            await connection.send_json({
-                "type": "settings",
-                "data": settings
-            })
-            print("Settings broadcasted to client")
-        except Exception as e:
-            logger.error(f"Broadcast failed: {e}")
-
 app = FastAPI(lifespan=lifespan)
-
-# Initialize shared application state
-app.state.local_timezone = None
-app.state.settings = None
-app.state.client = None
-app.state.reasoner_client = None
-app.state.mcp_client_list = {}
-app.state.locales = {}
-app.state._TOOL_HOOKS = {}
-app.state.cur_random = []
-app.state.active_connections = []
-app.state.mcp_status = {}
-app.state.live_client = None
-app.state.live_thread = None
-app.state.current_loop = None
-app.state.stop_event = None
+app.include_router(ws_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -230,20 +187,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-def create_app(host: str, port: int) -> FastAPI:
-    """Return a configured FastAPI application."""
-    global HOST, PORT
-    HOST = host
-    PORT = port
-    configure_host_port(host, port)
-    return app
-
 async def t(text: str) -> str:
-    state = app.state
-    settings = state.settings
+    global locales
+    settings = await load_settings()
     target_language = settings["systemSettings"]["language"]
-    return state.locales.get(target_language, {}).get(text, text)
+    return locales[target_language].get(text, text)
 
 
 # 全局存储异步工具状态
@@ -276,7 +224,7 @@ async def execute_async_tool(tool_id: str, tool_name: str, args: dict, settings:
 
 async def get_image_content(image_url: str) -> str:
     import hashlib
-    settings = app.state.settings
+    settings = await load_settings()
     base64_image = await get_image_base64(image_url)
     media_type = await get_image_media_type(image_url)
     url= f"data:{media_type};base64,{base64_image}"
@@ -317,7 +265,7 @@ async def get_image_content(image_url: str) -> str:
     return content
 
 async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str | List | None:
-    state = app.state
+    global mcp_client_list,_TOOL_HOOKS
     from py.web_search import (
         DDGsearch_async, 
         searxng_async, 
@@ -339,7 +287,7 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
     from py.load_files import get_file_content
     from py.code_interpreter import e2b_code_async,local_run_code_async
     from py.custom_http import fetch_custom_http
-    from py.comfyui_tool import comfyui_tool_call, run_workflow
+    from py.comfyui_tool import comfyui_tool_call
     from py.utility_tools import (
         time_async,
         get_weather_async,
@@ -349,7 +297,7 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         get_wikipedia_section_content,
         search_arxiv_papers
     )
-    state._TOOL_HOOKS = {
+    _TOOL_HOOKS = {
         "DDGsearch_async": DDGsearch_async,
         "searxng_async": searxng_async,
         "Tavily_search_async": Tavily_search_async,
@@ -381,7 +329,6 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         "get_wikipedia_section_content": get_wikipedia_section_content,
         "search_arxiv_papers": search_arxiv_papers
     }
-    _TOOL_HOOKS = state._TOOL_HOOKS
     if "multi_tool_use." in tool_name:
         tool_name = tool_name.replace("multi_tool_use.", "")
     if "custom_http_" in tool_name:
@@ -407,7 +354,7 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         result = await comfyui_tool_call(tool_name, text_input, image_input,text_input_2,image_input_2)
         return str(result)
     if tool_name not in _TOOL_HOOKS:
-        for server_name, mcp_client in state.mcp_client_list.items():
+        for server_name, mcp_client in mcp_client_list.items():
             if tool_name in mcp_client._conn.tools:
                 result = await mcp_client.call_tool(tool_name, tool_params)
                 return str(result.model_dump())
@@ -517,7 +464,7 @@ async def images_add_in_messages(request_messages: List[Dict], images: List[Dict
 
 async def tools_change_messages(request: ChatRequest, settings: dict):
     if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'beforeThinking':
-        time_message = f"消息发送时间：{app.state.local_timezone}  {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}\n\n"
+        time_message = f"消息发送时间：{local_timezone}  {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}\n\n"
         request.messages[-1]['content'] = time_message + request.messages[-1]['content']
     if settings['tools']['inference']['enabled']:
         inference_message = "回答用户前请先思考推理，再回答问题，你的思考推理的过程必须放在<think>与</think>之间。\n\n"
@@ -665,8 +612,7 @@ def get_drs_stage_system_message(DRS_STAGE,user_prompt,full_content):
     return search_prompt
 
 async def generate_stream_response(client,reasoner_client, request: ChatRequest, settings: dict,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search,async_tools_id):
-    state = app.state
-    mcp_client_list = state.mcp_client_list
+    global mcp_client_list
     DRS_STAGE = 1 # 1: 明确用户需求阶段 2: 查询搜索阶段 3: 生成结果阶段
     if len(request.messages) > 2:
         DRS_STAGE = 2
@@ -883,7 +829,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                 for lore in cur_memory["lorebook"]:
                     if lore["name"] != "" and (lore["name"] in user_prompt or lore["name"] in assistant_reply):
                         lore_content = lore_content + "\n\n" + f"{lore['name']}：{lore['value']}"
-            cur_random = state.cur_random
+            global cur_random 
             # 如果request.messages中不包含assistant回复，说明是首次提问，触发随机设定
             if not assistant_reply:
                 # 如果 cur_memory 中有 random 条目
@@ -2204,8 +2150,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
         )
 
 async def generate_complete_response(client,reasoner_client, request: ChatRequest, settings: dict,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search):
-    state = app.state
-    mcp_client_list = state.mcp_client_list
+    global mcp_client_list
     DRS_STAGE = 1 # 1: 明确用户需求阶段 2: 查询搜索阶段 3: 生成结果阶段
     from py.load_files import get_files_content,file_tool,image_tool
     from py.web_search import (
@@ -2431,7 +2376,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                 for lore in cur_memory["lorebook"]:
                     if lore["name"] != "" and (lore["name"] in user_prompt or lore["name"] in assistant_reply):
                         lore_content = lore_content + "\n\n" + f"{lore['name']}：{lore['value']}"
-            cur_random = state.cur_random
+            global cur_random 
             # 如果request.messages中不包含assistant回复，说明是首次提问，触发随机设定
             if not assistant_reply:
                 # 如果 cur_memory 中有 random 条目
@@ -3122,7 +3067,7 @@ async def chat_endpoint(request: ChatRequest,fastapi_request: Request):
     enable_web_search: 默认为False，是否启用网络搜索
     """
     fastapi_base_url = str(fastapi_request.base_url)
-    state = fastapi_request.app.state
+    global client, settings,reasoner_client,mcp_client_list
     model = request.model or 'super-model' # 默认使用 'super-model'
     enable_thinking = request.enable_thinking or False
     enable_deep_research = request.enable_deep_research or False
@@ -3130,30 +3075,33 @@ async def chat_endpoint(request: ChatRequest,fastapi_request: Request):
     async_tools_id = request.asyncToolsID or None
     if model == 'super-model':
         current_settings = await load_settings()
-        if (current_settings['api_key'] != state.settings['api_key']
-            or current_settings['base_url'] != state.settings['base_url']):
-            state.client = AsyncOpenAI(
+        # 动态更新客户端配置
+        if (current_settings['api_key'] != settings['api_key'] 
+            or current_settings['base_url'] != settings['base_url']):
+            client = AsyncOpenAI(
                 api_key=current_settings['api_key'],
                 base_url=current_settings['base_url'] or "https://api.openai.com/v1",
             )
-        if (current_settings['reasoner']['api_key'] != state.settings['reasoner']['api_key']
-            or current_settings['reasoner']['base_url'] != state.settings['reasoner']['base_url']):
-            state.reasoner_client = AsyncOpenAI(
+        if (current_settings['reasoner']['api_key'] != settings['reasoner']['api_key'] 
+            or current_settings['reasoner']['base_url'] != settings['reasoner']['base_url']):
+            reasoner_client = AsyncOpenAI(
                 api_key=current_settings['reasoner']['api_key'],
                 base_url=current_settings['reasoner']['base_url'] or "https://api.openai.com/v1",
             )
+        # 将"system_prompt"插入到request.messages[0].content中
         if current_settings['system_prompt']:
             if request.messages[0]['role'] == 'system':
                 request.messages[0]['content'] = current_settings['system_prompt'] + "\n\n" + request.messages[0]['content']
             else:
                 request.messages.insert(0, {'role': 'system', 'content': current_settings['system_prompt']})
-        if current_settings != state.settings:
-            state.settings = current_settings
+        if current_settings != settings:
+            settings = current_settings
         try:
             if request.stream:
-                return await generate_stream_response(state.client,state.reasoner_client, request, state.settings,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search,async_tools_id)
-            return await generate_complete_response(state.client,state.reasoner_client, request, state.settings,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search)
+                return await generate_stream_response(client,reasoner_client, request, settings,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search,async_tools_id)
+            return await generate_complete_response(client,reasoner_client, request, settings,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search)
         except asyncio.CancelledError:
+            # 处理客户端中断连接的情况
             print("Client disconnected")
             raise
         except Exception as e:
@@ -3217,26 +3165,19 @@ def convert_audio_to_pcm16(audio_bytes: bytes, target_sample_rate: int = 16000) 
     将音频数据转换为PCM16格式，采样率16kHz
     """
     try:
-        from scipy.io import wavfile
-        import numpy as np
-        from scipy.signal import resample
-    except ImportError as e:  # pragma: no cover - optional dependency
-        raise HTTPException(status_code=500, detail="scipy and numpy are required for audio conversion") from e
-
-    try:
         # 创建临时文件
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
             temp_file.write(audio_bytes)
             temp_file_path = temp_file.name
-
+        
         try:
             # 读取音频文件
             sample_rate, audio_data = wavfile.read(temp_file_path)
-
+            
             # 转换为单声道
             if len(audio_data.shape) > 1:
                 audio_data = np.mean(audio_data, axis=1)
-
+            
             # 转换为float32进行重采样
             if audio_data.dtype != np.float32:
                 if audio_data.dtype == np.int16:
@@ -3245,21 +3186,22 @@ def convert_audio_to_pcm16(audio_bytes: bytes, target_sample_rate: int = 16000) 
                     audio_data = audio_data.astype(np.float32) / 2147483648.0
                 else:
                     audio_data = audio_data.astype(np.float32)
-
+            
             # 重采样到目标采样率
             if sample_rate != target_sample_rate:
+                from scipy.signal import resample
                 num_samples = int(len(audio_data) * target_sample_rate / sample_rate)
                 audio_data = resample(audio_data, num_samples)
-
+            
             # 转换为int16 PCM格式
             audio_data = (audio_data * 32767).astype(np.int16)
-
+            
             return audio_data.tobytes()
-
+            
         finally:
             # 删除临时文件
             os.unlink(temp_file_path)
-
+            
     except Exception as e:
         print(f"Audio conversion error: {e}")
         # 如果转换失败，尝试直接返回原始数据
@@ -3833,8 +3775,6 @@ async def text_to_speech(request: Request):
         tts_engine = tts_settings.get('engine', 'edgetts')
         
         if tts_engine == 'edgetts':
-            if edge_tts is None:
-                raise HTTPException(status_code=500, detail="edge-tts library is not installed")
             edgettsLanguage = tts_settings.get('edgettsLanguage', 'zh-CN')
             edgettsVoice = tts_settings.get('edgettsVoice', 'XiaoyiNeural')
             rate = tts_settings.get('edgettsRate', 1.0)
@@ -3868,10 +3808,6 @@ async def text_to_speech(request: Request):
             )
         # GSV处理逻辑
         elif tts_engine == 'GSV':
-            try:
-                import httpx
-            except ImportError as e:  # pragma: no cover - optional dependency
-                raise HTTPException(status_code=500, detail="httpx is required for GSV TTS") from e
             # 从设置获取所有参数并提供默认值
             gsv_config = {
                 'server': tts_settings.get('gsvServer', 'http://127.0.0.1:9880'),
@@ -3941,6 +3877,8 @@ async def text_to_speech(request: Request):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"服务器内部错误: {str(e)}"})
 
+# 添加状态存储
+mcp_status = {}
 @app.post("/create_mcp")
 async def create_mcp_endpoint(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
@@ -3954,14 +3892,11 @@ async def create_mcp_endpoint(request: Request, background_tasks: BackgroundTask
     
     return {"success": True, "message": "MCP服务器初始化已开始"}
 @app.get("/mcp_status/{mcp_id}")
-async def get_mcp_status(mcp_id: str, request: Request):
-    state = request.app.state
-    status = state.mcp_status.get(mcp_id, "not_found")
+async def get_mcp_status(mcp_id: str):
+    status = mcp_status.get(mcp_id, "not_found")
     return {"mcp_id": mcp_id, "status": status}
 async def process_mcp(mcp_id: str):
-    state = app.state
-    mcp_client_list = state.mcp_client_list
-    mcp_status = state.mcp_status
+    global mcp_client_list, mcp_status
 
     async def on_failure(error_message: str):
         mcp_client_list[mcp_id].disabled = True
@@ -3985,7 +3920,7 @@ async def process_mcp(mcp_id: str):
 
 @app.delete("/remove_mcp")
 async def remove_mcp_server(request: Request):
-    state = request.app.state
+    global settings, mcp_client_list
     try:
         data = await request.json()
         server_name = data.get("serverName", "")
@@ -3993,16 +3928,18 @@ async def remove_mcp_server(request: Request):
         if not server_name:
             raise HTTPException(status_code=400, detail="No server names provided")
 
+        # 移除指定的MCP服务器
         current_settings = await load_settings()
         if server_name in current_settings['mcpServers']:
             del current_settings['mcpServers'][server_name]
             await save_settings(current_settings)
-            state.settings = current_settings
+            settings = current_settings
 
-            if server_name in state.mcp_client_list:
-                state.mcp_client_list[server_name].disabled = True
-                await state.mcp_client_list[server_name].close()
-                del state.mcp_client_list[server_name]
+            # 从mcp_client_list中移除
+            if server_name in mcp_client_list:
+                mcp_client_list[server_name].disabled = True
+                await mcp_client_list[server_name].close()
+                del mcp_client_list[server_name]
                 print(f"关闭MCP服务器: {server_name}")
 
             return JSONResponse({"success": True, "removed": server_name})
@@ -4066,13 +4003,7 @@ async def initialize_a2a(request: Request):
 # 在现有路由之后添加health路由
 @app.get("/health")
 async def health_check():
-    deps = {dep: check_dependency(dep) for dep in MAIN_DEPENDENCIES}
-    return {
-        "status": "ok",
-        "version": VERSION,
-        "start_time": START_TIME,
-        "dependencies": deps,
-    }
+    return {"status": "ok"}
 
 
 @app.post("/load_file")
@@ -4697,45 +4628,6 @@ async def delete_workflow(filename: str):
             detail=f"Failed to delete file: {str(e)}"
         )
 
-
-@app.post("/comfyui/image")
-async def comfyui_image_endpoint(
-    text: str | None = Form(None),
-    image: str | None = Form(None),
-    extra_inputs: str | None = Form(None),
-):
-    extra = json.loads(extra_inputs) if extra_inputs else None
-    result, = await asyncio.gather(
-        run_workflow("comfyui_image", text=text, image=image, extra_inputs=extra)
-    )
-    return result
-
-
-@app.post("/comfyui/video")
-async def comfyui_video_endpoint(
-    text: str | None = Form(None),
-    image: str | None = Form(None),
-    extra_inputs: str | None = Form(None),
-):
-    extra = json.loads(extra_inputs) if extra_inputs else None
-    result, = await asyncio.gather(
-        run_workflow("comfyui_video", text=text, image=image, extra_inputs=extra)
-    )
-    return result
-
-
-@app.post("/comfyui/audio")
-async def comfyui_audio_endpoint(
-    text: str | None = Form(None),
-    image: str | None = Form(None),
-    extra_inputs: str | None = Form(None),
-):
-    extra = json.loads(extra_inputs) if extra_inputs else None
-    result, = await asyncio.gather(
-        run_workflow("comfyui_audio", text=text, image=image, extra_inputs=extra)
-    )
-    return result
-
 @app.get("/cur_language")
 async def cur_language():
     settings = await load_settings()
@@ -4752,6 +4644,11 @@ import py.blivedm as blivedm
 import py.blivedm.models.web as web_models
 import py.blivedm.models.open_live as open_models
 
+# 全局变量存储直播客户端和相关状态
+live_client = None
+live_thread = None
+current_loop = None
+stop_event = None  # 新增：用于通知线程停止
 
 # Pydantic模型
 class LiveConfig(BaseModel):
@@ -4800,14 +4697,14 @@ manager = ConnectionManager()
 
 # API路由
 @app.post("/api/live/start", response_model=ApiResponse)
-async def start_live(config_request: LiveConfigRequest, fastapi_request: Request):
-    state = fastapi_request.app.state
-
+async def start_live(request: LiveConfigRequest):
+    global live_client, live_thread, stop_event
+    
     try:
-        if state.live_client is not None:
+        if live_client is not None:
             return ApiResponse(success=False, message="直播监听已在运行")
-
-        config = config_request.config
+        
+        config = request.config
         
         # 验证配置
         if not config.bilibili_enabled:
@@ -4826,12 +4723,12 @@ async def start_live(config_request: LiveConfigRequest, fastapi_request: Request
                 return ApiResponse(success=False, message="请完整填写开放平台配置信息")
         
         # 创建停止事件
-        state.stop_event = threading.Event()
-
+        stop_event = threading.Event()
+        
         # 创建新线程运行直播监听
-        state.live_thread = threading.Thread(target=run_live_client, args=(config.dict(),))
-        state.live_thread.daemon = True
-        state.live_thread.start()
+        live_thread = threading.Thread(target=run_live_client, args=(config.dict(),))
+        live_thread.daemon = True
+        live_thread.start()
         
         # 等待一下确保客户端启动
         await asyncio.sleep(0.5)
@@ -4841,71 +4738,80 @@ async def start_live(config_request: LiveConfigRequest, fastapi_request: Request
         return ApiResponse(success=False, message=f"启动失败: {str(e)}")
 
 @app.post("/api/live/stop", response_model=ApiResponse)
-async def stop_live(fastapi_request: Request):
-    state = fastapi_request.app.state
-
+async def stop_live():
+    global live_client, live_thread, current_loop, stop_event
+    
     try:
-        if state.live_client is None:
+        if live_client is None:
             return ApiResponse(success=True, message="直播监听未运行")
-
+        
         print("开始停止直播监听...")
-
-        if state.stop_event:
-            state.stop_event.set()
-
-        if state.current_loop and not state.current_loop.is_closed():
+        
+        # 设置停止事件
+        if stop_event:
+            stop_event.set()
+        
+        # 如果有事件循环，在其中停止客户端
+        if current_loop and not current_loop.is_closed():
             try:
+                # 创建一个任务来停止客户端
                 future = asyncio.run_coroutine_threadsafe(
-                    stop_live_client(),
-                    state.current_loop
+                    stop_live_client(), 
+                    current_loop
                 )
+                # 等待停止完成，最多等待5秒
                 future.result(timeout=5)
                 print("客户端停止成功")
             except asyncio.TimeoutError:
                 print("停止客户端超时")
             except Exception as e:
                 print(f"停止客户端时出错: {e}")
-
-        if state.live_thread and state.live_thread.is_alive():
-            state.live_thread.join(timeout=3)
-            if state.live_thread.is_alive():
+        
+        # 等待线程结束
+        if live_thread and live_thread.is_alive():
+            live_thread.join(timeout=3)
+            if live_thread.is_alive():
                 print("警告: 线程未能在超时时间内结束")
-
-        state.live_client = None
-        state.live_thread = None
-        state.current_loop = None
-        state.stop_event = None
-
+        
+        # 清理全局变量
+        live_client = None
+        live_thread = None
+        current_loop = None
+        stop_event = None
+        
         print("直播监听停止完成")
         return ApiResponse(success=True, message="直播监听停止成功")
-
+        
     except Exception as e:
         print(f"停止直播监听时出错: {e}")
         return ApiResponse(success=False, message=f"停止失败: {str(e)}")
 
 async def stop_live_client():
     """停止直播客户端的异步函数"""
-    state = app.state
-
-    if state.live_client:
+    global live_client
+    
+    if live_client:
         try:
-            await state.live_client.stop_and_close()
+            await live_client.stop_and_close()
             print("直播客户端已停止")
         except Exception as e:
             print(f"停止直播客户端时出错: {e}")
         finally:
-            state.live_client = None
+            live_client = None
 
 @app.post("/api/live/reload", response_model=ApiResponse)
-async def reload_live(config_request: LiveConfigRequest, fastapi_request: Request):
+async def reload_live(request: LiveConfigRequest):
     try:
-        stop_result = await stop_live(fastapi_request)
+        # 先停止
+        stop_result = await stop_live()
         if not stop_result.success:
             return stop_result
-
+            
+        # 等待一下确保完全停止
         await asyncio.sleep(2)
-
-        return await start_live(config_request, fastapi_request)
+        
+        # 再启动
+        return await start_live(request)
     except Exception as e:
         return ApiResponse(success=False, message=f"重载失败: {str(e)}")
 
@@ -4922,13 +4828,8 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-def init_session(sessdata: str = "") -> Optional["aiohttp.ClientSession"]:
+def init_session(sessdata: str = "") -> Optional[aiohttp.ClientSession]:
     """初始化aiohttp会话"""
-    try:
-        import aiohttp
-    except ImportError:  # pragma: no cover - optional dependency
-        return None
-
     cookies = http.cookies.SimpleCookie()
     if sessdata:
         cookies['SESSDATA'] = sessdata
@@ -4941,43 +4842,47 @@ def init_session(sessdata: str = "") -> Optional["aiohttp.ClientSession"]:
 
 def run_live_client(config: dict):
     """在新线程中运行直播客户端"""
-    state = app.state
-
+    global live_client, current_loop, stop_event
+    
     try:
+        # 创建新的事件循环
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        state.current_loop = loop
-
+        current_loop = loop
+        
         print("开始运行直播客户端...")
-
+        
+        # 运行异步函数
         loop.run_until_complete(start_live_client(config))
-
+        
     except Exception as e:
         print(f"直播客户端运行错误: {e}")
-        if state.current_loop and not state.current_loop.is_closed():
+        # 通知前端错误
+        if current_loop and not current_loop.is_closed():
             try:
                 asyncio.run_coroutine_threadsafe(manager.broadcast({
                     'type': 'error',
                     'message': str(e)
-                }), state.current_loop)
+                }), current_loop)
             except:
                 pass
     finally:
         print("直播客户端线程结束")
-        if state.current_loop and not state.current_loop.is_closed():
+        # 清理
+        if current_loop and not current_loop.is_closed():
             try:
-                state.current_loop.close()
+                current_loop.close()
             except:
                 pass
-        state.current_loop = None
-        state.live_client = None
+        current_loop = None
+        live_client = None
 
 async def start_live_client(config: dict):
     """启动直播客户端"""
-    state = app.state
-
+    global live_client, stop_event
+    
     session = None
-
+    
     try:
         bilibili_type = config.get('bilibili_type', 'web')
         
@@ -4989,9 +4894,9 @@ async def start_live_client(config: dict):
             # 初始化session
             session = init_session(sessdata)
             
-            state.live_client = blivedm.BLiveClient(room_id, session=session)
+            live_client = blivedm.BLiveClient(room_id, session=session)
             handler = WebSocketHandler()
-            state.live_client.set_handler(handler)
+            live_client.set_handler(handler)
             
         elif bilibili_type == 'open_live':
             # 开放平台类型客户端
@@ -5000,24 +4905,24 @@ async def start_live_client(config: dict):
             app_id = int(config.get('bilibili_APP_ID', 0))
             room_owner_auth_code = config.get('bilibili_ROOM_OWNER_AUTH_CODE', '')
             
-            state.live_client = blivedm.OpenLiveClient(
+            live_client = blivedm.OpenLiveClient(
                 access_key_id=access_key_id,
                 access_key_secret=access_key_secret,
                 app_id=app_id,
                 room_owner_auth_code=room_owner_auth_code,
             )
             handler = OpenLiveWebSocketHandler()
-            state.live_client.set_handler(handler)
+            live_client.set_handler(handler)
         
         else:
             raise ValueError(f"不支持的直播类型: {bilibili_type}")
         
         print(f"启动{bilibili_type}类型的直播客户端")
-        state.live_client.start()
+        live_client.start()
         
         # 保持运行，直到收到停止信号
         try:
-            while not (state.stop_event and state.stop_event.is_set()):
+            while not (stop_event and stop_event.is_set()):
                 await asyncio.sleep(1)
             print("收到停止信号，准备停止客户端")
         except asyncio.CancelledError:
@@ -5028,9 +4933,9 @@ async def start_live_client(config: dict):
         raise
     finally:
         # 清理资源
-        if state.live_client:
+        if live_client:
             try:
-                await state.live_client.stop_and_close()
+                await live_client.stop_and_close()
                 print("客户端已关闭")
             except Exception as e:
                 print(f"关闭客户端时出错: {e}")
@@ -5268,94 +5173,15 @@ async def get_userfile():
     except Exception as e:
         return {"message": str(e), "success": False}
 
+mcp = FastApiMCP(
+    app,
+    name="Agent party MCP - chat with multiple agents",
+    include_operations=["get_agents", "chat_with_agent_party"],
+)
 
-settings_lock = asyncio.Lock()
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    state = websocket.app.state
-    state.active_connections.append(websocket)
-
-    try:
-        async with settings_lock:  # 读取时加锁
-            current_settings = await load_settings()
-        await websocket.send_json({"type": "settings", "data": current_settings})
-        while True:
-            data = await websocket.receive_json()
-            if data.get("type") == "ping":
-                await websocket.send_json({"type": "pong"})
-            elif data.get("type") == "save_settings":
-                await save_settings(data.get("data", {}))
-                # 发送确认消息（携带相同 correlationId）
-                await websocket.send_json({
-                    "type": "settings_saved",
-                    "correlationId": data.get("correlationId"),
-                    "success": True
-                })
-            elif data.get("type") == "get_settings":
-                settings = await load_settings()
-                await websocket.send_json({"type": "settings", "data": settings})
-            elif data.get("type") == "save_agent":
-                current_settings = await load_settings()
-                
-                # 生成智能体ID和配置路径
-                agent_id = str(shortuuid.ShortUUID().random(length=8))
-                config_path = os.path.join(AGENT_DIR, f"{agent_id}.json")
-                
-                with open(config_path, 'w', encoding='utf-8') as f:
-                    json.dump(current_settings, f, indent=4, ensure_ascii=False)
-                
-                # 更新主配置
-                current_settings['agents'][agent_id] = {
-                    "id": agent_id,
-                    "name": data['data']['name'],
-                    "system_prompt": data['data']['system_prompt'],
-                    "config_path": config_path,
-                    "enabled": False,
-                }
-                await save_settings(current_settings)
-                
-                # 广播更新后的配置
-                await websocket.send_json({
-                    "type": "settings",
-                    "data": current_settings
-                })
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-    finally:
-        state.active_connections.remove(websocket)
-
+mcp.mount()
 
 app.mount("/vrm", StaticFiles(directory=DEFAULT_VRM_DIR), name="vrm")
 app.mount("/uploaded_files", StaticFiles(directory=UPLOAD_FILES_DIR), name="uploaded_files")
 app.mount("/node_modules", StaticFiles(directory=os.path.join(base_path, "node_modules")), name="node_modules")
 app.mount("/", StaticFiles(directory=os.path.join(base_path, "static"), html=True), name="static")
-
-# 简化main函数
-if __name__ == "__main__":
-    import uvicorn
-    from py.mcp import run_stdio
-
-    default_host = os.getenv("HOST", HOST)
-    default_port = int(os.getenv("PORT", PORT))
-    parser = argparse.ArgumentParser(description="Run the ASGI application server.")
-    parser.add_argument("--host", default=default_host, help="Host for the ASGI server, default is HOST env or 127.0.0.1")
-    parser.add_argument("--port", type=int, default=default_port, help="Port for the ASGI server, default is PORT env or 3456")
-    parser.add_argument(
-        "--mcp-stdio",
-        action="store_true",
-        help="Run only the MCP stdio server and exit",
-    )
-    args = parser.parse_args()
-
-    if args.mcp_stdio:
-        try:
-            run_stdio()
-        finally:
-            logger.info("MCP stdio server stopped")
-    else:
-        uvicorn.run(
-            create_app(args.host, args.port),
-            host=args.host,
-            port=args.port,
-        )
