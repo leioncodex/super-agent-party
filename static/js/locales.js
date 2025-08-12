@@ -643,7 +643,7 @@ const translations = {
         'UsingVRMAAnimations': '使用VRM模型动画',
         'UsingProceduralAnimations': '使用程序化动画',
         'clickToUse': '1. 桌面端点击按钮启动浏览器模式',
-        'scanToUse': '2. 手机浏览器扫码快速使用浏览器模式',
+        'scanToUse': '2. 手机浏览器扫码快速使用浏览器模式，扫码前，需要在系统设置中将网络设置为所有设备可见',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1286,6 +1286,6 @@ const translations = {
         'UsingVRMAAnimations': 'Using VRMA Animations',
         'UsingProceduralAnimations': 'Using Procedural Animations',
         'clickToUse': '1. Click the button on the desktop to start browser mode',
-        'scanToUse': '2. Mobile browser phone scan code to quickly use browser mode',
+        'scanToUse': '2. Scan the code in the mobile browser to quickly use the browser mode. Before scanning the code, you need to set the network to be visible to all devices in the system settings',
     }
   };
