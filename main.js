@@ -7,6 +7,33 @@ const { spawn } = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const net = require('net') // 添加 net 模块用于端口检测
+const i18next = require('i18next')
+const en = require('./src/locales/en.json')
+const fr = require('./src/locales/fr.json')
+const es = require('./src/locales/es.json')
+require('ts-node/register')
+const logger = require('./src/logger').default
+
+require('dotenv').config()
+
+// 获取配置文件路径
+function getConfigPath() {
+  return path.join(app.getPath('userData'), 'config.json');
+}
+
+// 加载环境变量
+function loadEnvVariables() {
+  const configPath = getConfigPath();
+  if (fs.existsSync(configPath)) {
+    const rawData = fs.readFileSync(configPath);
+    const config = JSON.parse(rawData);
+    for (const key in config) {
+      process.env[key] = config[key];
+    }
+  }
+}
+
+loadEnvVariables();
 
 let pythonExec;
 let isQuitting = false;
@@ -25,10 +52,11 @@ let loadingWindow
 let tray = null
 let updateAvailable = false
 let backendProcess = null
-const HOST = '127.0.0.1'
-let PORT = 3456 // 改为 let，允许修改
-const DEFAULT_PORT = 3456 // 保存默认端口
+const HOST = process.env.HOST || '127.0.0.1'
+const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 3456
+let PORT = DEFAULT_PORT // 允许修改
 const isDev = process.env.NODE_ENV === 'development'
+logger.info('Application starting')
 const locales = {
   'zh-CN': {
     show: '显示窗口',
@@ -70,7 +98,17 @@ const ALLOWED_EXTENSIONS = [
   'csv', 'tsv', 'txt', 'md', 'log', 'conf', 'ini', 'env', 'toml'
   ];
 const ALLOWED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
-let currentLanguage = 'zh-CN';
+let currentLanguage = 'en';
+
+i18next.init({
+  resources: {
+    en: { translation: en },
+    fr: { translation: fr },
+    es: { translation: es },
+  },
+  lng: currentLanguage,
+  fallbackLng: 'en',
+});
 
 // 构建菜单项
 let menu;
@@ -80,25 +118,6 @@ const logDir = path.join(app.getPath('userData'), 'logs')
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true })
 }
-
-// 获取配置文件路径
-function getConfigPath() {
-  return path.join(app.getPath('userData'), 'config.json');
-}
-
-// 加载环境变量
-function loadEnvVariables() {
-  const configPath = getConfigPath();
-  if (fs.existsSync(configPath)) {
-    const rawData = fs.readFileSync(configPath);
-    const config = JSON.parse(rawData);
-    for (const key in config) {
-      process.env[key] = config[key];
-    }
-  }
-}
-
-loadEnvVariables();
 
 // 新增：检测端口是否可用
 function isPortAvailable(port) {
@@ -197,14 +216,15 @@ async function startBackend() {
     // 查找可用端口
     const availablePort = await findAvailablePort(DEFAULT_PORT)
     PORT = availablePort
-    
+    saveEnvVariable('PORT', PORT.toString())
+
     // 如果端口不是默认端口，记录变更
     if (PORT !== DEFAULT_PORT) {
       console.log(`默认端口 ${DEFAULT_PORT} 被占用，已切换到端口 ${PORT}`)
     }
     
     const spawnOptions = {
-      stdio: ['ignore', 'ignore', 'ignore'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
       env: {
         ...process.env,
@@ -219,15 +239,38 @@ async function startBackend() {
       spawnOptions.detached = false
       spawnOptions.shell = false
       spawnOptions.windowsVerbatimArguments = false
-      spawnOptions.stdio = ['ignore', 'ignore', 'ignore']
     }
 
     const networkVisible = process.env.networkVisible === 'global';
     const BACKEND_HOST = networkVisible ? '0.0.0.0' : HOST
 
+    let execCommand = pythonExec;
+    if (!fs.existsSync(execCommand)) {
+      const fallbackExec = process.env.PYTHON || 'python';
+      dialog.showMessageBoxSync({
+        type: 'warning',
+        title: 'Python environment not found',
+        message:
+          'Local Python environment not found.\n' +
+          'Create one with:\n\npython -m venv .venv && pip install -r requirements.txt\n\n' +
+          `Falling back to: ${fallbackExec}`
+      });
+      execCommand = fallbackExec;
+    }
+
     if (isDev) {
       // 开发模式
       backendProcess = spawn(pythonExec, [
+        '-m',
+        'backend',
+      backendProcess = spawn(execCommand, [
+
+      let pythonExecutable = pythonExec
+      if (!fs.existsSync(pythonExecutable)) {
+        pythonExecutable = process.platform === 'win32' ? 'python' : 'python3'
+        console.warn(`Python executable not found at ${pythonExec}, falling back to system ${pythonExecutable}`)
+      }
+      backendProcess = spawn(pythonExecutable, [
         'server.py',
         '--port', PORT.toString(),
         '--host', BACKEND_HOST,
@@ -249,29 +292,42 @@ async function startBackend() {
       })
     }
 
-    // 简化日志处理
-    if (isDev) {
-      const logStream = fs.createWriteStream(
-        path.join(logDir, `backend-${Date.now()}.log`),
-        { flags: 'a' }
-      )
-      
-      backendProcess.stdout?.on('data', (data) => {
-        logStream.write(`[INFO] ${data}`)
-      })
-      
-      backendProcess.stderr?.on('data', (data) => {
-        logStream.write(`[ERROR] ${data}`)
-      })
-    }
+    const logStream = fs.createWriteStream(
+      path.join(logDir, 'backend.log'),
+      { flags: 'a' }
+    )
+
+    backendProcess.stdout?.on('data', (data) => {
+      const message = data.toString()
+      logStream.write(`[INFO] ${message}`)
+      console.log(`[backend] ${message}`)
+    })
+
+    backendProcess.stderr?.on('data', (data) => {
+      const message = data.toString()
+      logStream.write(`[ERROR] ${message}`)
+      console.error(`[backend] ${message}`)
+    })
 
     backendProcess.on('error', (err) => {
       console.error('Backend process error:', err)
     })
 
-    backendProcess.on('close', (code) => {
+    const handleBackendExit = (code) => {
       console.log(`Backend process exited with code ${code}`)
-    })
+      if (!isQuitting && code !== 0) {
+        const message = `Backend process exited with code ${code}`
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          dialog.showErrorBox('Backend Error', message)
+          mainWindow.webContents.send('backend-exited', { code })
+        } else {
+          console.error(message)
+        }
+      }
+    }
+
+    backendProcess.on('close', handleBackendExit)
+    backendProcess.on('exit', handleBackendExit)
 
     return PORT // 返回实际使用的端口
   } catch (error) {
@@ -292,9 +348,15 @@ async function waitForBackend() {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/health`)
       if (response.ok) {
+        const data = await response.json()
         // 后端服务准备就绪，通知骨架屏页面
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('backend-ready', { port: PORT })
+          mainWindow.webContents.send('backend-ready', {
+            port: PORT,
+            version: data.version,
+            startTime: data.start_time,
+            dependencies: data.dependencies
+          })
         }
         return
       }
@@ -489,6 +551,7 @@ app.whenReady().then(async () => {
     await mainWindow.loadURL(`http://${HOST}:${PORT}`)
     ipcMain.on('set-language', (_, lang) => {
       currentLanguage = lang;
+      i18next.changeLanguage(lang);
       updateTrayMenu();
       updatecontextMenu();
     });
@@ -534,11 +597,11 @@ app.whenReady().then(async () => {
       if (menuType === 'image') {
         menuTemplate = [
           {
-            label: locales[currentLanguage].copyImageLink,
+            label: i18next.t('menu.copyImageLink'),
             click: () => clipboard.writeText(data.src)
           },
           {
-            label: locales[currentLanguage].copyImage,
+            label: i18next.t('menu.copyImage'),
             click: async () => {
               try {
                 // 处理网络图片
@@ -563,9 +626,9 @@ app.whenReady().then(async () => {
       } else {
         // 原有基础菜单
         menuTemplate = [
-          { label: locales[currentLanguage].cut, role: 'cut' },
-          { label: locales[currentLanguage].copy, role: 'copy' },
-          { label: locales[currentLanguage].paste, role: 'paste' }
+          { label: i18next.t('menu.cut'), role: 'cut' },
+          { label: i18next.t('menu.copy'), role: 'copy' },
+          { label: i18next.t('menu.paste'), role: 'paste' }
         ];
       }
 
@@ -597,8 +660,8 @@ app.whenReady().then(async () => {
       const result = await dialog.showOpenDialog({
         properties: ['openFile', 'multiSelections'],
         filters: [
-          { name: locales[currentLanguage].supportedFiles, extensions: ALLOWED_EXTENSIONS },
-          { name: locales[currentLanguage].allFiles, extensions: ['*'] }
+          { name: i18next.t('menu.supportedFiles'), extensions: ALLOWED_EXTENSIONS },
+          { name: i18next.t('menu.allFiles'), extensions: ['*'] }
         ]
       })
       return result
@@ -607,8 +670,8 @@ app.whenReady().then(async () => {
       const result = await dialog.showOpenDialog({
         properties: ['openFile'],
         filters: [
-          { name: locales[currentLanguage].supportedimages, extensions: ALLOWED_IMAGE_EXTENSIONS },
-          { name: locales[currentLanguage].allFiles, extensions: ['*'] }
+          { name: i18next.t('menu.supportedImages'), extensions: ALLOWED_IMAGE_EXTENSIONS },
+          { name: i18next.t('menu.allFiles'), extensions: ['*'] }
         ]
       })
       // 返回包含文件名和路径的对象数组
@@ -680,13 +743,13 @@ app.on('window-all-closed', () => {
 
 // 处理渲染进程崩溃
 app.on('render-process-gone', (event, webContents, details) => {
-  console.error('渲染进程崩溃:', details)
+  logger.error('渲染进程崩溃:', details)
   dialog.showErrorBox('应用崩溃', `渲染进程异常: ${details.reason}`)
 })
 
 // 处理主进程未捕获异常
 process.on('uncaughtException', (err) => {
-  console.error('未捕获异常:', err)
+  logger.error('未捕获异常:', err)
   if (loadingWindow && !loadingWindow.isDestroyed()) {
     loadingWindow.close()
   }
@@ -715,7 +778,7 @@ function createTray() {
 function updateTrayMenu() {
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: locales[currentLanguage].show,
+      label: i18next.t('menu.show'),
       click: () => {
         if (mainWindow) {
           mainWindow.show()
@@ -725,29 +788,29 @@ function updateTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: locales[currentLanguage].exit,
+      label: i18next.t('menu.exit'),
       click: () => {
         app.isQuitting = true
         app.quit()
       }
     }
   ])
-  
+
   tray.setContextMenu(contextMenu);
 }
 
 function updatecontextMenu() {
   menu = Menu.buildFromTemplate([
     {
-      label: locales[currentLanguage].cut,
+      label: i18next.t('menu.cut'),
       role: 'cut'
     },
     {
-      label: locales[currentLanguage].copy,
+      label: i18next.t('menu.copy'),
       role: 'copy'
     },
     {
-      label: locales[currentLanguage].paste,
+      label: i18next.t('menu.paste'),
       role: 'paste'
     }
   ]);
