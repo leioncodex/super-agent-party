@@ -8,3 +8,16 @@
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"]
 }
+    "target": "ES2020",
+    "module": "commonjs",
+    "jsx": "react-jsx",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist"
+  },
+  "include": ["src/**/*", "tests/**/*"]
+}
+
