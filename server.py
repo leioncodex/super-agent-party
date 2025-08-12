@@ -3,6 +3,7 @@ import base64
 import glob
 from io import BytesIO
 import os
+import socket
 import sys
 import tempfile
 import threading
@@ -5265,6 +5266,24 @@ async def get_userfile():
         return {"message": "Userfile loaded successfully", "userfile": userfile, "success": True}
     except Exception as e:
         return {"message": str(e), "success": False}
+
+def get_internal_ip():
+    """获取本机内网 IP 地址"""
+    try:
+        # 创建一个 socket 连接，目标可以是任何公网地址（不真连接），只是用来获取出口 IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0)
+        s.connect(("8.8.8.8", 80))  # 使用 Google DNS，不实际发送数据
+        internal_ip = s.getsockname()[0]
+        s.close()
+        return internal_ip
+    except Exception:
+        return "127.0.0.1"
+
+@app.get("/api/ip")
+def get_ip():
+    ip = get_internal_ip()
+    return {"ip": ip}
 
 
 settings_lock = asyncio.Lock()

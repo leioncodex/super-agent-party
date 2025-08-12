@@ -2515,15 +2515,33 @@ let vue_methods = {
         }, 2000);
       }, 500);
     },
+    async getInternalIP() {
+        try {
+            const response = await fetch('/api/ip'); // 假设接口在同域名下
+            const data = await response.json();
+            return data.ip;
+        } catch (error) {
+            console.error("Failed to fetch internal IP:", error);
+            return "127.0.0.1";
+        }
+    },
 
-    generateQRCode() {
+    async generateQRCode() {
       // 确保 partyURL 存在且 DOM 已渲染
       if (!this.partyURL) return;
+      // 获取内网 IP
+      const internalIP = await this.getInternalIP();
 
+      // 替换 URL 中的 127.0.0.1 或 localhost，保留端口和路径
+      const url = new URL(this.partyURL);
+      if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
+        url.hostname = internalIP;
+      }
+      let qr_url = url.toString();
       const canvas = document.getElementById('qrcode');
 
       // 生成二维码
-      QRCode.toCanvas(canvas, this.partyURL, function(error) {
+      QRCode.toCanvas(canvas, qr_url, function(error) {
             if (error) {
                 console.error(error);
             } else {
