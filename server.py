@@ -69,6 +69,7 @@ local_timezone = None
 settings = None
 client = None
 reasoner_client = None
+HA_client = None
 mcp_client_list = {}
 locales = {}
 _TOOL_HOOKS = {}
@@ -4172,6 +4173,69 @@ async def initialize_a2a(request: Request):
             "enabled": True
         })
     except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+@app.post("/start_HA")
+async def start_HA(request: Request):
+    data = await request.json()
+    API_TOKEN = data['data']['api_key']
+    ha_config = {
+        "type": "sse",
+        "url": data['data']['url'].rstrip('/') + "/mcp_server/sse",
+        "headers": {"Authorization": f"Bearer {API_TOKEN}"}
+    }
+
+    global HA_client
+    if HA_client is not None:
+        # 已初始化过
+        return JSONResponse({"status": "ready", "enabled": True})
+
+    # 用来通知“连接失败”的事件
+    conn_failed_event = asyncio.Event()
+    failure_reason = None
+
+    async def on_failure(error_message: str):
+        nonlocal failure_reason
+        failure_reason = error_message
+        conn_failed_event.set()
+
+    try:
+        HA_client = McpClient()
+        await HA_client.initialize("HA", ha_config, on_failure_callback=on_failure)
+
+        # 等一小段时间验证连接确实活了
+        try:
+            # 5 秒内如果事件被 set，说明连接失败
+            await asyncio.wait_for(conn_failed_event.wait(), timeout=5.0)
+            # 走到这里说明失败了
+            raise RuntimeError(f"HA client connection failed: {failure_reason}")
+        except asyncio.TimeoutError:
+            # 2 秒无事发生，认为连接成功
+            pass
+
+        return JSONResponse({"status": "ready", "enabled": True})
+
+    except Exception as e:
+        HA_client = None
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    
+@app.get("/stop_HA")
+async def stop_HA():
+    global HA_client
+    try:
+        if HA_client is not None:
+            await HA_client.close()
+            HA_client = None
+            print(f"HA client stopped")
+        return JSONResponse({
+            "status": "stopped",
+            "enabled": False
+        })
+    except Exception as e:
+        HA_client = None
         return JSONResponse(
             status_code=500,
             content={"error": str(e)}

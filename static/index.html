@@ -2654,6 +2654,54 @@ if ('serviceWorker' in navigator) {
                 </div>
               </div>
 
+              <!-- HA界面 -->
+              <div v-show="subMenu === 'HA'" class="page">
+                <el-form :model="HASettings" class="settings-form"  label-position="top">
+                  <div class="tool-item">
+                    <div class="tool-header">
+                      <div class="header-left">
+                        <span>
+                          <el-icon>
+                            <i class="fa-solid fa-house"></i>
+                          </el-icon>
+                          {{ t('homeAssistant') }}
+                          <el-link
+                            type="primary"
+                            :underline="false"
+                            href="https://www.home-assistant.io/" 
+                            target="_blank"
+                          >
+                            <el-icon class="mr-1">
+                              <i class="fa-solid fa-key"></i>
+                            </el-icon>{{ t('gotoAPI') }}
+                          </el-link>
+                        </span>
+                      </div>
+                      <el-switch v-model="HASettings.enabled" @click.stop @change="changeHAEnabled"/>
+                    </div>
+                    <div class="tool-content">
+                      <el-form-item :label="t('baseURL')" class="form-item-align">
+                        <el-input
+                          v-model="HASettings.url"
+                          :placeholder="t('urlPlaceholder')"
+                          @input="autoSaveSettings"
+                          class="full-width-input"
+                        />
+                      </el-form-item>
+                      <el-form-item :label="t('apiKey')" class="form-item-align">
+                        <el-input
+                          v-model="HASettings.api_key"
+                          :placeholder="t('apiKeyPlaceholder')"
+                          show-password
+                          @input="autoSaveSettings"
+                          class="full-width-input"
+                        />
+                      </el-form-item>
+                    </div>
+                  </div>
+                </el-form> 
+              </div>
+
               <!-- 代码解释器界面 -->
               <div v-show="subMenu === 'interpreter'" class="page">
                 <el-form :model="codeSettings" class="settings-form"  label-position="top">

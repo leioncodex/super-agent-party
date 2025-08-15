@@ -653,6 +653,11 @@ const translations = {
         'TTSRate': '语速',
         'addTTSNotice': '添加供应商后，请返回此页面并选择【语音合成模型】以继续。语音识别模型名称中一般包含“tss”等关键词。目前支持的供应商：openai、硅基流动等。注意！音色需要与供应商的模型匹配，否则无法使用，默认音色列表中仅包含了openai的音色，其他供应商的音色需要手动添加。参考音色暂时只支持硅基流动，其他供应商请不要选择参考音色！',
         'noRefAudio': '不使用参考音频',
+        'error_start_HA': '启动Home Assistant失败，请检查配置文件是否正确',
+        'error_stop_HA': '停止Home Assistant失败',
+        'homeAssistant': 'Home Assistant',
+        'success_start_HA': 'Home Assistant启动成功',
+        'success_stop_HA': 'Home Assistant停止成功',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1305,5 +1310,10 @@ const translations = {
         'TTSRate': 'TTS Rate',
         'addTTSNotice': "After adding a vendor, please return to this page and select 【Text To Speech Model】to continue. Keywords such as 'tss' are generally included in the name of the automatic speech recognition model. Currently supported vendors: openai, silicon-based flow, etc. Note! The timbre needs to match the vendor's model, otherwise it cannot be used. Only the timbre of openai is included in the default timbre list. The timbre of other vendors needs to be added manually.The reference tone only supports silicon-based flow for the time being. Please do not choose the reference tone for other suppliers!",
         'noRefAudio': 'No reference audio is used',
+        'error_start_HA': 'Error starting Home Assistant, please check the configuration',
+        'error_stop_HA': 'Error stopping Home Assistant',
+        'homeAssistant': 'Home Assistant',
+        'success_start_HA': 'Home Assistant started successfully',
+        'success_stop_HA': 'Home Assistant stopped successfully',
     }
   };

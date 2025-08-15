@@ -1047,6 +1047,7 @@ let vue_methods = {
           this.visionSettings = data.data.vision || this.visionSettings;
           this.webSearchSettings = data.data.webSearch || this.webSearchSettings;
           this.codeSettings = data.data.codeSettings || this.codeSettings;
+          this.HASettings = data.data.HASettings || this.HASettings;
           this.KBSettings = data.data.KBSettings || this.KBSettings;
           this.textFiles = data.data.textFiles || this.textFiles;
           this.imageFiles = data.data.imageFiles || this.imageFiles;
@@ -1075,6 +1076,9 @@ let vue_methods = {
           if (this.asrSettings.enabled) {
             await this.startASR();
           }
+          if (this.HASettings.enabled) {
+            await this.changeHAEnabled();
+          };
         } 
         else if (data.type === 'settings_saved') {
           if (!data.success) {
@@ -1606,6 +1610,7 @@ let vue_methods = {
           vision: this.visionSettings,
           webSearch: this.webSearchSettings, 
           codeSettings: this.codeSettings,
+          HASettings: this.HASettings,
           KBSettings: this.KBSettings,
           textFiles: this.textFiles,
           imageFiles: this.imageFiles,
@@ -5527,5 +5532,44 @@ let vue_methods = {
         window.electronAPI.openPath(userfile);
       }
     }
-  }
+  },
+  async changeHAEnabled(){
+    if (this.HASettings.enabled){
+      const response = await fetch('/start_HA',{
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          data: this.HASettings
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        console.log(data);
+        showNotification(this.t('success_start_HA'));
+      }else {
+        this.HASettings.enabled = false;
+        console.error('启动HA失败');
+        showNotification(this.t('error_start_HA'), 'error');
+      }
+    }else{
+      const response = await fetch('/stop_HA',{
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        console.log(data);
+        showNotification(this.t('success_stop_HA'));
+      }else {
+        this.HASettings.enabled = true;
+        console.error('停止HA失败');
+        showNotification(this.t('error_stop_HA'), 'error');
+      }
+    }
+    this.autoSaveSettings();
+  },
 }

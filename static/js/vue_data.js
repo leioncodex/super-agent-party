@@ -273,6 +273,11 @@ let vue_data = {
       e2b_api_key: '',
       sandbox_url: 'http://127.0.0.1:8080',
     },
+    HASettings: {
+      enabled: false,
+      api_key: '',
+      url: 'http://127.0.0.1:8123',
+    },
     knowledgeBases: [],
     KBSettings: {
       when: 'before_thinking',
@@ -801,6 +806,7 @@ let vue_data = {
       { id: 'memory', title: 'memory', icon: 'fa-solid fa-brain'},
       { id: 'interpreter', title: 'interpreter', icon: 'fa-solid fa-code'},
       { id: 'sticker', title: 'sticker/image', icon: 'fa-solid fa-face-smile'},
+      { id: 'HA', title: 'homeAssistant', icon: 'fa-solid fa-house'},
     ],
     apiTiles: [
       { id: 'openai', title: 'openaiStyleAPI', icon: 'fa-solid fa-link' },
