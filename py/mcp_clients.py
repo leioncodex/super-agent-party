@@ -44,7 +44,11 @@ class ConnectionManager:
                     "sse": sse_client,
                     "streamablehttp": streamablehttp_client,
                 }
-                client = client_map[mcptype](config["url"])
+                headers = config.get("headers", {})
+                if headers:
+                    client = client_map[mcptype](config["url"], headers=headers)
+                else:
+                    client = client_map[mcptype](config["url"])
                 transport = await stack.enter_async_context(client)
                 if mcptype == "streamablehttp":
                     read, write, _ = transport
