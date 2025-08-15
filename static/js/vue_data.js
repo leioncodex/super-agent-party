@@ -209,6 +209,10 @@ let vue_data = {
   "mcpServers": {
     "sse-server": {
       "url": "http://127.0.0.1:8000/sse",
+      "headers": {
+        "Content-Type": "text/event-stream",
+        "Authorization": "Bearer YOUR_API_KEY"
+      },
       "disabled": false
     }
   }
@@ -225,6 +229,10 @@ let vue_data = {
   "mcpServers": {
     "streamablehttp-server": {
       "url": "http://127.0.0.1:8000/mcp",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer YOUR_API_KEY"
+      },
       "disabled": false
     }
   }
