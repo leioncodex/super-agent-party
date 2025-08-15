@@ -3,6 +3,7 @@ import base64
 import glob
 from io import BytesIO
 import os
+from pathlib import Path
 import socket
 import sys
 import tempfile
@@ -3973,7 +3974,9 @@ async def text_to_speech(request: Request):
                 'model': tts_settings.get('model', 'tts-1'),
                 'voice': tts_settings.get('openaiVoice', 'alloy'),
                 'speed': tts_settings.get('openaiSpeed', 1.0),
-                'base_url': tts_settings.get('base_url', 'https://api.openai.com/v1')
+                'base_url': tts_settings.get('base_url', 'https://api.openai.com/v1'),
+                'prompt_text': tts_settings.get('gsvPromptText', ''),
+                'ref_audio': tts_settings.get('gsvRefAudioPath', '')
             }
             
             # 验证API密钥
@@ -3984,7 +3987,7 @@ async def text_to_speech(request: Request):
             
             # 速度限制在0.25到4.0之间
             speed = max(0.25, min(4.0, float(openai_config['speed'])))
-            
+
             async def generate_audio():
                 try:
                     # 使用异步OpenAI客户端
@@ -3992,14 +3995,38 @@ async def text_to_speech(request: Request):
                         api_key=openai_config['api_key'],
                         base_url=openai_config['base_url']
                     )
-                    
-                    # 创建语音请求
-                    response = await client.audio.speech.create(
-                        model=openai_config['model'],
-                        voice=openai_config['voice'],
-                        input=text,
-                        speed=speed
-                    )
+                    if openai_config['ref_audio']:
+                        # Option 1: Use a local audio file (convert to base64 data URI)
+                        audio_file_path = os.path.join(UPLOAD_FILES_DIR, openai_config['ref_audio'])  # Change this to your local file path
+                        
+                        # Read the audio file and encode as base64
+                        with open(audio_file_path, "rb") as audio_file:
+                            audio_data = audio_file.read()
+                        
+                        # Get the file extension/type (e.g., 'mp3', 'wav')
+                        audio_type = Path(audio_file_path).suffix[1:]  # removes the dot
+                        
+                        # Create proper data URI format
+                        audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                        audio_uri = f"data:audio/{audio_type};base64,{audio_base64}"
+                        # 创建语音请求
+                        response = await client.audio.speech.create(
+                            model=openai_config['model'],
+                            voice=None,
+                            input=text,
+                            speed=speed,
+                            extra_body={
+                                "references":[{"text": openai_config['prompt_text'], "audio": audio_uri}]
+                            } 
+                        )
+                    else:
+                        # 创建语音请求
+                        response = await client.audio.speech.create(
+                            model=openai_config['model'],
+                            voice=openai_config['voice'],
+                            input=text,
+                            speed=speed
+                        )
                     
                     # 获取整个响应内容并分块返回
                     content = await response.aread()
