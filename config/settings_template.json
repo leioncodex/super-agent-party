@@ -137,6 +137,10 @@
       "api_key": "",
       "url": "http://127.0.0.1:8123"
     },
+    "chromeMCPSettings": {
+      "enabled": false,
+      "url": "http://127.0.0.1:12306/mcp"
+    },
     "custom_http":[],
     "qqBotConfig": {
       "QQAgent":"super-model",

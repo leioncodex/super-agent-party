@@ -278,6 +278,10 @@ let vue_data = {
       api_key: '',
       url: 'http://127.0.0.1:8123',
     },
+    chromeMCPSettings: {
+      enabled: false,
+      url: 'http://127.0.0.1:12306/mcp',
+    },
     knowledgeBases: [],
     KBSettings: {
       when: 'before_thinking',
@@ -807,6 +811,7 @@ let vue_data = {
       { id: 'interpreter', title: 'interpreter', icon: 'fa-solid fa-code'},
       { id: 'sticker', title: 'sticker/image', icon: 'fa-solid fa-face-smile'},
       { id: 'HA', title: 'homeAssistant', icon: 'fa-solid fa-house'},
+      { id: 'chromeMCP', title: 'browserControl', icon: 'fa-brands fa-chrome' },
     ],
     apiTiles: [
       { id: 'openai', title: 'openaiStyleAPI', icon: 'fa-solid fa-link' },
@@ -886,7 +891,7 @@ let vue_data = {
     },
     deployTiles: [
       { id: 'table_pet', title: 'tablePet', icon: "fa-solid fa-user-ninja"},
-      { id: 'live_stream', title: 'live_stream', icon: "fa-solid fa-video"},
+      { id: 'live_stream', title: 'live_stream_bot', icon: "fa-solid fa-video"},
       { id: 'qq_bot', title: 'qqBot', icon: 'fa-brands fa-qq' },
       { id: 'wx_bot', title: 'wxBot', icon: 'fa-brands fa-weixin' },
       { id: 'bot_config', title: 'bot_config', icon: 'fa-solid fa-robot' }

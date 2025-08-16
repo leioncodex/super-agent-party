@@ -1048,6 +1048,7 @@ let vue_methods = {
           this.webSearchSettings = data.data.webSearch || this.webSearchSettings;
           this.codeSettings = data.data.codeSettings || this.codeSettings;
           this.HASettings = data.data.HASettings || this.HASettings;
+          this.chromeMCPSettings = data.data.chromeMCPSettings || this.chromeMCPSettings;
           this.KBSettings = data.data.KBSettings || this.KBSettings;
           this.textFiles = data.data.textFiles || this.textFiles;
           this.imageFiles = data.data.imageFiles || this.imageFiles;
@@ -1072,13 +1073,16 @@ let vue_methods = {
           // 初始化时确保数据一致性
           this.edgettsLanguage = this.ttsSettings.edgettsLanguage;
           this.edgettsGender = this.ttsSettings.edgettsGender;
+          if (this.HASettings.enabled) {
+            this.changeHAEnabled();
+          };
+          if (this.chromeMCPSettings.enabled){
+            this.changeChromeMCPEnabled();
+          }
           await this.loadDefaultModels();
           if (this.asrSettings.enabled) {
             await this.startASR();
           }
-          if (this.HASettings.enabled) {
-            await this.changeHAEnabled();
-          };
         } 
         else if (data.type === 'settings_saved') {
           if (!data.success) {
@@ -1611,6 +1615,7 @@ let vue_methods = {
           webSearch: this.webSearchSettings, 
           codeSettings: this.codeSettings,
           HASettings: this.HASettings,
+          chromeMCPSettings: this.chromeMCPSettings,
           KBSettings: this.KBSettings,
           textFiles: this.textFiles,
           imageFiles: this.imageFiles,
@@ -5572,4 +5577,43 @@ let vue_methods = {
     }
     this.autoSaveSettings();
   },
+  async changeChromeMCPEnabled(){
+    if (this.chromeMCPSettings.enabled){
+      const response = await fetch('/start_ChromeMCP',{
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          data: this.chromeMCPSettings
+        })
+      });
+      if (response.ok){
+        const data = await response.json();
+        console.log(data);
+        showNotification(this.t('success_start_browserControl'));
+      }else {
+        this.chromeMCPSettings.enabled = false;
+        console.error('启动ChromeMCP失败');
+        showNotification(this.t('error_start_browserControl'), 'error');
+      }
+    }else{
+      const response = await fetch('/stop_ChromeMCP',{
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+      });
+      if (response.ok){
+        const data = await response.json();
+        console.log(data);
+        showNotification(this.t('success_stop_browserControl'));
+      }else {
+        this.chromeMCPSettings.enabled = true;
+        console.error('停止ChromeMCP失败');
+        showNotification(this.t('error_stop_browserControl'), 'error');
+      }
+    }
+    this.autoSaveSettings();
+  }
 }

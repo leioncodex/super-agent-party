@@ -39,6 +39,8 @@ class ConnectionManager:
                 read, write = await stack.enter_async_context(stdio_client(server_params))
             else:
                 mcptype = config.get("type", "ws")
+                if "streamable" in mcptype:
+                    mcptype = "streamablehttp"
                 client_map = {
                     "ws": websocket_client,
                     "sse": sse_client,

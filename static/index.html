@@ -2710,6 +2710,52 @@ if ('serviceWorker' in navigator) {
                 </el-form> 
               </div>
 
+              <!-- 浏览器控制界面 -->
+              <div v-show="subMenu === 'chromeMCP'" class="page">
+                <el-form :model="chromeMCPSettings" class="settings-form"  label-position="top">
+                  <div class="tool-item">
+                    <div class="tool-header">
+                      <div class="header-left">
+                        <span>
+                          <el-icon>
+                            <i class="fa-brands fa-chrome"></i>
+                          </el-icon>
+                          {{ t('browserControl') }}
+                          <el-link
+                            type="primary"
+                            :underline="false"
+                            href="https://github.com/hangwin/mcp-chrome/releases" 
+                            target="_blank"
+                          >
+                            <el-icon class="mr-1">
+                              <i class="fa-solid fa-key"></i>
+                            </el-icon>{{ t('gotoGithub') }}
+                          </el-link>
+                        </span>
+                      </div>
+                      <el-switch v-model="chromeMCPSettings.enabled" @click.stop @change="changeChromeMCPEnabled"/>
+                    </div>
+                    <div class="tool-content">
+                      <el-form-item :label="t('baseURL')" class="form-item-align">
+                        <el-input
+                          v-model="chromeMCPSettings.url"
+                          :placeholder="t('urlPlaceholder')"
+                          @input="autoSaveSettings"
+                          class="full-width-input"
+                        />
+                      </el-form-item>
+                      <el-alert type="info" :closable="false" class="mb-2">
+                        <div class="alert-content">
+                          {{ t('browserNotice1') }}<br>
+                          {{ t('browserNotice2') }}<br>
+                          {{ t('browserNotice3') }}
+                        </div>
+                      </el-alert>
+                    </div>
+                  </div>
+                </el-form> 
+              </div>
+              
               <!-- 代码解释器界面 -->
               <div v-show="subMenu === 'interpreter'" class="page">
                 <el-form :model="codeSettings" class="settings-form"  label-position="top">
@@ -6026,7 +6072,7 @@ if ('serviceWorker' in navigator) {
                         <div class="tool-header" style="display: flex; justify-content: space-between; align-items: center;">
                           <span>
                             <el-icon><i class="fa-solid fa-video"></i></el-icon>
-                            {{ t('live_stream') }}
+                            {{ t('live_stream_bot') }}
                           </span>
                           <div>
                             <!-- 启动按钮 -->

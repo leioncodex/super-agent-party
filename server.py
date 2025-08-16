@@ -70,6 +70,7 @@ settings = None
 client = None
 reasoner_client = None
 HA_client = None
+ChromeMCP_client = None
 mcp_client_list = {}
 locales = {}
 _TOOL_HOOKS = {}
@@ -290,7 +291,7 @@ async def get_image_content(image_url: str) -> str:
     return content
 
 async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str | List | None:
-    global mcp_client_list,_TOOL_HOOKS,HA_client
+    global mcp_client_list,_TOOL_HOOKS,HA_client,ChromeMCP_client
     from py.web_search import (
         DDGsearch_async, 
         searxng_async, 
@@ -382,6 +383,11 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         ha_tool_list = HA_client._tools
         if tool_name in ha_tool_list:
             result = await HA_client.call_tool(tool_name, tool_params)
+            return str(result.model_dump())
+    if settings["chromeMCPSettings"]["enabled"]:
+        Chrome_tool_list = ChromeMCP_client._tools
+        if tool_name in Chrome_tool_list:
+            result = await ChromeMCP_client.call_tool(tool_name, tool_params)
             return str(result.model_dump())
     if tool_name not in _TOOL_HOOKS:
         for server_name, mcp_client in mcp_client_list.items():
@@ -643,7 +649,7 @@ def get_drs_stage_system_message(DRS_STAGE,user_prompt,full_content):
     return search_prompt
 
 async def generate_stream_response(client,reasoner_client, request: ChatRequest, settings: dict,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search,async_tools_id):
-    global mcp_client_list,HA_client
+    global mcp_client_list,HA_client,ChromeMCP_client
     DRS_STAGE = 1 # 1: 明确用户需求阶段 2: 查询搜索阶段 3: 生成结果阶段
     if len(request.messages) > 2:
         DRS_STAGE = 2
@@ -753,6 +759,10 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
             ha_tool = await HA_client.get_openai_functions()
             if ha_tool:
                 tools.extend(ha_tool)
+        if settings['chromeMCPSettings']['enabled']:
+            chromeMCP_tool = await ChromeMCP_client.get_openai_functions()
+            if chromeMCP_tool:
+                tools.extend(chromeMCP_tool)
         if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'afterThinking':
             tools.append(time_tool)
         if settings["tools"]["accuweather"]['enabled']:
@@ -2230,7 +2240,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
         )
 
 async def generate_complete_response(client,reasoner_client, request: ChatRequest, settings: dict,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search):
-    global mcp_client_list,HA_client
+    global mcp_client_list,HA_client,ChromeMCP_client
     DRS_STAGE = 1 # 1: 明确用户需求阶段 2: 查询搜索阶段 3: 生成结果阶段
     from py.load_files import get_files_content,file_tool,image_tool
     from py.web_search import (
@@ -2338,6 +2348,10 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
         ha_tool = await HA_client.get_openai_functions()
         if ha_tool:
             tools.extend(ha_tool)
+    if settings['chromeMCPSettings']['enabled']:
+        chromeMCP_tool = await ChromeMCP_client.get_openai_functions()
+        if chromeMCP_tool:
+            tools.extend(chromeMCP_tool)
     if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'afterThinking':
         tools.append(time_tool)
     if settings["tools"]["accuweather"]['enabled']:
@@ -4249,6 +4263,66 @@ async def stop_HA():
         })
     except Exception as e:
         HA_client = None
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+@app.post("/start_ChromeMCP")
+async def start_ChromeMCP(request: Request):
+    data = await request.json()
+    ha_config = {
+        "type": "streamablehttp",
+        "url": data['data']['url']
+    }
+
+    global ChromeMCP_client
+    if ChromeMCP_client is not None:
+        # 已初始化过
+        return JSONResponse({"status": "ready", "enabled": True})
+
+    # 用来通知“连接失败”的事件
+    conn_failed_event = asyncio.Event()
+    failure_reason = None
+
+    async def on_failure(error_message: str):
+        nonlocal failure_reason
+        failure_reason = error_message
+        conn_failed_event.set()
+
+    try:
+        ChromeMCP_client = McpClient()
+        await ChromeMCP_client.initialize("ChromeMCP", ha_config, on_failure_callback=on_failure)
+
+        # 等一小段时间验证连接确实活了
+        try:
+            # 5 秒内如果事件被 set，说明连接失败
+            await asyncio.wait_for(conn_failed_event.wait(), timeout=5.0)
+            # 走到这里说明失败了
+            raise RuntimeError(f"ChromeMCP client connection failed: {failure_reason}")
+        except asyncio.TimeoutError:
+            # 2 秒无事发生，认为连接成功
+            pass
+
+        return JSONResponse({"status": "ready", "enabled": True})
+    except Exception as e:
+        ChromeMCP_client = None
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/stop_ChromeMCP")
+async def stop_ChromeMCP():
+    global ChromeMCP_client
+    try:
+        if ChromeMCP_client is not None:
+            await ChromeMCP_client.close()
+            ChromeMCP_client = None
+            print(f"ChromeMCP client stopped")
+        return JSONResponse({
+            "status": "stopped",
+            "enabled": False
+        })
+    except Exception as e:
+        ChromeMCP_client = None
         return JSONResponse(
             status_code=500,
             content={"error": str(e)}
