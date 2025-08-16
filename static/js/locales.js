@@ -658,6 +658,10 @@ const translations = {
         'homeAssistant': 'Home Assistant',
         'success_start_HA': 'Home Assistant启动成功',
         'success_stop_HA': 'Home Assistant停止成功',
+        'HANotice1': '1. 安装Home Assistant，例如docker安装：`docker run -d -p 8123:8123 homeassistant/home-assistant`',
+        'HANotice2': '2. 在Home Assistant的设置-设备与集成-添加集成，然后搜索MCP，添加Model Context Protocol Server',
+        'HANotice3': '3. 基础URL默认为`http://localhost:3456`，你需要改成`http://<你的IP>:3456`',
+        'HANotice4': '4. 点击Home Assistant左下角的用户头像，再点击安全，在最下方添加长期访问令牌，将令牌复制到API密钥中',
     },
     'en-US': {
         'chat': 'Chat',
@@ -1315,5 +1319,9 @@ const translations = {
         'homeAssistant': 'Home Assistant',
         'success_start_HA': 'Home Assistant started successfully',
         'success_stop_HA': 'Home Assistant stopped successfully',
+        'HANotice1': '1. Install Home Assistant, for example, using Docker: `docker run -d -p 8123:8123 homeassistant/home-assistant`',
+        'HANotice2': '2. In Home Assistant, go to Settings > Devices & Services > Add Integration, then search for MCP and add the Model Context Protocol Server',
+        'HANotice3': '3. The default baseURL is `http://localhost:3456`; change it to `http://<your_IP>:3456`',
+        'HANotice4': '4. Click on your user avatar in the bottom left corner of Home Assistant, then go to Security, generate a Long-Lived Access Token at the bottom of the page, and copy the token into the API key field',
     }
   };

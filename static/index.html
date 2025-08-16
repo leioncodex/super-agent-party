@@ -2697,6 +2697,14 @@ if ('serviceWorker' in navigator) {
                           class="full-width-input"
                         />
                       </el-form-item>
+                      <el-alert type="info" :closable="false" class="mb-2">
+                        <div class="alert-content">
+                          {{ t('HANotice1') }}<br>
+                          {{ t('HANotice2') }}<br>
+                          {{ t('HANotice3') }}<br>
+                          {{ t('HANotice4') }}
+                        </div>
+                      </el-alert>
                     </div>
                   </div>
                 </el-form> 
