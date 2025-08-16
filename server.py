@@ -290,7 +290,7 @@ async def get_image_content(image_url: str) -> str:
     return content
 
 async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str | List | None:
-    global mcp_client_list,_TOOL_HOOKS
+    global mcp_client_list,_TOOL_HOOKS,HA_client
     from py.web_search import (
         DDGsearch_async, 
         searxng_async, 
@@ -378,6 +378,11 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         print(tool_name)
         result = await comfyui_tool_call(tool_name, text_input, image_input,text_input_2,image_input_2)
         return str(result)
+    if settings["HASettings"]["enabled"]:
+        ha_tool_list = HA_client._tools
+        if tool_name in ha_tool_list:
+            result = await HA_client.call_tool(tool_name, tool_params)
+            return str(result.model_dump())
     if tool_name not in _TOOL_HOOKS:
         for server_name, mcp_client in mcp_client_list.items():
             if tool_name in mcp_client._conn.tools:
@@ -638,7 +643,7 @@ def get_drs_stage_system_message(DRS_STAGE,user_prompt,full_content):
     return search_prompt
 
 async def generate_stream_response(client,reasoner_client, request: ChatRequest, settings: dict,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search,async_tools_id):
-    global mcp_client_list
+    global mcp_client_list,HA_client
     DRS_STAGE = 1 # 1: 明确用户需求阶段 2: 查询搜索阶段 3: 生成结果阶段
     if len(request.messages) > 2:
         DRS_STAGE = 2
@@ -744,6 +749,10 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
         get_a2a_tool_fuction = await get_a2a_tool(settings)
         if get_a2a_tool_fuction:
             tools.append(get_a2a_tool_fuction)
+        if settings["HASettings"]["enabled"]:
+            ha_tool = await HA_client.get_openai_functions()
+            if ha_tool:
+                tools.extend(ha_tool)
         if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'afterThinking':
             tools.append(time_tool)
         if settings["tools"]["accuweather"]['enabled']:
@@ -2221,7 +2230,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
         )
 
 async def generate_complete_response(client,reasoner_client, request: ChatRequest, settings: dict,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search):
-    global mcp_client_list
+    global mcp_client_list,HA_client
     DRS_STAGE = 1 # 1: 明确用户需求阶段 2: 查询搜索阶段 3: 生成结果阶段
     from py.load_files import get_files_content,file_tool,image_tool
     from py.web_search import (
@@ -2325,6 +2334,10 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
     get_a2a_tool_fuction = await get_a2a_tool(settings)
     if get_a2a_tool_fuction:
         tools.append(get_a2a_tool_fuction)
+    if settings["HASettings"]["enabled"]:
+        ha_tool = await HA_client.get_openai_functions()
+        if ha_tool:
+            tools.extend(ha_tool)
     if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'afterThinking':
         tools.append(time_tool)
     if settings["tools"]["accuweather"]['enabled']:
