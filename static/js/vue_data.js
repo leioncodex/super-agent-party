@@ -89,6 +89,7 @@ let vue_data = {
       max_rounds: 0,    // 默认最大轮数
       selectedProvider: null,
       top_p: 1,
+      reasoning_effort: null,
       extra_params: [], // 额外参数
     },
     reasonerSettings: {
@@ -98,7 +99,14 @@ let vue_data = {
       api_key: '',
       selectedProvider: null,
       temperature: 0.7,  // 默认温度值
+      reasoning_effort: null,
     },
+    reasoningEfforts:[
+      { value: null, label: 'auto' },
+      { value: 'low', label: 'low' },
+      { value: 'medium', label: 'medium' },
+      { value: 'high', label: 'high' },
+    ],
     visionSettings: {
       enabled: false, // 默认不启用
       model: '',
@@ -201,6 +209,10 @@ let vue_data = {
   "mcpServers": {
     "sse-server": {
       "url": "http://127.0.0.1:8000/sse",
+      "headers": {
+        "Content-Type": "text/event-stream",
+        "Authorization": "Bearer YOUR_API_KEY"
+      },
       "disabled": false
     }
   }
@@ -217,6 +229,10 @@ let vue_data = {
   "mcpServers": {
     "streamablehttp-server": {
       "url": "http://127.0.0.1:8000/mcp",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer YOUR_API_KEY"
+      },
       "disabled": false
     }
   }
@@ -256,6 +272,15 @@ let vue_data = {
       engine: 'e2b',
       e2b_api_key: '',
       sandbox_url: 'http://127.0.0.1:8080',
+    },
+    HASettings: {
+      enabled: false,
+      api_key: '',
+      url: 'http://127.0.0.1:8123',
+    },
+    chromeMCPSettings: {
+      enabled: false,
+      url: 'http://127.0.0.1:12306/mcp',
     },
     knowledgeBases: [],
     KBSettings: {
@@ -402,7 +427,15 @@ let vue_data = {
       gsvPromptText: '',
       gsvRefAudioPath: '',
       gsvAudioOptions: [],
+      selectedProvider: null,
+      vendor: "OpenAI",
+      model: "",
+      base_url: "",
+      api_key: "",
+      openaiVoice:"alloy",
+      openaiSpeed: 1.0
     },
+    openaiVoices:['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse'],
     showVrmModelDialog: false,
     newVrmModel: {
       name: '',
@@ -777,6 +810,8 @@ let vue_data = {
       { id: 'memory', title: 'memory', icon: 'fa-solid fa-brain'},
       { id: 'interpreter', title: 'interpreter', icon: 'fa-solid fa-code'},
       { id: 'sticker', title: 'sticker/image', icon: 'fa-solid fa-face-smile'},
+      { id: 'HA', title: 'homeAssistant', icon: 'fa-solid fa-house'},
+      { id: 'chromeMCP', title: 'browserControl', icon: 'fa-brands fa-chrome' },
     ],
     apiTiles: [
       { id: 'openai', title: 'openaiStyleAPI', icon: 'fa-solid fa-link' },
@@ -856,7 +891,7 @@ let vue_data = {
     },
     deployTiles: [
       { id: 'table_pet', title: 'tablePet', icon: "fa-solid fa-user-ninja"},
-      { id: 'live_stream', title: 'live_stream', icon: "fa-solid fa-video"},
+      { id: 'live_stream', title: 'live_stream_bot', icon: "fa-solid fa-video"},
       { id: 'qq_bot', title: 'qqBot', icon: 'fa-brands fa-qq' },
       { id: 'wx_bot', title: 'wxBot', icon: 'fa-brands fa-weixin' },
       { id: 'bot_config', title: 'bot_config', icon: 'fa-solid fa-robot' }

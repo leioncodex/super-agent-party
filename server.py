@@ -3,6 +3,8 @@ import base64
 import glob
 from io import BytesIO
 import os
+from pathlib import Path
+import socket
 import sys
 import tempfile
 import threading
@@ -67,6 +69,8 @@ local_timezone = None
 settings = None
 client = None
 reasoner_client = None
+HA_client = None
+ChromeMCP_client = None
 mcp_client_list = {}
 locales = {}
 _TOOL_HOOKS = {}
@@ -287,7 +291,7 @@ async def get_image_content(image_url: str) -> str:
     return content
 
 async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str | List | None:
-    global mcp_client_list,_TOOL_HOOKS
+    global mcp_client_list,_TOOL_HOOKS,HA_client,ChromeMCP_client
     from py.web_search import (
         DDGsearch_async, 
         searxng_async, 
@@ -375,6 +379,16 @@ async def dispatch_tool(tool_name: str, tool_params: dict,settings: dict) -> str
         print(tool_name)
         result = await comfyui_tool_call(tool_name, text_input, image_input,text_input_2,image_input_2)
         return str(result)
+    if settings["HASettings"]["enabled"]:
+        ha_tool_list = HA_client._tools
+        if tool_name in ha_tool_list:
+            result = await HA_client.call_tool(tool_name, tool_params)
+            return str(result.model_dump())
+    if settings["chromeMCPSettings"]["enabled"]:
+        Chrome_tool_list = ChromeMCP_client._tools
+        if tool_name in Chrome_tool_list:
+            result = await ChromeMCP_client.call_tool(tool_name, tool_params)
+            return str(result.model_dump())
     if tool_name not in _TOOL_HOOKS:
         for server_name, mcp_client in mcp_client_list.items():
             if tool_name in mcp_client._conn.tools:
@@ -403,6 +417,7 @@ class ChatRequest(BaseModel):
     enable_deep_research: bool = False
     enable_web_search: bool = False
     asyncToolsID: List[str] = None
+    reasoning_effort: str = None
 
 async def message_without_images(messages: List[Dict]) -> List[Dict]:
     if messages:
@@ -634,7 +649,7 @@ def get_drs_stage_system_message(DRS_STAGE,user_prompt,full_content):
     return search_prompt
 
 async def generate_stream_response(client,reasoner_client, request: ChatRequest, settings: dict,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search,async_tools_id):
-    global mcp_client_list
+    global mcp_client_list,HA_client,ChromeMCP_client
     DRS_STAGE = 1 # 1: 明确用户需求阶段 2: 查询搜索阶段 3: 生成结果阶段
     if len(request.messages) > 2:
         DRS_STAGE = 2
@@ -740,6 +755,14 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
         get_a2a_tool_fuction = await get_a2a_tool(settings)
         if get_a2a_tool_fuction:
             tools.append(get_a2a_tool_fuction)
+        if settings["HASettings"]["enabled"]:
+            ha_tool = await HA_client.get_openai_functions()
+            if ha_tool:
+                tools.extend(ha_tool)
+        if settings['chromeMCPSettings']['enabled']:
+            chromeMCP_tool = await ChromeMCP_client.get_openai_functions()
+            if chromeMCP_tool:
+                tools.extend(chromeMCP_tool)
         if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'afterThinking':
             tools.append(time_tool)
         if settings["tools"]["accuweather"]['enabled']:
@@ -1202,6 +1225,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             model=settings['reasoner']['model'],
                             messages=msg,
                             stream=True,
+                            reasoning_effort=settings['reasoner']['reasoning_effort'],
                             temperature=settings['reasoner']['temperature']
                         )
                         full_reasoning = ""
@@ -1219,6 +1243,17 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 
                                 # 实时处理缓冲区内容
                                 while True:
+                                    reasoning_content = delta.get("reasoning_content", "")
+                                    if reasoning_content:
+                                        full_reasoning += reasoning_content
+                                    else:
+                                        reasoning_content = delta.get("reasoning", "")
+                                        if reasoning_content:
+                                            delta['reasoning_content'] = reasoning_content
+                                            full_reasoning += reasoning_content
+                                    if reasoning_content:
+                                        yield f"data: {json.dumps(chunk_dict)}\n\n"
+                                        break
                                     if not in_reasoning:
                                         # 寻找开放标签
                                         start_pos = buffer.find(open_tag)
@@ -1260,6 +1295,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             model=settings['reasoner']['model'],
                             messages=msg,
                             stream=True,
+                            reasoning_effort=settings['reasoner']['reasoning_effort'],
                             max_tokens=1, # 根据实际情况调整
                             temperature=settings['reasoner']['temperature']
                         )
@@ -1275,6 +1311,11 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 reasoning_content = delta.get("reasoning_content", "")
                                 if reasoning_content:
                                     full_reasoning += reasoning_content
+                                else:
+                                    reasoning_content = delta.get("reasoning", "")
+                                    if reasoning_content:
+                                        delta['reasoning_content'] = reasoning_content
+                                        full_reasoning += reasoning_content
                             yield f"data: {json.dumps(chunk_dict)}\n\n"
 
                     # 在推理结束后添加完整推理内容到消息
@@ -1297,6 +1338,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                         tools=tools,
                         stream=True,
                         max_tokens=request.max_tokens or settings['max_tokens'],
+                        reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                         top_p=request.top_p or settings['top_p'],
                         extra_body = extra_params, # 其他参数
                     )
@@ -1307,6 +1349,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                         temperature=request.temperature,
                         stream=True,
                         max_tokens=request.max_tokens or settings['max_tokens'],
+                        reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                         top_p=request.top_p or settings['top_p'],
                         extra_body = extra_params, # 其他参数
                     )
@@ -1341,6 +1384,10 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                         
                         # 优先处理 reasoning_content
                         if delta["reasoning_content"]:
+                            yield f"data: {json.dumps(chunk_dict)}\n\n"
+                            continue
+                        if delta.get("reasoning", ""):
+                            delta["reasoning_content"] = delta["reasoning"]
                             yield f"data: {json.dumps(chunk_dict)}\n\n"
                             continue
 
@@ -1791,6 +1838,17 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                     
                                     # 实时处理缓冲区内容
                                     while True:
+                                        reasoning_content = delta.get("reasoning_content", "")
+                                        if reasoning_content:
+                                            full_reasoning += reasoning_content
+                                        else:
+                                            reasoning_content = delta.get("reasoning", "")
+                                            if reasoning_content:
+                                                delta['reasoning_content'] = reasoning_content
+                                                full_reasoning += reasoning_content
+                                        if reasoning_content:
+                                            yield f"data: {json.dumps(chunk_dict)}\n\n"
+                                            break
                                         if not in_reasoning:
                                             # 寻找开放标签
                                             start_pos = buffer.find(open_tag)
@@ -1847,6 +1905,11 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                     reasoning_content = delta.get("reasoning_content", "")
                                     if reasoning_content:
                                         full_reasoning += reasoning_content
+                                    else:
+                                        reasoning_content = delta.get("reasoning", "")
+                                        if reasoning_content:
+                                            delta['reasoning_content'] = reasoning_content
+                                            full_reasoning += reasoning_content
                                 yield f"data: {json.dumps(chunk_dict)}\n\n"
 
                         # 在推理结束后添加完整推理内容到消息
@@ -1860,6 +1923,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             tools=tools,
                             stream=True,
                             max_tokens=request.max_tokens or settings['max_tokens'],
+                            reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                             top_p=request.top_p or settings['top_p'],
                             extra_body = extra_params, # 其他参数
                         )
@@ -1870,6 +1934,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                             temperature=request.temperature,
                             stream=True,
                             max_tokens=request.max_tokens or settings['max_tokens'],
+                            reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                             top_p=request.top_p or settings['top_p'],
                             extra_body = extra_params, # 其他参数
                         )
@@ -1904,7 +1969,10 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
                                 if delta["reasoning_content"]:
                                     yield f"data: {json.dumps(chunk_dict)}\n\n"
                                     continue
-                                
+                                if delta.get("reasoning", ""):
+                                    delta["reasoning_content"] = delta["reasoning"]
+                                    yield f"data: {json.dumps(chunk_dict)}\n\n"
+                                    continue
                                 # 处理内容
                                 current_content = delta["content"]
                                 buffer = current_content
@@ -2172,7 +2240,7 @@ async def generate_stream_response(client,reasoner_client, request: ChatRequest,
         )
 
 async def generate_complete_response(client,reasoner_client, request: ChatRequest, settings: dict,fastapi_base_url,enable_thinking,enable_deep_research,enable_web_search):
-    global mcp_client_list
+    global mcp_client_list,HA_client,ChromeMCP_client
     DRS_STAGE = 1 # 1: 明确用户需求阶段 2: 查询搜索阶段 3: 生成结果阶段
     from py.load_files import get_files_content,file_tool,image_tool
     from py.web_search import (
@@ -2276,6 +2344,14 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
     get_a2a_tool_fuction = await get_a2a_tool(settings)
     if get_a2a_tool_fuction:
         tools.append(get_a2a_tool_fuction)
+    if settings["HASettings"]["enabled"]:
+        ha_tool = await HA_client.get_openai_functions()
+        if ha_tool:
+            tools.extend(ha_tool)
+    if settings['chromeMCPSettings']['enabled']:
+        chromeMCP_tool = await ChromeMCP_client.get_openai_functions()
+        if chromeMCP_tool:
+            tools.extend(chromeMCP_tool)
     if settings['tools']['time']['enabled'] and settings['tools']['time']['triggerMode'] == 'afterThinking':
         tools.append(time_tool)
     if settings["tools"]["accuweather"]['enabled']:
@@ -2545,27 +2621,46 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     model=settings['reasoner']['model'],
                     messages=msg,
                     stream=False,
+                    reasoning_effort=settings['reasoner']['reasoning_effort'],
                     temperature=settings['reasoner']['temperature']
                 )
-                # 将推理结果中的思考内容提取出来
-                reasoning_content = reasoner_response.model_dump()['choices'][0]['message']['content']
-                # open_tag和close_tag之间的内容
-                start_index = reasoning_content.find(open_tag) + len(open_tag)
-                end_index = reasoning_content.find(close_tag)
-                if start_index != -1 and end_index != -1:
-                    reasoning_content = reasoning_content[start_index:end_index]
+                reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
+                if reasoning_buffer:
+                    request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
                 else:
-                    reasoning_content = ""
-                request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_content
+                    reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning']
+                    if reasoning_buffer:
+                        request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
+                    else:
+                        # 将推理结果中的思考内容提取出来
+                        reasoning_content = reasoner_response.model_dump()['choices'][0]['message']['content']
+                        # open_tag和close_tag之间的内容
+                        start_index = reasoning_content.find(open_tag) + len(open_tag)
+                        end_index = reasoning_content.find(close_tag)
+                        if start_index != -1 and end_index != -1:
+                            reasoning_content = reasoning_content[start_index:end_index]
+                        else:
+                            reasoning_content = ""
+                        request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_content
             else:
                 reasoner_response = await reasoner_client.chat.completions.create(
                     model=settings['reasoner']['model'],
                     messages=msg,
                     stream=False,
                     max_tokens=1, # 根据实际情况调整
+                    reasoning_effort=settings['reasoner']['reasoning_effort'],
                     temperature=settings['reasoner']['temperature']
                 )
-                request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
+                reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
+                if reasoning_buffer:
+                    request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
+                else:
+                    reasoning_buffer = reasoner_response.model_dump()['choices'][0]['message']['reasoning']
+                    if reasoning_buffer:
+                        request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
+                    else:
+                        reasoning_buffer = ""
+                        request.messages[-1]['content'] = request.messages[-1]['content'] + "\n\n可参考的推理过程：" + reasoning_buffer
         if settings['tools']['deepsearch']['enabled'] or enable_deep_research: 
             request.messages[-1]['content'] += f"\n\n可参考的步骤：{user_prompt}\n\n"
             drs_msg = get_drs_stage(DRS_STAGE)
@@ -2580,6 +2675,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                 tools=tools,
                 stream=False,
                 max_tokens=request.max_tokens or settings['max_tokens'],
+                reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                 top_p=request.top_p or settings['top_p'],
                 extra_body = extra_params, # 其他参数
             )
@@ -2590,6 +2686,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                 temperature=request.temperature,
                 stream=False,
                 max_tokens=request.max_tokens or settings['max_tokens'],
+                reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                 top_p=request.top_p or settings['top_p'],
                 extra_body = extra_params, # 其他参数
             )
@@ -2768,6 +2865,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                         model=settings['reasoner']['model'],
                         messages=msg,
                         stream=False,
+                        reasoning_effort=settings['reasoner']['reasoning_effort'],
                         temperature=settings['reasoner']['temperature']
                     )
                     # 将推理结果中的思考内容提取出来
@@ -2797,6 +2895,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     temperature=request.temperature,
                     tools=tools,
                     stream=False,
+                    reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                     max_tokens=request.max_tokens or settings['max_tokens'],
                     top_p=request.top_p or settings['top_p'],
                     extra_body = extra_params, # 其他参数
@@ -2807,6 +2906,7 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                     messages=msg,  # 添加图片信息到消息
                     temperature=request.temperature,
                     stream=False,
+                    reasoning_effort=request.reasoning_effort or settings['reasoning_effort'],
                     max_tokens=request.max_tokens or settings['max_tokens'],
                     top_p=request.top_p or settings['top_p'],
                     extra_body = extra_params, # 其他参数
@@ -2908,6 +3008,10 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
        # 处理响应内容
         response_dict = response.model_dump()
         content = response_dict["choices"][0]['message']['content']
+        if response_dict["choices"][0]['message'].get('reasoning_content',""):
+            pass
+        else:
+            response_dict["choices"][0]['message']['reasoning_content'] = response_dict["choices"][0]['message'].get('reasoning',"")
         if open_tag in content and close_tag in content:
             reasoning_content = re.search(fr'{open_tag}(.*?)\{close_tag}', content, re.DOTALL)
             if reasoning_content:
@@ -2915,8 +3019,6 @@ async def generate_complete_response(client,reasoner_client, request: ChatReques
                 response_dict["choices"][0]['message']['reasoning_content'] = reasoning_content.group(1).strip()
                 # 移除原内容中的标签部分
                 response_dict["choices"][0]['message']['content'] = re.sub(fr'{open_tag}(.*?)\{close_tag}', '', content, flags=re.DOTALL).strip()
-        if settings['reasoner']['enabled'] or enable_thinking:
-            response_dict["choices"][0]['message']['reasoning_content'] = reasoner_response.model_dump()['choices'][0]['message']['reasoning_content']
         if m0:
             messages=[
                 {
@@ -3893,6 +3995,87 @@ async def text_to_speech(request: Request):
                     "X-Audio-Index": str(index)
                 }
             )
+        elif tts_engine == 'openai':
+            # 从设置获取OpenAI TTS参数
+            openai_config = {
+                'api_key': tts_settings.get('api_key', ''),
+                'model': tts_settings.get('model', 'tts-1'),
+                'voice': tts_settings.get('openaiVoice', 'alloy'),
+                'speed': tts_settings.get('openaiSpeed', 1.0),
+                'base_url': tts_settings.get('base_url', 'https://api.openai.com/v1'),
+                'prompt_text': tts_settings.get('gsvPromptText', ''),
+                'ref_audio': tts_settings.get('gsvRefAudioPath', '')
+            }
+            
+            # 验证API密钥
+            if not openai_config['api_key']:
+                raise HTTPException(status_code=400, detail="OpenAI API密钥未配置")
+            
+            print(f"Using OpenAI TTS with model: {openai_config['model']}, voice: {openai_config['voice']}")
+            
+            # 速度限制在0.25到4.0之间
+            speed = max(0.25, min(4.0, float(openai_config['speed'])))
+
+            async def generate_audio():
+                try:
+                    # 使用异步OpenAI客户端
+                    client = AsyncOpenAI(
+                        api_key=openai_config['api_key'],
+                        base_url=openai_config['base_url']
+                    )
+                    if openai_config['ref_audio']:
+                        # Option 1: Use a local audio file (convert to base64 data URI)
+                        audio_file_path = os.path.join(UPLOAD_FILES_DIR, openai_config['ref_audio'])  # Change this to your local file path
+                        
+                        # Read the audio file and encode as base64
+                        with open(audio_file_path, "rb") as audio_file:
+                            audio_data = audio_file.read()
+                        
+                        # Get the file extension/type (e.g., 'mp3', 'wav')
+                        audio_type = Path(audio_file_path).suffix[1:]  # removes the dot
+                        
+                        # Create proper data URI format
+                        audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                        audio_uri = f"data:audio/{audio_type};base64,{audio_base64}"
+                        # 创建语音请求
+                        response = await client.audio.speech.create(
+                            model=openai_config['model'],
+                            voice=None,
+                            input=text,
+                            speed=speed,
+                            extra_body={
+                                "references":[{"text": openai_config['prompt_text'], "audio": audio_uri}]
+                            } 
+                        )
+                    else:
+                        # 创建语音请求
+                        response = await client.audio.speech.create(
+                            model=openai_config['model'],
+                            voice=openai_config['voice'],
+                            input=text,
+                            speed=speed
+                        )
+                    
+                    # 获取整个响应内容并分块返回
+                    content = await response.aread()
+                    chunk_size = 4096  # 4KB chunks
+                    for i in range(0, len(content), chunk_size):
+                        yield content[i:i + chunk_size]
+                        await asyncio.sleep(0)  # Allow other tasks to run
+                        
+                except Exception as e:
+                    print(f"OpenAI TTS error: {str(e)}")
+                    raise HTTPException(status_code=500, detail=f"OpenAI TTS错误: {str(e)}")
+            
+            # 返回流式响应
+            return StreamingResponse(
+                generate_audio(),
+                media_type="audio/mpeg",
+                headers={
+                    "Content-Disposition": f"inline; filename=tts_{index}.mp3",
+                    "X-Audio-Index": str(index)
+                }
+            )
         
         raise HTTPException(status_code=400, detail="不支持的TTS引擎")
     
@@ -4017,6 +4200,129 @@ async def initialize_a2a(request: Request):
             "enabled": True
         })
     except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+@app.post("/start_HA")
+async def start_HA(request: Request):
+    data = await request.json()
+    API_TOKEN = data['data']['api_key']
+    ha_config = {
+        "type": "sse",
+        "url": data['data']['url'].rstrip('/') + "/mcp_server/sse",
+        "headers": {"Authorization": f"Bearer {API_TOKEN}"}
+    }
+
+    global HA_client
+    if HA_client is not None:
+        # 已初始化过
+        return JSONResponse({"status": "ready", "enabled": True})
+
+    # 用来通知“连接失败”的事件
+    conn_failed_event = asyncio.Event()
+    failure_reason = None
+
+    async def on_failure(error_message: str):
+        nonlocal failure_reason
+        failure_reason = error_message
+        conn_failed_event.set()
+
+    try:
+        HA_client = McpClient()
+        await HA_client.initialize("HA", ha_config, on_failure_callback=on_failure)
+
+        # 等一小段时间验证连接确实活了
+        try:
+            # 5 秒内如果事件被 set，说明连接失败
+            await asyncio.wait_for(conn_failed_event.wait(), timeout=5.0)
+            # 走到这里说明失败了
+            raise RuntimeError(f"HA client connection failed: {failure_reason}")
+        except asyncio.TimeoutError:
+            # 2 秒无事发生，认为连接成功
+            pass
+
+        return JSONResponse({"status": "ready", "enabled": True})
+
+    except Exception as e:
+        HA_client = None
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    
+@app.get("/stop_HA")
+async def stop_HA():
+    global HA_client
+    try:
+        if HA_client is not None:
+            await HA_client.close()
+            HA_client = None
+            print(f"HA client stopped")
+        return JSONResponse({
+            "status": "stopped",
+            "enabled": False
+        })
+    except Exception as e:
+        HA_client = None
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+@app.post("/start_ChromeMCP")
+async def start_ChromeMCP(request: Request):
+    data = await request.json()
+    ha_config = {
+        "type": "streamablehttp",
+        "url": data['data']['url']
+    }
+
+    global ChromeMCP_client
+    if ChromeMCP_client is not None:
+        # 已初始化过
+        return JSONResponse({"status": "ready", "enabled": True})
+
+    # 用来通知“连接失败”的事件
+    conn_failed_event = asyncio.Event()
+    failure_reason = None
+
+    async def on_failure(error_message: str):
+        nonlocal failure_reason
+        failure_reason = error_message
+        conn_failed_event.set()
+
+    try:
+        ChromeMCP_client = McpClient()
+        await ChromeMCP_client.initialize("ChromeMCP", ha_config, on_failure_callback=on_failure)
+
+        # 等一小段时间验证连接确实活了
+        try:
+            # 5 秒内如果事件被 set，说明连接失败
+            await asyncio.wait_for(conn_failed_event.wait(), timeout=5.0)
+            # 走到这里说明失败了
+            raise RuntimeError(f"ChromeMCP client connection failed: {failure_reason}")
+        except asyncio.TimeoutError:
+            # 2 秒无事发生，认为连接成功
+            pass
+
+        return JSONResponse({"status": "ready", "enabled": True})
+    except Exception as e:
+        ChromeMCP_client = None
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/stop_ChromeMCP")
+async def stop_ChromeMCP():
+    global ChromeMCP_client
+    try:
+        if ChromeMCP_client is not None:
+            await ChromeMCP_client.close()
+            ChromeMCP_client = None
+            print(f"ChromeMCP client stopped")
+        return JSONResponse({
+            "status": "stopped",
+            "enabled": False
+        })
+    except Exception as e:
+        ChromeMCP_client = None
         return JSONResponse(
             status_code=500,
             content={"error": str(e)}
@@ -4341,6 +4647,19 @@ async def delete_vrm_model(filename: str):
             status_code=500,
             content={"success": False, "message": f"删除失败: {str(e)}"}
         )
+
+@app.get("/api/animation-files", response_model=list[str])
+async def get_animation_files():
+    animation_dir =  os.path.join(DEFAULT_VRM_DIR, "animations")
+    try:
+        files = []
+        if os.path.exists(animation_dir):
+            for file in os.listdir(animation_dir):
+                if file.endswith('.vrma'):
+                    files.append(file)
+        return files
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error retrieving animation files")
 
 @app.get("/update_storage")
 async def update_storage_endpoint(request: Request):
@@ -5194,6 +5513,24 @@ async def get_userfile():
         return {"message": "Userfile loaded successfully", "userfile": userfile, "success": True}
     except Exception as e:
         return {"message": str(e), "success": False}
+
+def get_internal_ip():
+    """获取本机内网 IP 地址"""
+    try:
+        # 创建一个 socket 连接，目标可以是任何公网地址（不真连接），只是用来获取出口 IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0)
+        s.connect(("8.8.8.8", 80))  # 使用 Google DNS，不实际发送数据
+        internal_ip = s.getsockname()[0]
+        s.close()
+        return internal_ip
+    except Exception:
+        return "127.0.0.1"
+
+@app.get("/api/ip")
+def get_ip():
+    ip = get_internal_ip()
+    return {"ip": ip}
 
 
 settings_lock = asyncio.Lock()

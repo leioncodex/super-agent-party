@@ -39,12 +39,18 @@ class ConnectionManager:
                 read, write = await stack.enter_async_context(stdio_client(server_params))
             else:
                 mcptype = config.get("type", "ws")
+                if "streamable" in mcptype:
+                    mcptype = "streamablehttp"
                 client_map = {
                     "ws": websocket_client,
                     "sse": sse_client,
                     "streamablehttp": streamablehttp_client,
                 }
-                client = client_map[mcptype](config["url"])
+                headers = config.get("headers", {})
+                if headers:
+                    client = client_map[mcptype](config["url"], headers=headers)
+                else:
+                    client = client_map[mcptype](config["url"])
                 transport = await stack.enter_async_context(client)
                 if mcptype == "streamablehttp":
                     read, write, _ = transport
@@ -69,6 +75,7 @@ class McpClient:
         self._monitor_task: Optional[asyncio.Task] = None
         self._shutdown = False
         self._on_failure_callback: Optional[callable] = None  # 新增：失败回调
+        self._tools: list[str] = []
 
     async def initialize(self, server_name: str, server_config: dict, on_failure_callback: Optional[callable] = None) -> None:
         """非阻塞初始化：拉起连接监控协程"""
@@ -116,6 +123,7 @@ class McpClient:
             if not self._conn or not self._conn.session:
                 return []
             tools = (await self._conn.session.list_tools()).tools
+            self._tools = [t.name for t in tools]
             return [
                 {
                     "type": "function",
