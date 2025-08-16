@@ -215,10 +215,3 @@
 2. 微信群：`we_glm`（添加小助手微信后进群）
 
 3. discord:[discord链接](https://discord.gg/f2dsAKKr2V)
-
-### 捐赠支持
-如果我的工作给您带来了价值，请考虑请我喝一杯咖啡吧！您的支持不仅为项目注入活力，也温暖了创作者的心。☕💖 每一杯都有意义！
-<div style="display:flex; justify-content:space-between;">
-    <img src="doc/image/zhifubao.jpg" style="width: 48%;" />
-    <img src="doc/image/wechat.jpg" style="width: 48%;" />
-</div>
