@@ -215,10 +215,3 @@ If you have any questions or issues with the project, you are welcome to join ou
 2. WeChat Group: `we_glm` (add the assistant's WeChat and join the group)
 
 3. Discord: [Discord link](https://discord.gg/f2dsAKKr2V)
-
-### Donate
-If my work has brought value to you, please consider buying me a cup of coffee! Your support not only injects vitality into the project but also warms the creator's heart. ☕💖 Every cup counts!
-<div style="display:flex; justify-content:space-between;">
-    <img src="doc/image/zhifubao.jpg" style="width: 48%;" />
-    <img src="doc/image/wechat.jpg" style="width: 48%;" />
-</div>
