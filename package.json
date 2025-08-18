@@ -125,6 +125,7 @@
     "nsis": {
       "oneClick": false,
       "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
       "artifactName": "${productName}-Setup-${version}.${ext}",
       "uninstallDisplayName": "${productName}",
       "createDesktopShortcut": true

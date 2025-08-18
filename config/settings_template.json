@@ -11,6 +11,7 @@
     "max_rounds": 0,
     "selectedProvider": null,
     "top_p": 1,
+    "reasoning_effort": null,
     "extra_params":[],
     "systemSettings": {
       "language": "zh-CN",
@@ -69,7 +70,8 @@
       "base_url": "",
       "api_key": "",
       "selectedProvider": null,
-      "temperature": 0.7
+      "temperature": 0.7,
+      "reasoning_effort": null
     },
     "vision": {
       "enabled": false,
@@ -130,6 +132,15 @@
       "e2b_api_key": "",
       "sandbox_url":"http://127.0.0.1:8080"
     },
+    "HASettings": {
+      "enabled": false,
+      "api_key": "",
+      "url": "http://127.0.0.1:8123"
+    },
+    "chromeMCPSettings": {
+      "enabled": false,
+      "url": "http://127.0.0.1:12306/mcp"
+    },
     "custom_http":[],
     "qqBotConfig": {
       "QQAgent":"super-model",
@@ -186,7 +197,14 @@
       "gsvPromptLang": "zh",
       "gsvPromptText": "",
       "gsvRefAudioPath": "",
-      "gsvAudioOptions": []
+      "gsvAudioOptions": [],
+      "selectedProvider": null,
+      "vendor": "OpenAI",
+      "model": "",
+      "base_url": "",
+      "api_key": "",
+      "openaiVoice":"alloy",
+      "openaiSpeed": 1.0
     },
     "liveConfig": {
       "onlyDanmaku": true,
