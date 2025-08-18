@@ -1,5 +1,3 @@
-# mcp_client_fixed.py
-import json
 import asyncio
 import logging
 import shutil
@@ -19,6 +17,10 @@ def get_command_path(command_name: str, default_command: str = "uv") -> str:
     if not path:
         raise FileNotFoundError(f"未找到 {command_name} 或 {default_command}")
     return path
+from typing import Any, Dict, Optional
+
+from camel.utils.mcp_client import MCPClient
+
 
 # ---------- 连接管理 ----------
 class ConnectionManager:
@@ -40,12 +42,18 @@ class ConnectionManager:
                 read, write = await stack.enter_async_context(stdio_client(server_params))
             else:
                 mcptype = config.get("type", "ws")
+                if "streamable" in mcptype:
+                    mcptype = "streamablehttp"
                 client_map = {
                     "ws": websocket_client,
                     "sse": sse_client,
                     "streamablehttp": streamablehttp_client,
                 }
-                client = client_map[mcptype](config["url"])
+                headers = config.get("headers", {})
+                if headers:
+                    client = client_map[mcptype](config["url"], headers=headers)
+                else:
+                    client = client_map[mcptype](config["url"])
                 transport = await stack.enter_async_context(client)
                 if mcptype == "streamablehttp":
                     read, write, _ = transport
@@ -64,9 +72,19 @@ class ConnectionManager:
 # ---------- 客户端 ----------
 class McpClient:
     def __init__(self) -> None:
-        self._conn: Optional[ConnectionManager] = None
+        self._client: Optional[MCPClient] = None
         self._config: Optional[dict] = None
         self._lock = asyncio.Lock()
+        self._on_failure_callback: Optional[callable] = None
+        self.disabled: bool = False
+
+    async def initialize(
+        self,
+        server_name: str,
+        server_config: dict,
+        on_failure_callback: Optional[callable] = None,
+    ) -> None:
+        """Initialize connection to an MCP server using CAMEL's MCPClient."""
         self._monitor_task: Optional[asyncio.Task] = None
         self._shutdown = False
         self._on_failure_callback: Optional[callable] = None  # 失败回调
@@ -135,11 +153,44 @@ class McpClient:
                 await asyncio.sleep(delay)
 
     # ---------- 外部 API ----------
+        self._on_failure_callback: Optional[callable] = None  # 新增：失败回调
+        self._tools: list[str] = []
+
+    async def initialize(self, server_name: str, server_config: dict, on_failure_callback: Optional[callable] = None) -> None:
+        """非阻塞初始化：拉起连接监控协程"""
+        self._config = server_config
+        self._on_failure_callback = on_failure_callback
+        try:
+            client = MCPClient(server_config)
+            await client.__aenter__()
+            async with self._lock:
+                self._client = client
+            logging.info(
+                "Connected to MCP server. Tools: %s",
+                [t.name for t in client.get_tools()],
+            )
+        except Exception as e:  # pragma: no cover - network errors
+            logging.exception("Connection failed: %s", e)
+            if self._on_failure_callback:
+                await self._on_failure_callback(str(e))
+
+    async def close(self) -> None:
+        async with self._lock:
+            if self._client:
+                await self._client.__aexit__(None, None, None)
+                self._client = None
+
+    def is_connected(self) -> bool:
+        return self._client is not None and self._client.is_connected()
+
     async def get_openai_functions(self):
         async with self._lock:
-            if not self._conn or not self._conn.session:
+            if not self.is_connected():
                 return []
+            return [tool.openai_tool_schema for tool in self._client.get_tools()]
+
             tools = (await self._conn.session.list_tools()).tools
+            self._tools = [t.name for t in tools]
             return [
                 {
                     "type": "function",
@@ -154,15 +205,13 @@ class McpClient:
 
     async def call_tool(self, tool_name: str, tool_params: Dict[str, Any]) -> Any:
         async with self._lock:
-            if not self._conn or not self._conn.session:
+            if not self.is_connected():
                 return None
-            return await self._conn.session.call_tool(tool_name, tool_params)
+            return await self._client.call_tool(tool_name, tool_params)
 
 
-# ---------- 使用示例 ----------
 if __name__ == "__main__":
-    import logging
-    logging.basicConfig(level=logging.INFO)
+    import asyncio
 
     async def main():
         client = McpClient()
@@ -173,10 +222,8 @@ if __name__ == "__main__":
                 "url": "http://127.0.0.1:8000/mcp",
             },
         )
-        await asyncio.sleep(2)
         funcs = await client.get_openai_functions()
         print("OpenAI functions:", funcs)
-        await asyncio.sleep(30)  # 保持连接
         await client.close()
 
     asyncio.run(main())
