@@ -2735,7 +2735,8 @@ let vue_methods = {
         type: 'save_agent',
         data: {
           name: this.newAgent.name,
-          system_prompt: this.newAgent.system_prompt
+          system_prompt: this.newAgent.system_prompt,
+          tools: this.newAgent.tools
         }
       };
       this.ws.send(JSON.stringify(payload));
@@ -2743,7 +2744,11 @@ let vue_methods = {
       this.newAgent = {
         id: '',
         name: '',
-        system_prompt: ''
+        system_prompt: '',
+        tools: {
+          shell: false,
+          'web-fetch': false
+        }
       };
     },
     copyAgentId(id) {

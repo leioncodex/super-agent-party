@@ -4698,6 +4698,13 @@ if ('serviceWorker' in navigator) {
                                 <div class="knowledge-name">{{ t('deepResearch') }}</div>
                               </div>
                             </div>
+                            <div class="knowledge-item" v-for="tool in availableTools" :key="tool.name">
+                              <el-switch v-model="newAgent.tools[tool.name]"></el-switch>
+                              <div class="knowledge-info">
+                                <div class="knowledge-name">{{ tool.name }}</div>
+                                <div class="knowledge-desc">{{ tool.description }}</div>
+                              </div>
+                            </div>
                           </div>
                         </el-tab-pane>
                       </el-tabs>

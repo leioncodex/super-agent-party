@@ -20,6 +20,15 @@ const isElectron = typeof require !== 'undefined' || navigator.userAgent.include
 document.body.classList.add(isElectron ? 'electron' : 'web');
 
 // 优化渲染器设置
+const canvas = document.getElementById('vrm-canvas');
+const renderer = new THREE.WebGPURenderer({
+    canvas: canvas || undefined,
+    alpha: true,
+    premultipliedAlpha: true,
+    antialias: true,  // 添加抗锯齿
+    powerPreference: "high-performance",  // 使用高性能GPU
+    forceWebGL: false  // 确保使用WebGPU
+});
 const renderer = new THREE.WebGLRenderer();
 // 添加性能优化设置
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -110,11 +119,25 @@ console.log(vrmPath);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-document.body.appendChild( renderer.domElement );
+// 如果没有提供 canvas，自动添加
+if (!canvas) {
+    document.body.appendChild(renderer.domElement);
+}
+
+const initialWidth = canvas ? canvas.clientWidth : window.innerWidth;
+const initialHeight = canvas ? canvas.clientHeight : window.innerHeight;
 
 // camera
-const camera = new THREE.PerspectiveCamera( 30.0, window.innerWidth / window.innerHeight, 0.1, 20.0 );
-camera.position.set( 0.0, 1.0, 5.0 );
+const camera = new THREE.PerspectiveCamera(30.0, initialWidth / initialHeight, 0.1, 20.0);
+camera.position.set(0.0, 1.0, 5.0);
+renderer.setSize(initialWidth, initialHeight);
+window.addEventListener('resize', () => {
+    const width = canvas ? canvas.clientWidth : window.innerWidth;
+    const height = canvas ? canvas.clientHeight : window.innerHeight;
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+});
 
 // camera controls
 const controls = new OrbitControls( camera, renderer.domElement );
